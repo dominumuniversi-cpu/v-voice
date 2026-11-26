@@ -49,7 +49,10 @@ class ApiClient {
     final (code, body) = await transport.get('/api/v1/sessions/' + sessionId + '/digest');
     if (code != 200) return null;
     final data = _safeDecode(body);
-    if (data.isEmpty) return null;
+    if (data.isEmpty) {
+      lastDigestProblem = 'Сервер прислал пустой ответ.';
+      return null;
+    }
     return Digest.fromJson(data);
   }
 

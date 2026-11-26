@@ -93,4 +93,30 @@ void main() {
       expect(t.calls.single, 'GET /api/v1/sessions/abc/digest');
     });
   });
+  group('разбор: причина вместо молчания', () {
+    const path = '/api/v1/sessions/abc/digest';
+
+    test('404 от сервера даёт причину, а не пустоту', () async {
+      final api = ApiClient(transport: FakeTransport({
+        path: (404, '{"error":"digest_not_found","message":"Разбор этой записи ещё не готов."}'),
+      }));
+      expect(await api.fetchDigest('abc'), isNull);
+      expect(api.lastDigestProblem, contains('ещё не готов'));
+    });
+
+    test('ответ без текста причины не остаётся пустым', () async {
+      final api = ApiClient(transport: FakeTransport({path: (500, '')}));
+      expect(await api.fetchDigest('abc'), isNull);
+      expect(api.lastDigestProblem, contains('500'));
+    });
+
+    test('успех не оставляет ложной причины', () async {
+      final api = ApiClient(transport: FakeTransport({
+        path: (200, '{"summary":"итог","items":[]}'),
+      }));
+      await api.fetchDigest('abc');
+      expect(api.lastDigestProblem, isEmpty);
+    });
+  });
+
 }
