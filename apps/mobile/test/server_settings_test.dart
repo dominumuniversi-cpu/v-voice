@@ -43,4 +43,17 @@ void main() {
       expect(ServerSettings.presets.first.startsWith('https://'), isTrue);
     });
   });
+
+  test('внешний http-адрес предупреждает о шифровании', () {
+    expect(ServerSettings.insecureNote('http://192.168.8.49/vvoice'), isNotNull);
+  });
+
+  test('https не пугает зря', () {
+    expect(ServerSettings.insecureNote('https://v-voice.example.ru'), isNull);
+  });
+
+  test('свой компьютер по http — нормально', () {
+    expect(ServerSettings.insecureNote('http://127.0.0.1:8900'), isNull);
+    expect(ServerSettings.insecureNote('http://localhost:8900'), isNull);
+  });
 }

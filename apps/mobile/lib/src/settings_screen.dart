@@ -98,7 +98,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() {
       serverProblem = problem;
-      savedNote = problem == null ? 'Адрес сохранён.' : null;
+      final note = problem == null ? ServerSettings.insecureNote(server.text) : null;
+      savedNote = problem == null ? (note ?? 'Адрес сохранён.') : null;
       if (problem == null) {
         // Нормализуем и показываем то, что реально уйдёт в запросы
         server.text = ServerSettings.normalize(server.text);

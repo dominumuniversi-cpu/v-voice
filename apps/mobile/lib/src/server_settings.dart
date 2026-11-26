@@ -31,6 +31,17 @@ class ServerSettings {
     return null;
   }
 
+  /// Не ошибка, а предупреждение: по HTTP разговор идёт открытым текстом, и всё сказанное
+  /// в кафе или офисе может читать посторонний. Запрещать не надо — на своей машине http://localhost
+  /// законен и удобен. Но и молчать нельзя: человек иначе не узнает, чем платит за простоту.
+  static String? insecureNote(String raw) {
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null || uri.scheme != 'http') return null;
+    final local = uri.host == 'localhost' || uri.host == '127.0.0.1' || uri.host == '10.0.2.2';
+    if (local) return null;
+    return 'Адрес без шифрования: звук и расшифровка идут открытым текстом. Для своего компьютера это нормально, для общего Wi-Fi — нет.';
+  }
+
   /// Нормализованный адрес без завершающего слэша — для склейки с путями API.
   static String normalize(String raw) {
     var text = raw.trim();
