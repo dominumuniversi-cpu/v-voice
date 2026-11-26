@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'consent_model.dart';
+import 'consent_store.dart';
 import 'providers_model.dart';
 import 'server_settings.dart';
 import 'server_store.dart';
@@ -16,7 +18,7 @@ import 'theme.dart';
 ///  - «Проверить» сначала прогоняет простые правила на телефоне (пустой ключ, пробел, обрезок)
 ///    и только потом идёт в сеть — так человек получает ответ мгновенно, без ожидания.
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.api, this.initialServerUrl = '', this.store});
+  const SettingsScreen({super.key, this.api, this.initialServerUrl = '', this.store, this.consentStore});
 
   /// Хранилище адреса. Если null — адрес живёт только до закрытия экрана.
   final ServerStore? store;
@@ -24,6 +26,9 @@ class SettingsScreen extends StatefulWidget {
   /// Клиент сервера. Если null — проверка ключа недоступна (экран работает автономно).
   final ApiClient? api;
   final String initialServerUrl;
+
+  /// Хранилище согласия. null — отзыв не сохранится между запусками (экран в тестах).
+  final ConsentStore? consentStore;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -290,8 +295,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
           ...list.map(_providerCard),
+          const SizedBox(height: 28),
+          const Text('Согласие', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          const Text(
+            'Запись возможна только после вашего согласия. Отзыв не стирает расшифровки на сервере, '
+            'но новая запись не начнётся, пока вы снова не согласитесь.',
+            style: TextStyle(color: VVTheme.inkMuted, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => _revokeConsent(context),
+            child: const Text('Отозвать согласие'),
+          ),
         ],
       ),
+    );
+  }
+
+  /// Отзыв согласия: запись перестаёт начинаться, пока человек не согласится снова.
+  Future<void> _revokeConsent(BuildContext context) async {
+    final store = widget.consentStore;
+    // Принятой версии нет — значит согласия нет. Пустая версия заодно просит согласие заново,
+    // даже если текст когда-нибудь сменится.
+    if (store != null) await store.save(ConsentModel(version: '', terms: const []));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Согласие отозвано: новая запись попросит его заново.')),
     );
   }
 

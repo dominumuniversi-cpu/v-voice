@@ -354,6 +354,8 @@ class _ListenScreenState extends State<ListenScreen> {
                           api: scope.config.api,
                           initialServerUrl: scope.serverUrl,
                           store: PrefsServerStore(),
+                          // Без хранилища отзыв согласия жил бы до закрытия экрана — то есть не жил.
+                          consentStore: consentStore,
                         ),
                       ),
                     ),
