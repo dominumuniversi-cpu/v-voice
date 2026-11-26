@@ -529,6 +529,31 @@ _empty = _handle("POST", "/api/v1/sessions/" + _sid + "/analyze")
 check("analyze_route_accepts_empty_body", _empty.status in (503, 502, 404), _empty.status)
 _not_allowed = _handle("GET", "/api/v1/sessions/" + _sid + "/analyze")
 check("analyze_route_get_forbidden", _not_allowed.status == 405)
+# Живой поток: состояние по сессии, вытеснение старых, честные отказы.
+from vvoice.live_sessions import LiveSessions as _LS, push_chunk as _push
+from vvoice.providers.fake_asr import FakeAsr as _FakeAsr
+
+_ls = _LS(limit=3)
+_code, _body = _push(_ls, 'aaaa1111bbbb2222', b'\x00' * 3200, provider_factory=lambda sid: _FakeAsr())
+check("live_accepts_chunk", _code == 200 and "text" in _body, _code)
+check("live_state_kept", _ls.size() == 1)
+_code2, _ = _push(_ls, "../bad", b"\x00" * 10, provider_factory=lambda sid: _FakeAsr())
+check("live_rejects_bad_id", _code2 == 400)
+_code3, _ = _push(_ls, "aaaa1111bbbb2222", b"", provider_factory=lambda sid: _FakeAsr())
+check("live_rejects_empty_chunk", _code3 == 400)
+for _i in range(5):
+    _push(_ls, 'sess' + str(_i) + '0000aaaa', b'\x00' * 100, provider_factory=lambda sid: _FakeAsr())
+check("live_evicts_old", _ls.size() == 3, _ls.size())
+_ls.drop('sess40000aaaa')
+check("live_drop_frees", _ls.size() == 2)
+def _broken(sid):
+    raise RuntimeError('провайдер недоступен')
+_code4, _body4 = _push(_ls, "aaaa1111bbbb2222", b"\x00" * 100, provider_factory=_broken)
+check("live_failure_keeps_text", _code4 == 502 and "text" in _body4)
+_no = _handle("POST", "/api/v1/sessions/aaaa1111bbbb2222/stream", '{"pcm_base64":"AAAA"}')
+check("live_route_needs_recognizer", _no.status == 503)
+_bad = _handle("GET", "/api/v1/sessions/aaaa1111bbbb2222/stream")
+check("live_route_get_forbidden", _bad.status == 405)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

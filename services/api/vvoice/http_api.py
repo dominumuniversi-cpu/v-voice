@@ -13,6 +13,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 from dataclasses import dataclass, field
 from typing import Any
@@ -21,6 +23,7 @@ from .evidence import validate_item
 from .sessions import create_session, is_session_id
 from .digest_store import DigestStore
 from .job import analyze
+from .live_sessions import LiveSessions, push_chunk
 from .storage import AudioStore
 from .provider_probe import presets
 
@@ -48,12 +51,15 @@ ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/sessions/{session_id}/digest": ("GET",),
     # Запуск разбора сохранённой записи. Отдельный путь, потому что действие меняет состояние.
     "/api/v1/sessions/{session_id}/analyze": ("POST",),
+    # Кусок звука для живого текста. Отдельный путь: ответ содержит только текст, без разбора.
+    "/api/v1/sessions/{session_id}/stream": ("POST",),
 }
 
 # Шаблонные пути: клиент обращается к /api/v1/sessions/<id>/digest, поэтому точного совпадения мало.
 _TEMPLATED: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/digest$"), "/api/v1/sessions/{session_id}/digest"),
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/analyze$"), "/api/v1/sessions/{session_id}/analyze"),
+    (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/stream$"), "/api/v1/sessions/{session_id}/stream"),
 ]
 
 
@@ -76,7 +82,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            store: "AudioStore | None" = None,
            digests: "DigestStore | None" = None,
            recognizer: Any = None,
-           call_llm: Any = None) -> Response:
+           call_llm: Any = None,
+           live_sessions: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -148,6 +155,23 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         outcome = analyze(param, store=store, digests=digests,
                           provider_factory=recognizer, call_llm=call_llm)
         return Response(outcome.status, outcome.body)
+
+    if template == "/api/v1/sessions/{session_id}/stream":
+        if recognizer is None:
+            return Response(503, {"error": "pipeline_unavailable",
+                                  "message": "Сервер не настроен распознавать на лету."})
+        encoded = payload.get("pcm_base64")
+        if not isinstance(encoded, str) or not encoded.strip():
+            return _bad_request("Нужен pcm_base64: кусок звука в base64")
+        try:
+            pcm = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError):
+            return _bad_request("pcm_base64 не является корректным base64")
+        if live_sessions is None:
+            return Response(503, {"error": "pipeline_unavailable",
+                                  "message": "Сервер не хранит состояние живого потока."})
+        code, body = push_chunk(live_sessions, param, pcm, provider_factory=recognizer)
+        return Response(code, body)
 
     if path == "/api/v1/items/validate":
         item = payload.get("item")
