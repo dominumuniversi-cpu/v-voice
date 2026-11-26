@@ -230,6 +230,64 @@ check("first_text_fast_network", fast < 900, str(fast))
 check("first_text_slow_network_slower", slow > fast, str((fast, slow)))
 check("first_text_below_one_second_good_network", estimate_first_text_ms(80) <= 1000, str(estimate_first_text_ms(80)))
 
+
+# ---------- LLM-адаптер: четыре провайдера, один вызов ----------
+from vvoice.providers.llm import (  # noqa: E402
+    build_request, extract_text, make_caller, parse_json_answer,
+)
+
+ds = build_request("deepseek", "", "sys", "usr", "k")
+check("deepseek_url", ds.url.endswith("/chat/completions"))
+check("deepseek_system_message", ds.body["messages"][0]["role"] == "system")
+check("deepseek_json_mode", ds.body["response_format"]["type"] == "json_object")
+check("deepseek_default_model", ds.body["model"] == "deepseek-chat")
+an = build_request("anthropic", "", "sys", "usr", "k")
+check("anthropic_system_top_level", an.body["system"] == "sys" and len(an.body["messages"]) == 1)
+check("anthropic_version_header", an.headers.get("anthropic-version") == "2023-06-01")
+check("anthropic_key_header", an.headers.get("x-api-key") == "k")
+ol = build_request("ollama", "", "sys", "usr", "")
+check("ollama_no_key", "Authorization" not in ol.headers)
+check("ollama_json_format", ol.body["format"] == "json")
+check("ollama_local_url", "127.0.0.1" in ol.url)
+try:
+    build_request("openai", "m", "s", "u", "k")
+    check("unknown_llm_rejected", False)
+except ValueError:
+    check("unknown_llm_rejected", True)
+
+check("extract_openai_style", extract_text("deepseek", {"choices": [{"message": {"content": "{}"}}]}) == "{}")
+check("extract_anthropic_blocks", extract_text("anthropic", {"content": [{"type": "text", "text": "{}"}]}) == "{}")
+check("extract_ollama", extract_text("ollama", {"message": {"content": "{}"}}) == "{}")
+try:
+    extract_text("deepseek", {"error": {"message": "quota exceeded"}})
+    check("llm_error_raises", False)
+except ConnectionError as exc:
+    check("llm_error_raises", "quota" in str(exc), str(exc))
+
+check("json_plain", parse_json_answer('{"a": 1}') == {"a": 1})
+check("json_wrapped_in_text", parse_json_answer('Вот ответ: {"a": 2} Спасибо') == {"a": 2})
+try:
+    parse_json_answer("никакого json тут нет")
+    check("json_missing_raises", False)
+except ValueError:
+    check("json_missing_raises", True)
+try:
+    parse_json_answer('[1, 2]')
+    check("json_array_rejected", False)
+except ValueError:
+    check("json_array_rejected", True)
+
+calls = []
+def fake_send(req):
+    calls.append(req)
+    return {"choices": [{"message": {"content": '{"summary": ["ок"], "items": []}'}}]}
+
+call = make_caller("deepseek", "deepseek-chat", "k", fake_send)
+answer = call("система", "пользователь")
+check("caller_returns_dict", answer["summary"] == ["ок"])
+check("caller_sent_once", len(calls) == 1)
+check("caller_model_passed", calls[0]["body"]["model"] == "deepseek-chat")
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
