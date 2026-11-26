@@ -524,6 +524,11 @@ _r4 = _analyze(_sid, store=_store, digests=_dig3, provider_factory=_boom, call_l
 check("analyze_failure_reported", _r4.status == 502 and _r4.body.get("error") == "digest_failed")
 _ready = _handle("POST", "/api/v1/sessions/" + _sid + "/analyze", store=_store, digests=_dig2)
 check("analyze_route_needs_pipeline", _ready.status == 503 and _ready.body.get("error") == "pipeline_unavailable")
+# Маршрут analyze должен принимать POST без тела: клиент шлёт пустой запрос, и это нормально.
+_empty = _handle("POST", "/api/v1/sessions/" + _sid + "/analyze")
+check("analyze_route_accepts_empty_body", _empty.status in (503, 502, 404), _empty.status)
+_not_allowed = _handle("GET", "/api/v1/sessions/" + _sid + "/analyze")
+check("analyze_route_get_forbidden", _not_allowed.status == 405)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
