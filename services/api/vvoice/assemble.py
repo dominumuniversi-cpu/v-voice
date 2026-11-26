@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from .hallucination import is_hallucination
+
 from dataclasses import dataclass, field
 from typing import Iterable
 
@@ -37,6 +39,9 @@ class Transcript:
     utterances: list[Utterance] = field(default_factory=list)
     dropped_noise: int = 0
     dropped_short: int = 0
+    # Строки, которые придумало распознавание (в тишине и шуме). Считаем отдельно от шума:
+    # это не звуки комнаты, а выдуманные слова, и человеку полезно знать их число.
+    dropped_invented: int = 0
 
     @property
     def text(self) -> str:
@@ -65,6 +70,9 @@ def assemble(segments: Iterable[Segment], *, merge_gap_s: float = MERGE_GAP_SEC)
             continue
         if not _is_meaningful(seg):
             result.dropped_short += 1
+            continue
+        if is_hallucination(seg.text):
+            result.dropped_invented += 1
             continue
 
         speaker = seg.speaker or "Голос 1"

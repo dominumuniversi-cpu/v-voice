@@ -97,6 +97,7 @@ check("describe_mentions_keys", "SPEECHMATICS_API_KEY" in describe())
 
 
 # ---------- выгрузка во внешние продукты (задачник/CRM) ----------
+from vvoice.hallucination import is_hallucination  # noqa: E402
 from vvoice.exporters import ApprovedItem, build_plan, export_all, to_payload  # noqa: E402
 
 ITEM = ApprovedItem(
@@ -925,6 +926,16 @@ check("quote_ignores_punctuation", quote_is_present('да, согласен бю
 check("quote_ignores_quotes", quote_is_present('сказал \"завтра\"', 'он сказал завтра всем'))
 check("quote_still_needs_words", not quote_is_present('бюджет до среды', 'Анна: да согласен бюджет до пятницы'))
 check("quote_needs_words_in_order", not quote_is_present('пятницы до бюджет', 'Анна: да согласен бюджет до пятницы'))
+# Распознавание выдумывает в тишине. Отрезать живую речь — хуже, чем оставить лишнюю строку,
+# поэтому короткий список и правило «только короткая фраза целиком».
+check("invented_phrase_dropped", is_hallucination('Спасибо за просмотр!'))
+check("invented_credits_dropped", is_hallucination('Субтитры сделал DimaTorzok'))
+check("invented_phrase_any_case", is_hallucination('  ПРОДОЛЖЕНИЕ СЛЕДУЕТ. '))
+check("real_thanks_kept", not is_hallucination('Спасибо, Анна, посмотрю смету завтра'))
+check("real_long_speech_kept", not is_hallucination('Спасибо за внимание, коллеги, перейдём к бюджету на следующий квартал'))
+check("plain_speech_kept", not is_hallucination('обсудим сроки по договору'))
+_pipeline_src = (Path(__file__).resolve().parents[2] / "services" / "api" / "vvoice" / "pipeline.py").read_text(encoding="utf-8")
+check("invented_count_reaches_result", "dropped_invented" in _pipeline_src)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

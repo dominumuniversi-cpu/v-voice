@@ -65,6 +65,8 @@ def run_session(
         "dropped_by_vad": dropped_frames,
         "sent_chunks": len(sent),
         "dropped_short": transcript.dropped_short,
+        # Сколько строк распознавание придумало в тишине. Нужно человеку как мера шума в зале.
+        "dropped_invented": transcript.dropped_invented,
         "errors": state.errors,
         "digest": digest,
     }
