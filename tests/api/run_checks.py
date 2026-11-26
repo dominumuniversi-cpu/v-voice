@@ -505,6 +505,25 @@ check("digest_route_returns_saved", _got.status == 200 and _got.body.get("summar
 _none = _handle("GET", "/api/v1/sessions/abcdef1234567890/digest", digests=_digests)
 check("digest_route_missing", _none.status == 404 and _none.body.get("error") == "digest_not_found")
 check("digest_store_bad_id_none", _digests.load("../x") is None)
+# Запуск разбора: без записи, без настройки и повторно — три разных честных ответа.
+from vvoice.job import analyze as _analyze
+from vvoice.digest_store import DigestStore as _DS2
+
+_dig2 = _DS2(_tempfile.mkdtemp(prefix='vvoice-an-'))
+_r = _analyze('0000aaaa0000bbbb', store=_store, digests=_dig2, provider_factory=lambda p: None, call_llm=lambda a, b: {})
+check("analyze_requires_session", _r.status == 404 and _r.body.get("error") == "session_not_found")
+_r2 = _analyze(_sid, store=None, digests=None, provider_factory=lambda p: None, call_llm=lambda a, b: {})
+check("analyze_requires_storage", _r2.status == 503)
+_dig2.save(_sid, {'summary': ['готово'], 'items': []})
+_r3 = _analyze(_sid, store=_store, digests=_dig2, provider_factory=lambda p: None, call_llm=lambda a, b: {})
+check("analyze_cached", _r3.status == 200 and _r3.body.get("cached") is True)
+def _boom(path):
+    raise RuntimeError('провайдер недоступен')
+_dig3 = _DS2(_tempfile.mkdtemp(prefix='vvoice-an2-'))
+_r4 = _analyze(_sid, store=_store, digests=_dig3, provider_factory=_boom, call_llm=lambda a, b: {})
+check("analyze_failure_reported", _r4.status == 502 and _r4.body.get("error") == "digest_failed")
+_ready = _handle("POST", "/api/v1/sessions/" + _sid + "/analyze", store=_store, digests=_dig2)
+check("analyze_route_needs_pipeline", _ready.status == 503 and _ready.body.get("error") == "pipeline_unavailable")
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

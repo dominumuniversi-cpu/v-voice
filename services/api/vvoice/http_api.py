@@ -20,6 +20,7 @@ from typing import Any
 from .evidence import validate_item
 from .sessions import create_session, is_session_id
 from .digest_store import DigestStore
+from .job import analyze
 from .storage import AudioStore
 from .provider_probe import presets
 
@@ -45,11 +46,14 @@ ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/sessions": ("POST",),
     # Готовый разбор сессии. Путь шаблонный: id приходит от клиента.
     "/api/v1/sessions/{session_id}/digest": ("GET",),
+    # Запуск разбора сохранённой записи. Отдельный путь, потому что действие меняет состояние.
+    "/api/v1/sessions/{session_id}/analyze": ("POST",),
 }
 
 # Шаблонные пути: клиент обращается к /api/v1/sessions/<id>/digest, поэтому точного совпадения мало.
 _TEMPLATED: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/digest$"), "/api/v1/sessions/{session_id}/digest"),
+    (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/analyze$"), "/api/v1/sessions/{session_id}/analyze"),
 ]
 
 
@@ -70,7 +74,9 @@ def _bad_request(reason: str) -> Response:
 
 def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            store: "AudioStore | None" = None,
-           digests: "DigestStore | None" = None) -> Response:
+           digests: "DigestStore | None" = None,
+           recognizer: Any = None,
+           call_llm: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -134,6 +140,14 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             except Exception:  # pragma: no cover
                 pass
         return Response(200, body)
+
+    if template == "/api/v1/sessions/{session_id}/analyze":
+        if recognizer is None or call_llm is None:
+            return Response(503, {"error": "pipeline_unavailable",
+                                  "message": "Сервер не настроен запускать разбор."})
+        outcome = analyze(param, store=store, digests=digests,
+                          provider_factory=recognizer, call_llm=call_llm)
+        return Response(outcome.status, outcome.body)
 
     if path == "/api/v1/items/validate":
         item = payload.get("item")
