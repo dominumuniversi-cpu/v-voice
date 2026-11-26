@@ -916,6 +916,10 @@ from vvoice.digest import make_digest as _mk2
 check("members_only_reaches_digest", 'members_only' in _inspect.signature(_mk2).parameters)
 _api_src = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice' / 'http_api.py').read_text(encoding='utf-8')
 check("request_can_switch_members_only", 'members_only=payload.get' in _api_src)
+# Владелец спросил «какие модели подключать» — ответ должен содержать числа, а не «уточняйте у вендора».
+_prov = (Path(__file__).resolve().parents[2] / 'docs' / 'ARCHITECTURE' / 'AI-PROVIDERS.md').read_text(encoding='utf-8')
+check("providers_quote_prices", '$0,29' in _prov and '$0,24' in _prov, 'цены за час речи')
+check("providers_dated", 'сверено' in _prov, 'цены датированы и со ссылкой')
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
