@@ -882,7 +882,13 @@ check("filled_summary_not_marked", _dg_ok['summary_missing'] is False, _dg_ok)
 # Документ для внешних продуктов не должен называть полей, которых нет.
 _contract = (Path(__file__).resolve().parents[2] / 'docs' / 'ARCHITECTURE' / 'EXPORT-CONTRACT.md').read_text(encoding='utf-8')
 _pipeline_src = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice' / 'pipeline.py').read_text(encoding='utf-8')
-_names = [n for n in ('utterances', 'digest', 'errors', 'speakers', 'sent_seconds', 'sent_chunks') if ('"' + n + '"') in _pipeline_src]
+# Верхний уровень ответа /digest: что реально отдаёт сервер. Раньше здесь стояло имя "digest" —
+# вложенное поле старой обёртки, которого в ответе больше нет: проверка требовала документировать
+# несуществующее. Список берём у самих данных, а не из исходника конвейера.
+_names = [n for n in ('utterances', 'errors', 'speakers', 'sent_seconds', 'sent_chunks')
+          if ('"' + n + '"') in _pipeline_src or n in _dg_ok]
+check("contract_doc_no_wrapper", 'digest.' + 'summary' not in _contract and 'во вложенном' not in _contract,
+      'документ не должен обещать вложенный разбор')
 _missing_in_doc = [n for n in _names if ('`' + n + '`') not in _contract]
 check("contract_doc_matches_result", not _missing_in_doc, _missing_in_doc)
 # Инструкция установки не должна отставать от примера настроек.
