@@ -11,6 +11,7 @@ import 'src/prefs_key_value_store.dart' as prefs;
 import 'src/method_channel_bridge.dart';
 import 'src/prefs_server_store.dart';
 import 'src/recording_controller.dart';
+import 'src/level_meter.dart';
 import 'src/recovered_screen.dart';
 import 'src/server_scope.dart';
 import 'src/session_model.dart';
@@ -402,6 +403,12 @@ class _ListenScreenState extends State<ListenScreen> {
                   const Spacer(),
                   // Индикатор записи обязателен и виден всегда (правило UI-канона).
                   RecordingDot(active: recording),
+                  // Уровень сигнала считался и раньше, но никуда не выводился: человек узнавал,
+                  // что его не слышно, только по пустой расшифровке.
+                  if (recording) ...[
+                    const SizedBox(width: 8),
+                    LevelMeter(level: widget.controller.level),
+                  ],
                   const SizedBox(width: 8),
                   // Записи, оставшиеся после сбоя: показать — единственный способ не потерять разговор.
                   IconButton(
