@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'api_client.dart';
 import 'providers_model.dart';
 import 'server_settings.dart';
+import 'server_store.dart';
 import 'theme.dart';
 
 /// Экран «Подключение моделей» (FR-24..FR-26).
@@ -14,7 +15,10 @@ import 'theme.dart';
 ///  - «Проверить» сначала прогоняет простые правила на телефоне (пустой ключ, пробел, обрезок)
 ///    и только потом идёт в сеть — так человек получает ответ мгновенно, без ожидания.
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.api, this.initialServerUrl = ''});
+  const SettingsScreen({super.key, this.api, this.initialServerUrl = '', this.store});
+
+  /// Хранилище адреса. Если null — адрес живёт только до закрытия экрана.
+  final ServerStore? store;
 
   /// Клиент сервера. Если null — проверка ключа недоступна (экран работает автономно).
   final ApiClient? api;
@@ -38,6 +42,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController server = TextEditingController(text: widget.initialServerUrl);
   bool busy = false;
   String? serverProblem;
+  String? savedNote;
+
+  /// Keeper: одно правило на чтение и запись адреса — то же, что проверено тестами.
+  ServerSettingsKeeper? get _keeper => widget.store == null
+      ? null
+      : ServerSettingsKeeper(
+          store: widget.store!,
+          validate: ServerSettings.problem,
+          normalize: ServerSettings.normalize,
+        );
+
+  @override
+  void initState() {
+    super.initState();
+    final keeper = _keeper;
+    if (keeper != null) {
+      keeper.load(widget.initialServerUrl).then((url) {
+        if (!mounted) return;
+        setState(() => server.text = url);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -49,13 +75,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// Сохранение адреса: сначала проверяем на опечатки, потом принимаем.
-  void _saveServer() {
-    final problem = ServerSettings.problem(server.text);
-    setState(() => serverProblem = problem);
-    if (problem == null) {
-      // Адрес нормализован, чтобы склейка с /api/v1/... не давала двойных слэшей
-      server.text = ServerSettings.normalize(server.text);
-    }
+  Future<void> _saveServer() async {
+    final keeper = _keeper;
+    final problem = keeper == null
+        ? ServerSettings.problem(server.text)
+        : await keeper.save(server.text);
+    if (!mounted) return;
+    setState(() {
+      serverProblem = problem;
+      savedNote = problem == null ? 'Адрес сохранён.' : null;
+      if (problem == null) {
+        // Нормализуем и показываем то, что реально уйдёт в запросы
+        server.text = ServerSettings.normalize(server.text);
+      }
+    });
   }
 
   TextEditingController _keyFor(String id) => keys.putIfAbsent(id, () => TextEditingController());
@@ -107,13 +140,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton(onPressed: _saveServer, child: const Text('Сохранить')),
+              OutlinedButton(onPressed: () { _saveServer(); }, child: const Text('Сохранить')),
             ],
           ),
-          if (serverProblem == null && server.text.isNotEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Text('Адрес принят.', style: TextStyle(color: VVTheme.ok, fontSize: 12)),
+          if (savedNote != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(savedNote!, style: const TextStyle(color: VVTheme.ok, fontSize: 12)),
             ),
           const SizedBox(height: 24),
           const Text('Готовые наборы настроек', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),

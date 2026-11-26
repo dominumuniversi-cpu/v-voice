@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'src/app_config.dart';
 import 'src/method_channel_bridge.dart';
+import 'src/prefs_server_store.dart';
 import 'src/recording_controller.dart';
 import 'src/session_model.dart';
 import 'src/settings_screen.dart';
@@ -90,6 +91,7 @@ class _ListenScreenState extends State<ListenScreen> {
                         builder: (_) => SettingsScreen(
                           api: AppConfig(serverUrl: AppConfig.defaultServer).api,
                           initialServerUrl: AppConfig.defaultServer,
+                          store: PrefsServerStore(),
                         ),
                       ),
                     ),
