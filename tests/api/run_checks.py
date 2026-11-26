@@ -432,6 +432,41 @@ _wrong = _handle("POST", "/api/v1/sessions/abc123/digest")
 check("digest_route_method", _wrong.status == 405)
 check("digest_route_allow", _wrong.headers.get("Allow") == "GET")
 
+# Приём записи с телефона: сессия создаётся только из настоящего WAV.
+import base64 as _b64
+import struct as _struct
+from vvoice.sessions import create_session as _create_session
+
+def _wav(ms=1000):
+    frames = b"\x00\x00" * (16 * ms)  # 16 кГц моно, 16 бит
+    header = b"RIFF" + _struct.pack("<I", 36 + len(frames)) + b"WAVE"
+    fmt = b"fmt " + _struct.pack("<IHHIIHH", 16, 1, 1, 16000, 32000, 2, 16)
+    data = b"data" + _struct.pack("<I", len(frames))
+    return header + fmt + data + frames
+
+_good = _b64.b64encode(_wav(1000)).decode()
+_code, _body, _audio = _create_session({"audio_base64": _good})
+check("session_accepts_wav", _code == 200 and "session_id" in _body)
+check("session_duration_seconds", _body.get("duration_ms", 0) in range(990, 1011), _body.get("duration_ms"))
+check("session_id_shape", len(_body.get("session_id", "")) == 16)
+check("session_returns_audio", _audio is not None and len(_audio) > 1000)
+
+_short = _b64.b64encode(_wav(1)).decode()
+_code, _body, _ = _create_session({"audio_base64": _short})
+check("session_rejects_short", _code == 400 and _body.get("error") == "audio_too_short")
+
+_code, _body, _ = _create_session({"audio_base64": "не base64 !!!"})
+check("session_rejects_garbage", _code == 400)
+
+_code, _body, _ = _create_session({})
+check("session_requires_audio", _code == 400 and _body.get("error") == "bad_request")
+
+_code, _body, _ = _create_session({"audio_base64": _b64.b64encode(b"x" * 9000).decode()})
+check("session_rejects_not_wav", _code == 415 and _body.get("error") == "not_wav")
+
+_stereo = _wav(1000).replace(_struct.pack("<HHIIHH", 1, 1, 16000, 32000, 2, 16), _struct.pack("<HHIIHH", 1, 2, 16000, 64000, 4, 16))
+_code, _body, _ = _create_session({"audio_base64": _b64.b64encode(_stereo).decode()})
+check("session_accepts_stereo", _code == 200, _body.get("error"))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

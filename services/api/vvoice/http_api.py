@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .evidence import validate_item
+from .sessions import create_session, is_session_id
 from .provider_probe import presets
 
 
@@ -38,6 +39,8 @@ ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/presets": ("GET",),
     "/api/v1/probe": ("POST",),
     "/api/v1/items/validate": ("POST",),
+    # Приём записи с телефона. Ответ содержит идентификатор сессии для разбора.
+    "/api/v1/sessions": ("POST",),
     # Готовый разбор сессии. Путь шаблонный: id приходит от клиента.
     "/api/v1/sessions/{session_id}/digest": ("GET",),
 }
@@ -104,6 +107,17 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None) ->
 
         result = probe(provider, api_key, sender or (lambda p, k: (None, "проверка отключена в офлайн-режиме")))
         return Response(200, result.as_dict())
+
+    if path == "/api/v1/sessions":
+        status, body, audio = create_session(payload)
+        if audio is not None and sender is not None:
+            # Слой хранения: пока его нет, файл просто некуда положить, и это видно по ответу.
+            try:
+                sender(audio)
+            except Exception:  # pragma: no cover - защита от падения на хранилище
+                return Response(503, {"error": "storage_unavailable",
+                                      "message": "Не удалось сохранить запись."})
+        return Response(status, body)
 
     if path == "/api/v1/items/validate":
         item = payload.get("item")
