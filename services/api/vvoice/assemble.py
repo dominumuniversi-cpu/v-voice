@@ -50,7 +50,8 @@ class Transcript:
 
     @property
     def speakers(self) -> set[str]:
-        return {u.speaker for u in self.utterances}
+        """Кто участвовал. Пустая метка — «говорящий не распознан», а не участник по имени ''."""
+        return {u.speaker for u in self.utterances if u.speaker}
 
 
 def _is_meaningful(seg: Segment) -> bool:
