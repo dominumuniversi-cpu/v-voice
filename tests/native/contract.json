@@ -1,5 +1,5 @@
 {
-  "version": "1.9",
+  "version": "1.10",
   "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе. v1.2: бэкап аудио запрещён на уровне манифеста (152-ФЗ). 1.9: ограничение фона по батарее (Android).",
   "android": {
     "files": [
@@ -27,7 +27,8 @@
       "disk_full",
       "batteryRestricted()",
       "openBatterySettings()",
-      "isIgnoringBatteryOptimizations"
+      "isIgnoringBatteryOptimizations",
+      "if (intent == null)"
     ],
     "forbiddenSymbols": [
       "MediaRecorder.AudioSource.VOICE_CALL"

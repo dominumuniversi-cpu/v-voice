@@ -43,7 +43,14 @@ class RecordingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        // Перезапуск системой после гибели процесса приходит с null intent. Писать в этом случае
+        // нельзя: человек запись не возобновлял, согласия на новую запись нет, а старый файл уже
+        // закрыт. Честный выход; сохранившийся звук восстановит разбор при следующем открытии.
+        if (intent == null) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        when (intent.action) {
             ACTION_STOP -> { stopRecording(); stopSelf(); return START_NOT_STICKY }
             ACTION_PAUSE -> { RecordingChannel.emitState("paused"); return START_STICKY }
             ACTION_RESUME -> { RecordingChannel.emitState("recording"); return START_STICKY }
