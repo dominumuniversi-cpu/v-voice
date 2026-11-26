@@ -936,6 +936,14 @@ check("real_long_speech_kept", not is_hallucination('Спасибо за вни�
 check("plain_speech_kept", not is_hallucination('обсудим сроки по договору'))
 _pipeline_src = (Path(__file__).resolve().parents[2] / "services" / "api" / "vvoice" / "pipeline.py").read_text(encoding="utf-8")
 check("invented_count_reaches_result", "dropped_invented" in _pipeline_src)
+# «Краткая выжимка» — это краткая. Двадцать пунктов человек не читает, но и терять их молча нельзя.
+_many = {'summary': ['п%d' % i for i in range(10)], 'items': [], 'participants': []}
+_dgm = _make_digest(_tr_short2, lambda s, u: _many)
+check("summary_kept_short", len(_dgm['summary']) == 7, len(_dgm['summary']))
+check("summary_hidden_counted", _dgm['summary_hidden'] == 3, _dgm['summary_hidden'])
+_few = _make_digest(_tr_short2, lambda s, u: {'summary': ['один', 'два'], 'items': [], 'participants': []})
+check("summary_hidden_zero_when_short", _few['summary_hidden'] == 0, _few['summary_hidden'])
+check("summary_keeps_all_when_short", _few['summary'] == ['один', 'два'], _few['summary'])
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

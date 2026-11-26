@@ -4,7 +4,7 @@
 /// отбрасывает элементы без непустой цитаты, а не показывает их без доказательства:
 /// человек, который не может проверить, откуда взялась задача, задачи не примет.
 class Digest {
-  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.topic = '', this.rejected = const []});
+  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const []});
 
   final List<String> summary;
   final List<String> decisions;
@@ -25,6 +25,9 @@ class Digest {
   /// Разобрана только часть разговора: он длиннее, чем помещается в один проход модели.
   /// Показывать «готово» на половине — значит соврать про встречу.
   final bool truncated;
+
+  /// Сколько пунктов выжимки не показано из-за краткости. Ноль — показано всё.
+  final int summaryHidden;
   final String model;
 
   /// Из отчёта об отсеве делаем строку для человека: заголовок и причина, без служебных индексов.
@@ -71,6 +74,7 @@ class Digest {
       items: items,
       model: (json['model'] ?? '').toString(),
       truncated: json['truncated'] == true,
+      summaryHidden: (json['summary_hidden'] is num) ? (json['summary_hidden'] as num).toInt() : 0,
       topic: (json['topic'] ?? '').toString(),
       rejected: rejectedFrom(json['rejected']),
     );

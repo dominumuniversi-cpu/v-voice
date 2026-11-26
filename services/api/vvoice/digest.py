@@ -13,6 +13,9 @@ from .assemble import Transcript
 from .evidence import validate_digest
 
 MAX_TRANSCRIPT_CHARS = 90_000
+# Краткая выжимка — это краткая. Модель иногда отвечает двумя десятками пунктов, и человек такое
+# не читает. Показываем первые 7 и честно называем, сколько осталось.
+MAX_SUMMARY_ITEMS = 7
 
 # Промпт живёт в prompts/digest_ru.md, потому что его читают и правят люди, а не только модель.
 # Встроенная копия — только запас: если файла нет (упаковка), разбор не должен падать молча.
@@ -30,6 +33,12 @@ def load_system_prompt(path: Path | None = None) -> str:
 
 SYSTEM_PROMPT = load_system_prompt()
 
+
+
+def _summary_points(raw: dict[str, Any]) -> list[str]:
+    """Пункты выжимки в пределах краткости. Лишнее не теряется молча: число скрытых отдаёт ответ."""
+    points = [str(s).strip() for s in (raw.get("summary") or []) if str(s).strip()]
+    return points[:MAX_SUMMARY_ITEMS]
 
 
 def prompt_is_truncated(transcript: Transcript) -> bool:
@@ -83,7 +92,10 @@ def make_digest(
         "topic": str(raw.get("topic") or "").strip(),
         # True — разобрана только часть разговора. Молчать об этом значит выдать половину за целое.
         "truncated": prompt_is_truncated(transcript),
-        "summary": [str(s) for s in (raw.get("summary") or [])],
+        "summary": _summary_points(raw),
+        # Сколько пунктов не показано. Молчаливая обрезка заставила бы человека думать, что он
+        # увидел всё главное.
+        "summary_hidden": max(0, len(raw.get("summary") or []) - MAX_SUMMARY_ITEMS),
         # Модель ничего не выделила — это факт о разборе, а не пустое место.
         # Тот, кто строит интеграцию, должен уметь отличить «нечего сказать» от «не справилась».
         "summary_missing": not (raw.get("summary") or []),

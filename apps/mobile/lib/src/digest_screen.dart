@@ -131,6 +131,13 @@ class _DigestScreenState extends State<DigestScreen> {
             )
           else
             _section('Коротко', d.summary),
+          if (d.summaryHidden > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              // Показана часть — говорим прямо. Иначе человек считает, что главное он увидел.
+              child: Text('Ещё ' + d.summaryHidden.toString() + ' пунктов выжимки не показаны — они в ответе сервера.',
+                  style: const TextStyle(fontSize: 12, color: VVTheme.inkMuted)),
+            ),
           if (d.rejected.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
