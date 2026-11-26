@@ -61,7 +61,8 @@ void main() {
   });
 
   testWidgets('смена адреса применяется и перерисовывает экраны', (tester) async {
-    final store = MemoryServerStore();
+    // Адрес сохранён заранее: при первом запуске вместо экранов показывается выбор адреса.
+    final store = MemoryServerStore('https://first.example');
     late ServerScope scope;
     await tester.pumpWidget(MaterialApp(
       home: ServerScopeLoader(
