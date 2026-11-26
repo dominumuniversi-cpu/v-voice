@@ -283,6 +283,9 @@ class RecordingService : Service() {
         // 100 мс при 16 кГц, 16 бит, моно.
         private const val AUDIO_CHUNK_BYTES = 3200
         private const val LEVEL_WINDOW_BYTES = 6400
+        // Человеку важно знать, что микрофон отобрали: иначе он уверен, что собеседник записан.
+        const val LOST_TEXT = "Микрофон занят звонком или другим приложением — звук может не записываться."
+        const val RUNNING_TEXT = "Идёт запись"
         const val ACTION_STOP = "ru.vernadsky.vvoice.STOP"
         const val ACTION_PAUSE = "ru.vernadsky.vvoice.PAUSE"
         const val ACTION_RESUME = "ru.vernadsky.vvoice.RESUME"
