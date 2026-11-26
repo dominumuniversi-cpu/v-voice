@@ -726,6 +726,12 @@ check("export_ignores_client_address", any('tasks.example' in r.url for r in _se
 _code_no, _body_no = _export_session({'targets': {'helper': 'http://x'}, 'items': _approved_item},
                                      send=_def_send, configured={})
 check("export_without_settings_is_honest", _code_no == 503 and _body_no.get('error') == 'export_not_configured', _body_no)
+# Телефон не диктует адрес: пустое значение допустимо только при настроенном сервере.
+_code_empty, _body_empty = _export_session({'targets': {'helper': ''}, 'items': _approved_item},
+                                          send=_def_send, configured=None)
+check("export_empty_address_is_honest", _code_empty == 400 and _body_empty.get('error') == 'empty_address', _body_empty)
+_c_ok, _ = _export_session({'targets': {'helper': ''}, 'items': _approved_item}, send=_def_send, configured={'helper': 'https://tasks.example'})
+check("export_empty_address_works_when_configured", _c_ok == 200, _c_ok)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

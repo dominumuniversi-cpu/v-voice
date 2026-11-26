@@ -69,6 +69,11 @@ def export_session(
                          'message': 'На сервере не заданы адреса целей. Заполните VV_EXPORT_* в настройках сервера.'}
         targets_raw = resolved
     unknown = [name for name in targets_raw if name not in KNOWN_TARGETS]
+    # Пустой адрес — это «телефон отказался решать», а не «отправь в пустоту».
+    empty = [name for name, address in targets_raw.items() if not str(address).strip()]
+    if empty and configured is None:
+        return 400, {'error': 'empty_address',
+                     'message': 'Не указан адрес цели: ' + ', '.join(empty) + '.'}
     if unknown:
         return 400, {'error': 'unknown_target',
                      'message': 'Неизвестная цель: ' + ', '.join(unknown) + '. Доступны: ' + ', '.join(KNOWN_TARGETS)}

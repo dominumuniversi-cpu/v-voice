@@ -101,9 +101,9 @@ class _DigestScreenState extends State<DigestScreen> {
       _sending = true;
       _sentMessage = '';
     });
-    // Цель — задачник Helper. Адрес берём с того же сервера, что и разбор: отдельная настройка
-    // адреса задачника на телефоне не нужна, пока цель одна.
-    final targets = <String, String>{'helper': api.baseUrl};
+    // Цель — задачник Helper. Адрес задаёт СЕРВЕР из своих настроек: телефон не должен ни знать,
+    // где живёт задачник, ни уметь отправить задачу сам себе. Пустое значение = «решает сервер».
+    final targets = <String, String>{'helper': ''};
     final (sent, failed, problem) = await api.exportItems(sessionId, widget.digest.items, targets);
     if (!mounted) return;
     setState(() {
