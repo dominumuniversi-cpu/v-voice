@@ -44,7 +44,7 @@ def usable_data_bytes(total_size: int) -> int:
 
 
 def duration_ms(total_size: int) -> int:
-    return usable_data_bytes(total_size) * 1000 // BYTES_PER_MS_MONO16
+    return usable_data_bytes(total_size) // BYTES_PER_MS_MONO16
 
 
 def rebuild_header(payload: bytes) -> bytes:
