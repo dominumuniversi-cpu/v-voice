@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'digest_model.dart';
 
@@ -89,6 +90,29 @@ class ApiClient {
   /// Сколько кусков звука не дошло до сервера. Показывается человеку — тишина в тексте
   /// не должна выглядеть как «там ничего не говорили».
   int chunksLost = 0;
+
+  /// Громкость куска в RMS, 0..1, по PCM16. Считается ЗДЕСЬ, до отправки: тишину в конференции
+  /// незачем гнать через мобильный интернет — час молчания стоит человеку ~110 МБ трафика.
+  static double rmsOf(List<int> pcm16) {
+    if (pcm16.length < 2) return 0;
+    var sum = 0.0;
+    var n = 0;
+    for (var i = 0; i + 1 < pcm16.length; i += 2) {
+      // Младший байт первым: так приходит PCM16 с Android и iOS.
+      var s = (pcm16[i] & 0xFF) | ((pcm16[i + 1] << 8) & 0xFFFF);
+      if (s >= 0x8000) s -= 0x10000;
+      sum += s.toDouble() * s;
+      n++;
+    }
+    if (n == 0) return 0;
+    return math.sqrt(sum / n) / 32768.0;
+  }
+
+  /// Тише порога — тишина или гул комнаты: отправлять незачем.
+  /// 0.006 RMS — примерно -44 dBFS: тихая речь громче, вентилятор и гул — тише.
+  static const double audibleThreshold = 0.006;
+
+  bool isAudible(List<int> pcm) => rmsOf(pcm) >= audibleThreshold;
 
   Future<String?> sendLiveChunk(String sessionId, List<int> pcm) async {
     if (pcm.isEmpty) return null;

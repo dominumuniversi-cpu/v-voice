@@ -63,6 +63,9 @@ class _ListenScreenState extends State<ListenScreen> {
   /// Уже отправленных кусков: контроллер хранит только последний, поэтому сравниваем счётчик.
   int _sentChunks = 0;
 
+  /// Сколько кусков оказались тишиной и не ушли в сеть.
+  int _quietChunks = 0;
+
   /// Отправка идёт: не плодим параллельные запросы, иначе куски придут вразнобой.
   bool _sendingChunk = false;
 
@@ -82,6 +85,13 @@ class _ListenScreenState extends State<ListenScreen> {
     final scope = ServerScope.maybeOf(context);
     if (scope == null) return;
     final api = scope.config.api;
+    // Тишину не гоняем через мобильный интернет: час молчания — это десятки мегабайт трафика
+    // человека и ни одного слова в расшифровке.
+    if (!api.isAudible(chunk)) {
+      _sentChunks = received;
+      _quietChunks += 1;
+      return;
+    }
     _sendingChunk = true;
     _sentChunks = received;
     try {
