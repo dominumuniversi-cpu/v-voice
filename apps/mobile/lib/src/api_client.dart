@@ -18,6 +18,18 @@ abstract class HttpTransport {
 class ApiClient {
   ApiClient({required this.transport, required this.baseUrl});
 
+  /// Что сервер знает о моделях: готов ли разбор речи и понимание.
+  ///
+  /// Зачем это на телефоне: ключи живут на сервере, и человек должен видеть там ли их подключили,
+  /// иначе он будет искать поле для ключа, которого больше нет.
+  Future<Map<String, dynamic>?> fetchHealth() async {
+    final (code, body) = await transport.get('/api/v1/health');
+    if (code != 200) return null;
+    final data = _safeDecode(body);
+    final settings = data['settings'];
+    return settings is Map ? Map<String, dynamic>.from(settings) : null;
+  }
+
   /// Отправляет одобренные человеком задачи во внешние системы.
   ///
   /// Почему сюда приходит уже одобренное: сервер отвергает неодобренное намеренно.

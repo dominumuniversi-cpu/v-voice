@@ -46,7 +46,9 @@ for (const { path, text } of sources) {
     if (ALLOWED.has(name)) continue;
     // Вызов внутри того же файла тоже считается: методы одного класса зовут друг друга.
     // Объявление отличается от вызова тем, что перед именем стоит тип возврата.
-    const DECL_AT = new RegExp('(Future|void|bool|String|int|double|Widget|Uint8List|List)[^;{}=]*\\b' + name + '\\s*\\(', 'g');
+    // Тип возврата может быть сложным, но между ним и именем НЕ должно быть других скобок:
+    // иначе «ListView( ... _name( » засчитывается как объявление, и настоящий вызов теряется.
+    const DECL_AT = new RegExp('(Future|void|bool|String|int|double|Widget|Uint8List|List)[^;{}=()]*\\b' + name + '\\s*\\(', 'g');
     const all = [...text.matchAll(new RegExp('\\b' + name + '\\s*\\(', 'g'))].length;
     const declarations = [...text.matchAll(DECL_AT)].length;
     let calls = all - declarations;

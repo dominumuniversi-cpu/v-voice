@@ -102,6 +102,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// а не на тот, что был при открытии экрана.
   ApiClient? get _client => ServerScope.maybeOf(context)?.config.api ?? widget.api;
 
+  /// Состояние моделей на сервере: загружается при открытии экрана.
+  /// Показывается словами, а не флагами: человеку нужно понять «работает или нет», а не разбирать JSON.
+  Map<String, dynamic>? _serverModels;
+  bool _modelsLoading = true;
+
+  Future<void> _loadServerModels() async {
+    final client = _client;
+    if (client == null) {
+      setState(() => _modelsLoading = false);
+      return;
+    }
+    final health = await client.fetchHealth();
+    if (!mounted) return;
+    setState(() {
+      _serverModels = health;
+      _modelsLoading = false;
+    });
+  }
+
+  /// Что на сервере настроено: без этого человек не знает, подключены ли модели вообще,
+  /// и будет искать поле для ключа, которого на телефоне больше нет.
+  Widget _serverStatusCard() {
+    if (_modelsLoading) {
+      return const Text('Проверяю, что подключено на сервере…',
+          style: TextStyle(color: VVTheme.inkMuted));
+    }
+    final models = _serverModels;
+    if (models == null) {
+      return const Text('Сервер не ответил — подключение моделей неизвестно.',
+          style: TextStyle(color: VVTheme.inkMuted));
+    }
+    final asr = models['asr'] is Map ? Map<String, dynamic>.from(models['asr'] as Map) : null;
+    final llm = models['llm'] is Map ? Map<String, dynamic>.from(models['llm'] as Map) : null;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: VVTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_modelLine('Распознавание речи', asr)),
+          const SizedBox(height: 4),
+          Text(_modelLine('Понимание разговора', llm)),
+          const SizedBox(height: 8),
+          const Text('Ключи задаются на сервере и на телефон не попадают.',
+              style: TextStyle(fontSize: 12, color: VVTheme.inkMuted)),
+        ],
+      ),
+    );
+  }
+
+  /// Подпись про одну модель: что подключено и готово ли. Без ключей и их фрагментов.
+  String _modelLine(String title, Map<String, dynamic>? part) {
+    if (part == null) return title + ': сервер не ответил';
+    final provider = (part['provider'] ?? '').toString();
+    final ready = part['ready'] == true;
+    if (provider.isEmpty) return title + ': не подключена';
+    return title + ': ' + provider + (ready ? ' — готово' : ' — ключ не указан');
+  }
+
   Future<void> _probe(ProviderInfo info) async {
     final key = _keyFor(info.id).text;
     final local = KeyCheck.problem(info.id, key);
@@ -126,6 +188,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Загружаем без ожидания: если сервер не отвечает, экран всё равно открывается.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadServerModels());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final list = kProviders.where((p) => p.kind == selectedKind).toList();
     return Scaffold(
@@ -136,6 +205,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           const Text('Сервер', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
+          _serverStatusCard(),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
