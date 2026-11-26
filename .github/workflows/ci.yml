@@ -29,7 +29,19 @@ jobs:
       - name: node tests
         run: node --test "tests/native/*.test.mjs" "tests/api/*.mjs"
 
-      # 4) Валидатор цитат под настоящим Python (правило «нет цитаты — нет задачи»).
+      # 4) Мобильное приложение: анализатор и тесты контроллера (реальные, без телефона).
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.5"
+          channel: stable
+      - name: flutter analyze
+        working-directory: apps/mobile
+        run: flutter pub get && flutter analyze
+      - name: flutter test
+        working-directory: apps/mobile
+        run: flutter test
+
+      # 5) Валидатор цитат под настоящим Python (правило «нет цитаты — нет задачи»).
       - name: evidence validator
         run: |
           pip install pytest
