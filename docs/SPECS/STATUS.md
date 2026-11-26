@@ -14,15 +14,16 @@
 | **Android-мост записи** | **написан** (сервис, канал, пути, разрешения) | `apps/mobile/android/` |
 | **iOS-мост записи** | **написан** (движок, канал, Info.plist) | `apps/mobile/ios/` |
 | **Конвейер разбора** | **написан** (ASR-заглушка, сборка реплик, валидатор цитат) | `services/api/vvoice/` |
+| **ASR-адаптер** | **Speechmatics**: протокол разобран и покрыт тестами | `services/api/vvoice/providers/speechmatics.py` |
 | **Интеграции** | **контракт есть**: helper/Jira/Битрикс24/вебхук | `services/api/vvoice/exporters.py` |
 | **Настройки** | **написаны**: каждая переменная с описанием, проверка перед запуском | `services/api/vvoice/settings.py`, `.env.example` |
 | **Задачник репозитория** | **описан**: метки, вехи, шаблон задачи, PR-шаблон | `docs/SPECS/ISSUE-SPEC.md` |
-| **Проверки** | **19 локальных + 43 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
+| **Проверки** | **19 локальных + 57 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
 
 ## Проверено фактом (числа)
 
 - `npm run check` → 19 тестов, 0 падений; `syntax-check` → 12 python-файлов без ошибок.
-- CI на коммите `0607f18`: шаг валидатора — **total=43 passed=43 failed=0**, pytest 18 passed, весь workflow **success**.
+- CI на коммите `aa45d98`: шаг валидатора — **total=57 passed=57 failed=0**, pytest 18 passed, весь workflow **success**.
 - Настройки по умолчанию проходят проверку без единой переменной окружения (`zero_config_starts`).
 - Проверка контракта доказуемо ловит поломки: убрали `foregroundServiceType="microphone"` — тест упал.
 - Валидатор отбрасывает выдуманную цитату, короткую цитату, цитату из другой встречи, несуществующего владельца.
