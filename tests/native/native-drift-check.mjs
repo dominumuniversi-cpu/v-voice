@@ -7,7 +7,7 @@
  * в нативных проектах. Эта проверка ловит расхождение ДО сборки на телефоне.
  * Работает без Flutter/Gradle/Xcode — только node (есть на любой машине и в CI).
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { normalizeReport, diff } from './jsondiff.mjs';
@@ -47,11 +47,39 @@ export function checkPlatform(rootDir, contract, platform) {
   return checkSource(contract, all.join('\n'), platform);
 }
 
+// Проверки, которые не про содержимое мостов, а про платформенные файлы рядом с ним:
+// пропавшие правила бэкапа или разрешения ломают политику данных молча, без единой ошибки сборки.
+function checkPlatformFiles(root, contract, platform) {
+  const problems = [];
+  const spec = contract[platform];
+  for (const rel of spec.requiredXmlFiles || []) {
+    if (!existsSync(join(root, rel))) {
+      problems.push({ platform, missingXmlFile: rel, why: 'файл политики платформы не найден' });
+    }
+  }
+  const flags = spec.requiredPermissionFlags || [];
+  if (flags.length) {
+    const manifestPath = (spec.files || []).find((f) => f.endsWith('AndroidManifest.xml'));
+    if (manifestPath && existsSync(join(root, manifestPath))) {
+      const manifest = readFileSync(join(root, manifestPath), 'utf8');
+      for (const flag of flags) {
+        if (!manifest.includes(flag)) {
+          problems.push({ platform, missingManifestFlag: flag, why: 'в манифесте нет подключения политики платформы' });
+        }
+      }
+    }
+  }
+  return problems;
+}
+
 function main() {
   const contract = loadContract();
   const out = [];
   const platforms = ['android', 'ios', ...(contract.mobile_ui ? ['mobile_ui'] : [])];
-  for (const platform of platforms) out.push(...checkPlatform(root, contract, platform));
+  for (const platform of platforms) {
+    out.push(...checkPlatform(root, contract, platform));
+    if (platform === 'android') out.push(...checkPlatformFiles(root, contract, platform));
+  }
   const report = normalizeReport({ contractVersion: contract.version, problems: out });
   if (process.argv.includes('--json')) console.log(JSON.stringify(report, null, 2));
   else {

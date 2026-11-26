@@ -1,6 +1,6 @@
 {
-  "version": "1.1",
-  "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе.",
+  "version": "1.2",
+  "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе. v1.2: бэкап аудио запрещён на уровне манифеста (152-ФЗ).",
   "android": {
     "files": [
       "apps/mobile/android/app/src/main/AndroidManifest.xml",
@@ -22,6 +22,14 @@
     ],
     "forbiddenSymbols": [
       "MediaRecorder.AudioSource.VOICE_CALL"
+    ],
+    "requiredPermissionFlags": [
+      "dataExtractionRules",
+      "fullBackupContent"
+    ],
+    "requiredXmlFiles": [
+      "apps/mobile/android/app/src/main/res/xml/data_extraction_rules.xml",
+      "apps/mobile/android/app/src/main/res/xml/backup_rules.xml"
     ]
   },
   "ios": {

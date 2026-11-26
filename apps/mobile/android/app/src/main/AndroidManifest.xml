@@ -21,7 +21,9 @@
         android:label="@string/app_name"
         android:icon="@drawable/ic_launcher"
         android:theme="@style/AppTheme"
-        android:allowBackup="false">
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <!-- Маркер embedding v2: без него Flutter считает проект старым (v1) и отказывается собирать. -->
         <meta-data android:name="flutterEmbedding" android:value="2" />
 
