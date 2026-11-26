@@ -20,7 +20,7 @@ class ServerScope extends InheritedWidget {
   final String serverUrl;
 
   /// Смена адреса: сохраняет и перерисовывает всех, кто читает адрес.
-  final ValueChanged<String> onChanged;
+  final Future<void> Function(String) onChanged;
 
   static ServerScope? maybeOf(BuildContext context) => context.dependOnInheritedWidgetOfExactType<ServerScope>();
 

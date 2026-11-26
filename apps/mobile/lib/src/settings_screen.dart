@@ -92,7 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
     // Сохранение действует сразу: без этого адрес менялся бы только после перезапуска.
     if (problem == null) {
-      ServerScope.maybeOf(context)?.onChanged(server.text.trim());
+      await ServerScope.maybeOf(context)?.onChanged(server.text.trim());
     }
   }
 
