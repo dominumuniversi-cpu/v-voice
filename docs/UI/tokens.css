@@ -1,0 +1,79 @@
+
+/* VERN-OS tokens — VoiceTranscribator */
+:root{
+  --vt-bg:#0A0C10; --vt-surface:#11151D; --vt-surface-2:#171D28; --vt-line:#232B39;
+  --vt-ink:#E9EEF6; --vt-ink-2:#9AA7BC; --vt-ink-3:#6C7A90;
+  --vt-accent:#5B8CFF; --vt-accent-2:#7C5CFF; --vt-live:#FF4D6D; --vt-ok:#3DDC97; --vt-warn:#FFB020;
+  --vt-radius:20px; --vt-radius-sm:12px;
+  --vt-font:'Inter','SF Pro Text','Segoe UI',system-ui,sans-serif;
+  --vt-mono:'JetBrains Mono','SF Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: light){
+  :root{ --vt-bg:#F6F8FC; --vt-surface:#FFFFFF; --vt-surface-2:#EEF2F8; --vt-line:#DDE4EF;
+         --vt-ink:#0E1420; --vt-ink-2:#4A5568; --vt-ink-3:#8592A5; }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--vt-bg);color:var(--vt-ink);font-family:var(--vt-font);-webkit-font-smoothing:antialiased}
+.sheet{display:flex;gap:48px;flex-wrap:wrap;padding:56px;align-items:flex-start;background:
+  radial-gradient(1200px 600px at 10% -10%, rgba(91,140,255,.16), transparent), var(--vt-bg)}
+.phone{width:390px;height:844px;background:var(--vt-surface);border-radius:44px;position:relative;overflow:hidden;
+  box-shadow:0 40px 80px -30px rgba(0,0,0,.55), 0 0 0 10px #05070B, 0 0 0 11px #2A3242;display:flex;flex-direction:column}
+.statusbar{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;color:var(--vt-ink-2);font-size:13px;font-weight:600}
+.notch{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:118px;height:30px;background:#05070B;border-radius:20px;z-index:5}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 22px 0}
+.hdr h1{font-size:24px;font-weight:700;letter-spacing:-.4px}
+.hdr .sub{color:var(--vt-ink-3);font-size:13px;margin-top:2px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:600;background:var(--vt-surface-2);border:1px solid var(--vt-line)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--vt-live);box-shadow:0 0 12px var(--vt-live)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.dot[data-live]{animation:pulse 1.6s infinite}
+/* ===== ЭКРАН 1: «Слушаю» ===== */
+.listen{flex:1;display:flex;flex-direction:column;padding:0 22px 22px;gap:20px}
+.orb-wrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative}
+.ring{position:absolute;border-radius:50%;border:1px solid rgba(91,140,255,.18)}
+.ring.r1{width:300px;height:300px}
+.ring.r2{width:360px;height:360px;border-color:rgba(124,92,255,.12)}
+.orb{width:200px;height:200px;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 35% 30%, #8FB0FF, #5B8CFF 45%, #3C57C9 75%, #1B2A66);
+  box-shadow:0 0 70px rgba(91,140,255,.45), inset 0 0 60px rgba(255,255,255,.15)}
+.orb::after{content:"";position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg, transparent 0 40%, rgba(255,255,255,.55) 50%, transparent 60% 100%);
+  mix-blend-mode:screen;animation:spin 3.2s linear infinite;opacity:.55}
+@keyframes spin{to{transform:rotate(360deg)}}
+.orb.core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.92)}
+.orb-label{font-size:13px;color:var(--vt-ink-3);letter-spacing:.6px;text-transform:uppercase}
+.timer{font-family:var(--vt-mono);font-size:44px;font-weight:600;letter-spacing:-1px}
+.vu{display:flex;gap:4px;align-items:flex-end;height:56px;justify-content:center}
+.vu i{display:block;width:6px;border-radius:3px;background:linear-gradient(180deg,#8FB0FF,#5B8CFF)}
+.chiprow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.chip{padding:8px 12px;border-radius:999px;font-size:12px;background:var(--vt-surface-2);color:var(--vt-ink-2);border:1px solid var(--vt-line)}
+.chip.on{color:#0A0C10;background:var(--vt-ok);border-color:transparent;font-weight:700}
+.controls{display:flex;align-items:center;justify-content:center;gap:18px}
+.btn{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--vt-line);background:var(--vt-surface-2);color:var(--vt-ink)}
+.btn.stop{width:76px;height:76px;background:var(--vt-live);border:none;color:#fff;box-shadow:0 16px 30px -12px rgba(255,77,109,.7)}
+.btn svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.live-text{background:var(--vt-surface-2);border:1px solid var(--vt-line);border-radius:var(--vt-radius);padding:16px;font-size:15px;line-height:1.5;color:var(--vt-ink);max-height:150px;overflow:hidden}
+.live-text .ghost{color:var(--vt-ink-3)}
+.live-text .spk{font-weight:700;color:var(--vt-accent)}
+/* ===== ЭКРАН 2: «Разбор» ===== */
+.tabs{display:flex;gap:6px;padding:0 22px;margin:14px 0}
+.tab{padding:9px 14px;border-radius:12px;font-size:13px;color:var(--vt-ink-3);font-weight:600}
+.tab.on{background:var(--vt-surface-2);color:var(--vt-ink)}
+.summary{padding:0 22px;display:flex;flex-direction:column;gap:14px;overflow:auto;flex:1}
+.card{background:var(--vt-surface-2);border:1px solid var(--vt-line);border-radius:var(--vt-radius);padding:16px}
+.card h3{font-size:13px;color:var(--vt-ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px}
+.task{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--vt-line)}
+.task:first-of-type{border-top:none}
+.task .chk{width:22px;height:22px;border-radius:7px;border:1.5px solid var(--vt-ink-3);flex:none;margin-top:2px}
+.task .t{font-size:15px;font-weight:600;line-height:1.35}
+.task .meta{font-size:12px;color:var(--vt-ink-3);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap}
+.tag{padding:3px 8px;border-radius:6px;background:rgba(91,140,255,.14);color:var(--vt-accent);font-weight:700;font-size:11px}
+.tag.p2{background:rgba(255,176,32,.14);color:var(--vt-warn)}
+.quote{border-left:2px solid var(--vt-accent);padding-left:10px;color:var(--vt-ink-2);font-size:13px;font-style:italic;margin-top:8px}
+.when{display:flex;gap:10px;align-items:center;font-size:14px}
+.when b{font-size:15px}
+.badge{font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;background:rgba(61,220,151,.14);color:var(--vt-ok)}
+.tabbar{margin-top:auto;display:flex;border-top:1px solid var(--vt-line);padding:10px 16px 26px;gap:4px}
+.tabbar a{flex:1;text-align:center;font-size:11px;color:var(--vt-ink-3);display:flex;flex-direction:column;gap:4px;align-items:center;text-decoration:none}
+.tabbar a.on{color:var(--vt-accent)}
+.tabbar svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8}

@@ -1,0 +1,26 @@
+# ignore
+.tmp/
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+logs/
+secrets/
+.env
+.env.*
+*.key
+data/
+*.db
+*.sqlite3
+build/
+dist/
+.dart_tool/
+.gradle/
+.vs/
+.idea/
+*.iml
+*.log
+.mypy_cache/
+coverage/

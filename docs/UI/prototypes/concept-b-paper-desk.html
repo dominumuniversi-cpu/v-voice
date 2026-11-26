@@ -1,0 +1,62 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>VoiceTranscribator — концепция B «Paper Desk»</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+.b{--p-bg:#F4F1EA;--p-ink:#1E1B16;--p-ink2:#6B6459;--p-line:#DED7C9;--p-accent:#B4471F}
+body.b-theme{background:var(--p-bg);color:var(--p-ink);font-family:'Georgia','Times New Roman',serif}
+.sheet-b{display:flex;gap:48px;flex-wrap:wrap;padding:56px;background:radial-gradient(900px 500px at 80% -10%,#EFE3D0, transparent),var(--p-bg)}
+.paper{width:390px;height:844px;background:#FBF9F4;border-radius:32px;border:1px solid var(--p-line);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 60px -30px rgba(60,45,25,.45)}
+.p-top{padding:30px 26px 0;display:flex;justify-content:space-between;align-items:flex-start}
+.p-kicker{font-family:var(--vt-font);font-size:11px;letter-spacing:2.6px;text-transform:uppercase;color:var(--p-ink2)}
+.p-title{font-size:30px;line-height:1.1;margin-top:8px;font-weight:400}
+.p-rec{display:flex;align-items:center;gap:8px;font-family:var(--vt-font);font-size:12px;font-weight:700;color:var(--p-accent);border:1px solid var(--p-line);border-radius:999px;padding:7px 12px;background:#fff}
+.p-wave{display:flex;gap:3px;align-items:flex-end;height:38px;margin:22px 26px 0}
+.p-wave i{width:3px;border-radius:2px;background:var(--p-accent);opacity:.75}
+.p-body{padding:24px 26px;display:flex;flex-direction:column;gap:20px;flex:1;overflow:hidden}
+.p-h{font-family:var(--vt-font);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--p-ink2);border-bottom:1px solid var(--p-line);padding-bottom:8px;margin-bottom:12px}
+.p-text{font-size:16px;line-height:1.6}
+.p-text .spk{font-family:var(--vt-font);font-size:12px;font-weight:700;color:var(--p-accent);letter-spacing:.4px;text-transform:uppercase}
+.p-task{display:grid;grid-template-columns:26px 1fr;gap:12px;padding:11px 0;border-bottom:1px dashed var(--p-line)}
+.p-task .num{font-family:var(--vt-font);font-size:12px;color:var(--p-ink2);padding-top:3px}
+.p-task .tt{font-size:16px;line-height:1.35}
+.p-task .mm{font-family:var(--vt-font);font-size:12px;color:var(--p-ink2);margin-top:5px;display:flex;gap:10px;flex-wrap:wrap}
+.p-task .mm b{color:var(--p-accent);font-weight:700}
+.p-foot{margin-top:auto;border-top:1px solid var(--p-line);display:flex;padding:14px 26px 24px;gap:8px;font-family:var(--vt-font);font-size:12px;color:var(--p-ink2)}
+.p-foot span{flex:1;text-align:center;padding:9px 0;border-radius:10px}
+.p-foot span.on{background:var(--p-ink);color:#FBF9F4}
+.p-timer{font-family:var(--vt-font);font-size:13px;font-weight:700;letter-spacing:1px;color:var(--p-ink2)}
+.p-big{font-size:52px;font-family:Georgia,serif;line-height:1;letter-spacing:-1px;margin-top:6px}
+.p-note{font-family:var(--vt-font);font-size:13px;line-height:1.5;background:#FFF4E8;border:1px solid #F0DCC4;border-left:3px solid var(--p-accent);border-radius:6px;padding:12px 14px;color:#4A4034}
+</style></head><body class="b-theme">
+<div class="sheet-b">
+<div class="paper">
+  <div class="p-top"><div><div class="p-kicker">Диктофон</div><div class="p-title">Планёрка<br>отдела</div></div>
+    <div class="p-rec"><span class="dot" data-live style="background:var(--p-accent);box-shadow:0 0 10px var(--p-accent)"></span>идёт</div></div>
+  <div class="p-wave"><i style="height:6px"></i><i style="height:28px"></i><i style="height:33px"></i><i style="height:18px"></i><i style="height:18px"></i><i style="height:33px"></i><i style="height:28px"></i><i style="height:6px"></i><i style="height:28px"></i><i style="height:33px"></i><i style="height:18px"></i><i style="height:19px"></i><i style="height:33px"></i><i style="height:27px"></i><i style="height:7px"></i><i style="height:29px"></i><i style="height:33px"></i><i style="height:17px"></i><i style="height:19px"></i><i style="height:34px"></i><i style="height:27px"></i><i style="height:7px"></i><i style="height:29px"></i><i style="height:33px"></i><i style="height:17px"></i><i style="height:20px"></i><i style="height:34px"></i><i style="height:27px"></i><i style="height:8px"></i><i style="height:29px"></i><i style="height:33px"></i><i style="height:16px"></i><i style="height:20px"></i><i style="height:34px"></i><i style="height:26px"></i><i style="height:8px"></i><i style="height:29px"></i><i style="height:33px"></i><i style="height:16px"></i><i style="height:20px"></i><i style="height:34px"></i><i style="height:26px"></i><i style="height:9px"></i><i style="height:30px"></i><i style="height:32px"></i><i style="height:15px"></i></div>
+  <div class="p-body">
+    <div><div class="p-timer">01:24:07 · 2 голоса · шум отсечён</div>
+      <div class="p-big">Успеем.</div></div>
+    <div><div class="p-h">Сейчас говорят</div>
+      <p class="p-text"><span class="spk">Анна</span> — по бюджету до пятницы надо понять, укладываемся ли.<br>
+      <span class="spk">Дмитрий</span> — я отправлю смету завтра утром, успеем.</p></div>
+    <div class="p-note">Задача: отправить смету Анне — до 27.11, 08:00. <b>«Я отправлю смету завтра утром»</b></div>
+  </div>
+  <div class="p-foot"><span>пауза</span><span class="on">стоп</span><span>метка</span></div>
+</div>
+<div class="paper">
+  <div class="p-top"><div><div class="p-kicker">Разбор · 41 мин</div><div class="p-title">Планёрка<br>26 ноября</div></div>
+    <div class="p-rec" style="color:#2F6B4F;border-color:#CFE3D6;background:#F1F8F3">готово</div></div>
+  <div class="p-body" style="padding-top:28px">
+    <div><div class="p-h">Коротко</div>
+      <p class="p-text">Статус релиза свели: бэкенд готов, мобильное приложение ждёт тестов. Обсудили бюджет — <i>решили уложиться без найма</i>; смету пришлют утром в четверг.</p></div>
+    <div><div class="p-h">Задачи</div>
+      <div class="p-task"><div class="num">01</div><div><div class="tt">Отправить смету Анне</div>
+        <div class="mm"><span><b>Дмитрий</b></span><span>до 27.11 08:00</span><span>· из реплики 12:40</span></div></div></div>
+      <div class="p-task"><div class="num">02</div><div><div class="tt">Согласовать тесты с QA</div>
+        <div class="mm"><span><b>Анна</b></span><span>до пятницы</span><span>· из реплики 28:03</span></div></div></div>
+      <div class="p-task"><div class="num">03</div><div><div class="tt">Напомнить о повторной встрече</div>
+        <div class="mm"><span><b>всем</b></span><span>завтра 10:00</span><span>· повторяющаяся</span></div></div></div>
+    </div>
+  </div>
+  <div class="p-foot"><span class="on">выжимка</span><span>транскрипт</span><span>в задачник</span></div>
+</div>
+</div></body></html>

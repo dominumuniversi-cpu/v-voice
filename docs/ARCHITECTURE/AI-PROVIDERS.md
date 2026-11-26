@@ -1,0 +1,129 @@
+# Подключение моделей — AI-PROVIDERS
+
+Дата: 26.11.2026 · Для: разработчиков и администратора · Факты и источники — в
+[RESEARCH-2026-11.md](../RESEARCH/RESEARCH-2026-11.md)
+
+Здесь три слоя: **распознавание речи (ASR)**, **диаризация** (кто говорит), **LLM-разбор** (что поняли).
+Для каждого — рекомендуемые варианты, требование к железу, переменные окружения и **как подключить руками**.
+Все ключи хранятся **только на сервере** (env или `secrets/` — вне git); в мобильное приложение не попадают.
+
+## 1. Пресеты для человека (экран «Подключение моделей»)
+
+| Пресет | ASR | Диаризация | LLM | Когда |
+|---|---|---|---|---|
+| **«Точно»** (по умолчанию для совещаний) | Speechmatics realtime (Melia 1) | встроенная у вендора | DeepSeek / GigaChat | важные встречи |
+| **«Дёшево»** | GigaAM-v3 self-host (свой GPU) | pyannote на сервере после записи | DeepSeek | каждый день |
+| **«Приватно»** | GigaAM-v3 self-host (без внешних сервисов) | pyannote | локальная LLM (Ollama) | конфиденциально |
+| **«Прототип»** | Deepgram Nova-3 streaming | встроенная | DeepSeek | быстрый старт без своего GPU |
+
+## 2. ASR — варианты подключения
+
+### 2.1 GigaAM-v3 (self-host, рекомендовано как основной для русского)
+- Модель: `ai-sage/GigaAM-v3`, ревизия `e2e_rnnt` (текст сразу с пунктуацией), MIT, ~220–240M параметров.
+- Железо: **GPU** (одна карта уровня RTX 4090 / L4 / A10 хватает на несколько потоков), VRAM ≈ 4–8 ГБ
+  с запасом; CPU-инференс возможен, но не для онлайна.
+- Сервер: Python 3.11+, `torch==2.8.0`, `torchaudio==2.8.0`, `transformers==4.57.1`, `trust_remote_code=True`.
+- Подключение:
+  ```bash
+  # .env сервера
+  ASR_PROVIDER=gigaam
+  GIGAAM_MODEL=ai-sage/GigaAM-v3
+  GIGAAM_REVISION=e2e_rnnt
+  GIGAAM_DEVICE=cuda        # или cpu
+  GIGAAM_CHUNK_SEC=4
+  ```
+- Проверка: `POST /api/v1/providers/gigaam/test` с эталонным файлом → ожидаем текст с пунктуацией.
+
+### 2.2 Speechmatics (облако, лучший заявленный онлайн + диаризация в стриме)
+- Значения: realtime Melia 1 $0.20/ч, Enhanced $0.40/ч; pre-recorded Melia $0.12/ч (цены проверены 26.11.2026).
+- Подключение:
+  ```bash
+  ASR_PROVIDER=speechmatics
+  SPEECHMATICS_API_KEY=xxxxxxxx      # в secrets/, не в git
+  SPEECHMATICS_LANG=ru
+  SPEECHMATICS_DIARIZATION=true
+  ```
+- Проверка: «Проверить» в настройках → тестовый запрос на 5 c.
+
+### 2.3 Deepgram (облако, быстрый коннект, оплата по секундам)
+```bash
+ASR_PROVIDER=deepgram
+DEEPGRAM_API_KEY=xxxxxxxx
+DEEPGRAM_MODEL=nova-3
+DEEPGRAM_DIARIZE=true
+```
+Цена потокового: $0.29/ч (монолингв.), $0.35/ч (мультиязычный), тишина бесплатно.
+
+### 2.4 AssemblyAI (облако, точность на записях)
+```bash
+ASR_PROVIDER=assemblyai
+ASSEMBLYAI_API_KEY=xxxxxxxx
+```
+Pre-recorded $0.21/ч; в MVP используем как **финальный проход по всему аудио** (точнее, чем стрим).
+
+### 2.5 SaluteSpeech / GigaChat Audio / Yandex SpeechKit (РФ, для 152-ФЗ)
+Подключение — только после проверки цен и юр. условий (задача «Исследовать и уточнить требования»).
+План интерфейса:
+```bash
+ASR_PROVIDER=salutespeech
+SALUTESPEECH_AUTH_KEY=...
+SALUTESPEECH_SCOPE=SALUTE_SPEECH_PERS
+```
+
+### 2.6 Локальный ES-совместим: iOS 26 `SpeechAnalyzer` (опция приватности, фаза 2)
+Нативный модуль приложения, не сервер. Плюс — on-device без сервера; минус — только iOS 26+, не решает
+фоновую запись. Использовать как «приватный режим для iPhone».
+
+## 3. Диаризация
+
+| Вариант | Как подключить |
+|---|---|
+| Вендорная (Speechmatics/Deepgram/AssemblyAI) | флаг `DIARIZATION=true` у провайдера |
+| **pyannote.audio 4.x** (сервер, точный, после записи) | `DIARIZATION_PROVIDER=pyannote`, `HF_TOKEN=...` (модели на Hugging Face под лицензией, список — на саму модель), `pyannote-audio==4.0.0`, `torchcodec==0.7.0` |
+| 3D-Speaker / CAM++ + онлайн-кластеризация | `DIARIZATION_PROVIDER=3dspeaker`, окна 2–4 c; ниже качество, но живой режим |
+
+## 4. LLM-разбор
+
+Строгая JSON-схема + evidence-правило (см. ниже). Модель должна уверенно держать структурированный вывод.
+
+| Провайдер | env | Замечания |
+|---|---|---|
+| **DeepSeek** | `LLM_PROVIDER=deepseek`, `DEEPSEEK_API_KEY` | дешево, хорошо держит JSON, русский OK |
+| **GigaChat** | `LLM_PROVIDER=gigachat`, `GIGACHAT_CREDENTIALS` | РФ, 152-ФЗ |
+| **Claude** | `LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY` | лучший разбор длинных встреч, дороже |
+| **Локальная** | `LLM_PROVIDER=ollama`, `OLLAMA_BASE_URL=http://gpu:11434` | приватный контур |
+
+### Схема ответа (контракт)
+```json
+{
+  "summary": ["..."],
+  "participants": [{"speaker":"S1","name":"Анна","verdict":"owner"}],
+  "items": [
+    {"kind":"task|meeting|reminder|decision|question",
+     "title":"...", "owner":"...", "due_at":"ISO8601|null", "priority":"low|medium|high",
+     "evidence":{"start_s":0,"end_s":0,"quote":"..."}}
+  ],
+  "open_questions": ["..."]
+}
+```
+**Правило:** элемент без `evidence.quote` (≥ 12 символов, есть в транскрипте) **отбрасывается валидатором**.
+
+## 5. Стоимость — аренда и порядок
+
+Пример: 1 час встречи, «Дёшево» = self-host GigaAM (электричество/GPU-бюджет) + pyannote (бесплатно) +
+LLM около 20–40 тыс. токенов разбора (DeepSeek — центы). «Точно» на Speechmatics = $0.20/ч + LLM.
+Оценка в рублях фиксируется в задаче «Стоимость и лимиты».
+
+## 6. Порядок проверки подключения (для человека)
+
+1. Заходим в приложение → Настройки → «Подключение моделей».
+2. Выбираем пресет или провайдера, вставляем ключ (поле маскируется), жмём **«Проверить»**.
+3. Приложение шлёт `POST /api/v1/providers/{id}/test`; сервер делает реальный вызов на 5-секундном
+   образце и возвращает текст. Успех — зелёная галка, в логе сервера — факт без ключа.
+4. Жмём «Сохранить» — пресет применяется к новым записям.
+
+## 7. Что подключать сейчас (рекомендация)
+
+1. **Прямо сейчас, без своего GPU:** Speechmatics (или Deepgram) + DeepSeek — через 1 день можно слышать.
+2. **Цель по качеству и цене:** GigaAM-v3 e2e_rnnt на GPU + pyannote + DeepSeek.
+3. **Для 152-ФЗ:** GigaChat Audio + GigaChat LLM (параллельно с 2-м вариантом).

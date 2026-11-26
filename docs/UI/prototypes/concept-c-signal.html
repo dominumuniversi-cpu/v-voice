@@ -1,0 +1,70 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>VoiceTranscribator — концепция C «Signal»</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+body.c{background:#06080C;color:#E6ECF7;font-family:var(--vt-font);-webkit-font-smoothing:antialiased}
+.sheet-c{display:flex;gap:48px;flex-wrap:wrap;padding:56px;background:radial-gradient(800px 400px at 0% 0%,#0E2030,transparent),#06080C}
+.cp{width:390px;height:844px;border-radius:36px;background:linear-gradient(180deg,#0A0F16,#06080C);border:1px solid #16202E;overflow:hidden;display:flex;flex-direction:column;position:relative;box-shadow:0 40px 90px -40px #000}
+.cp .glow{position:absolute;width:520px;height:520px;left:50%;top:-180px;transform:translateX(-50%);background:radial-gradient(circle,rgba(0,229,255,.18),transparent 60%);pointer-events:none}
+.c-top{padding:26px 24px 0;position:relative;z-index:2}
+.c-row{display:flex;justify-content:space-between;align-items:center}
+.c-kick{font-family:var(--vt-mono);font-size:11px;letter-spacing:2px;color:#00E5FF;text-transform:uppercase}
+.c-time{font-family:var(--vt-mono);font-size:13px;color:#7E8CA3}
+.c-big{font-size:56px;font-family:var(--vt-mono);letter-spacing:-2px;margin-top:14px;line-height:1}
+.c-sub{color:#7E8CA3;font-size:13px;margin-top:8px;font-family:var(--vt-mono)}
+.meter{position:relative;height:190px;margin:26px 0 0}
+.meter .bar{position:absolute;bottom:0;width:6px;border-radius:3px;background:linear-gradient(180deg,#00E5FF,#6C4DFF)}
+.meter .thr{position:absolute;left:0;right:0;border-top:1px dashed rgba(0,229,255,.5);bottom:120px}
+.meter .thr span{position:absolute;right:0;top:-18px;font-family:var(--vt-mono);font-size:10px;color:#00E5FF;letter-spacing:1px}
+.c-body{padding:0 24px;display:flex;flex-direction:column;gap:16px;flex:1;overflow:hidden;position:relative;z-index:2}
+.c-line{display:grid;grid-template-columns:58px 1fr;gap:12px;font-size:15px;line-height:1.45}
+.c-line .sp{font-family:var(--vt-mono);font-size:11px;color:#00E5FF;padding-top:4px;letter-spacing:.5px}
+.c-line.s2 .sp{color:#FF5FD2}
+.c-line.ghost{color:#54617A}
+.c-card{background:#0C1219;border:1px solid #16202E;border-radius:16px;padding:14px 16px}
+.c-card h4{font-family:var(--vt-mono);font-size:11px;letter-spacing:1.6px;color:#7E8CA3;text-transform:uppercase;margin:0 0 10px;font-weight:500}
+.c-task{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid #16202E;font-size:14px}
+.c-task:first-of-type{border-top:none}
+.c-task em{font-style:normal;font-family:var(--vt-mono);font-size:11px;color:#FFB020}
+.c-task span.o{font-family:var(--vt-mono);font-size:11px;color:#7E8CA3}
+.c-cta{display:flex;gap:10px;padding:18px 24px 28px;position:relative;z-index:2}
+.c-btn{flex:1;border:1px solid #00E5FF;color:#00E5FF;background:transparent;padding:14px;border-radius:12px;font-family:var(--vt-mono);font-size:12px;letter-spacing:1.4px;text-transform:uppercase}
+.c-btn.on{background:#00E5FF;color:#04121A;font-weight:700;border-color:#00E5FF}
+.legend{display:flex;gap:14px;font-family:var(--vt-mono);font-size:10px;color:#7E8CA3;letter-spacing:1px;text-transform:uppercase;margin-top:10px}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+</style></head><body class="c"><div class="sheet-c">
+<div class="cp"><div class="glow"></div>
+  <div class="c-top"><div class="c-row"><span class="c-kick">● Запись · фон</span><span class="c-time">ср 26 ноя · 14:12</span></div>
+    <div class="c-big">01:24:07</div>
+    <div class="c-sub">ANNA · DMITRY · +1 голос отсечён</div>
+    <div class="meter"><div class="bar" style="left:0px;height:40px"></div><div class="bar" style="left:9.2px;height:72px"></div><div class="bar" style="left:18.4px;height:110px"></div><div class="bar" style="left:27.599999999999998px;height:64px"></div><div class="bar" style="left:36.8px;height:150px"></div><div class="bar" style="left:46px;height:96px"></div><div class="bar" style="left:55.199999999999996px;height:138px"></div><div class="bar" style="left:64.39999999999999px;height:52px"></div><div class="bar" style="left:73.6px;height:120px"></div><div class="bar" style="left:82.8px;height:170px"></div><div class="bar" style="left:92px;height:88px"></div><div class="bar" style="left:101.19999999999999px;height:60px"></div><div class="bar" style="left:110.39999999999999px;height:132px"></div><div class="bar" style="left:119.6px;height:44px"></div><div class="bar" style="left:128.79999999999998px;height:108px"></div><div class="bar" style="left:138px;height:156px"></div><div class="bar" style="left:147.2px;height:72px"></div><div class="bar" style="left:156.39999999999998px;height:96px"></div><div class="bar" style="left:165.6px;height:50px"></div><div class="bar" style="left:174.79999999999998px;height:140px"></div><div class="bar" style="left:184px;height:64px"></div><div class="bar" style="left:193.2px;height:116px"></div><div class="bar" style="left:202.39999999999998px;height:84px"></div><div class="bar" style="left:211.6px;height:150px"></div><div class="bar" style="left:220.79999999999998px;height:58px"></div><div class="bar" style="left:229.99999999999997px;height:100px"></div><div class="bar" style="left:239.2px;height:130px"></div><div class="bar" style="left:248.39999999999998px;height:70px"></div><div class="bar" style="left:257.59999999999997px;height:146px"></div><div class="bar" style="left:266.79999999999995px;height:54px"></div><div class="bar" style="left:276px;height:92px"></div><div class="bar" style="left:285.2px;height:124px"></div><div class="bar" style="left:294.4px;height:66px"></div><div class="bar" style="left:303.59999999999997px;height:104px"></div><div class="bar" style="left:312.79999999999995px;height:144px"></div><div class="bar" style="left:322px;height:76px"></div><div class="bar" style="left:331.2px;height:98px"></div><div class="bar" style="left:340.4px;height:136px"></div><div class="bar" style="left:349.59999999999997px;height:62px"></div><div class="bar" style="left:358.79999999999995px;height:112px"></div><div class="thr"><span>ПОРОГ ВЛАДЕЛЬЦА</span></div></div>
+    <div class="legend"><span><i style="background:#00E5FF"></i>Анна</span><span><i style="background:#FF5FD2"></i>Дмитрий</span><span><i style="background:#3B475C"></i>шум</span></div>
+  </div>
+  <div class="c-body" style="margin-top:20px">
+    <div class="c-card" style="padding:16px 18px">
+      <div class="c-line"><div class="sp">A</div><div>По бюджету до пятницы надо понять, укладываемся.</div></div>
+      <div class="c-line s2" style="margin-top:10px"><div class="sp">D</div><div>Я отправлю смету завтра утром, успеем.</div></div>
+      <div class="c-line ghost" style="margin-top:10px"><div class="sp">·</div><div>значит по… марже…</div></div>
+    </div>
+    <div class="c-card"><h4>Задачи из разговора</h4>
+      <div class="c-task"><span>Отправить смету</span><span class="o">Дмитрий · <em>27.11</em></span></div>
+      <div class="c-task"><span>Согласовать тесты</span><span class="o">Анна · <em>пт</em></span></div>
+      <div class="c-task"><span>Встреча-повтор</span><span class="o">завтра <em>10:00</em></span></div>
+    </div>
+  </div>
+  <div class="c-cta"><button class="c-btn">метка</button><button class="c-btn on">стоп</button></div>
+</div>
+<div class="cp"><div class="glow" style="background:radial-gradient(circle,rgba(108,77,255,.16),transparent 60%)"></div>
+  <div class="c-top"><div class="c-row"><span class="c-kick" style="color:#6C4DFF">Разбор · готов</span><span class="c-time">41 мин · 3 задачи</span></div>
+    <div style="font-size:30px;font-weight:600;margin-top:16px;line-height:1.15">Планёрка:<br>укладываемся без найма</div>
+    <div class="c-sub" style="margin-top:12px">STATUS · GREEN · 2 участника</div></div>
+  <div class="c-body" style="margin-top:22px">
+    <div class="c-card"><h4>Решение</h4><div style="font-size:14px;line-height:1.5">Бюджет держим без найма; смету присылают утром в четверг.</div></div>
+    <div class="c-card"><h4>Открытые вопросы</h4><div style="font-size:14px;line-height:1.5;color:#9AA7BC">1) дата демо заказчику — не согласована</div></div>
+    <div class="c-card"><h4>Чтобы отправить в задачник</h4>
+      <div class="c-task"><span>Отправить смету Анне</span><span class="o"><em>27.11 08:00</em></span></div>
+      <div class="c-task"><span>Согласовать тесты с QA</span><span class="o"><em>пт</em></span></div>
+    </div>
+  </div>
+  <div class="c-cta"><button class="c-btn">скачать</button><button class="c-btn on">в задачник</button></div>
+</div>
+</div></body></html>
