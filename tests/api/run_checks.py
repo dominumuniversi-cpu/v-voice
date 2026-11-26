@@ -821,11 +821,11 @@ check("jira_reminder_date_set", _jira_req.body['fields'].get('duedate') == '2026
 from vvoice.http_api import handle as _handle
 _code_no_token = _handle('GET', '/api/v1/health', device_tokens=('secret-1',))
 check("auth_rejects_without_token", _code_no_token.status == 401, _code_no_token.status)
-_code_wrong, _ = _handle('GET', '/api/v1/health', device_tokens=('secret-1',), auth_token='nope')
+_code_wrong = _handle('GET', '/api/v1/health', device_tokens=('secret-1',), auth_token='nope')
 check("auth_rejects_wrong_token", _code_wrong.status == 401, _code_wrong.status)
-_code_ok, _ = _handle('GET', '/api/v1/health', device_tokens=('secret-1',), auth_token='secret-1')
+_code_ok = _handle('GET', '/api/v1/health', device_tokens=('secret-1',), auth_token='secret-1')
 check("auth_accepts_right_token", _code_ok.status == 200, _code_ok.status)
-_code_open, _ = _handle('GET', '/api/v1/health')
+_code_open = _handle('GET', '/api/v1/health')
 check("auth_off_by_default", _code_open.status == 200, _code_open.status)
 check("auth_sets_challenge", _code_no_token.headers.get('WWW-Authenticate') == 'Bearer', _code_no_token.headers)
 load_cfg = _load

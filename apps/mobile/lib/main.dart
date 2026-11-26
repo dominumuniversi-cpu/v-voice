@@ -96,8 +96,9 @@ class _ListenScreenState extends State<ListenScreen> {
         if (text == null) api.chunksLost += 1;
       }
       if (!mounted) return;
-      if (text != null && text.isNotEmpty) {
-        setState(() => widget.controller.liveText = text);
+      final got = text;
+      if (got != null && got.isNotEmpty) {
+        setState(() => widget.controller.liveText = got);
       } else if (api.chunksLost > 0) {
         setState(() => widget.controller.liveWarning =
             'Часть звука не дошла до сервера (' + api.chunksLost.toString() + '). Текст может быть неполным.');
