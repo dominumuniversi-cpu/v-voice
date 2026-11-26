@@ -58,6 +58,13 @@ class RecordingController {
   /// Нужен, чтобы разбор знал, какую запись отправлять на сервер.
   String lastSavedPath = '';
 
+  /// Последний кусок звука от натива (PCM 16 бит) и счётчик полученных кусков.
+  /// Верхний слой забирает кусок и отправляет его на сервер; контроллер сам ничего не отправляет.
+  List<int>? lastAudioChunk;
+
+  /// Сколько кусков звука пришло. Ноль при включённой записи означает тишину в канале.
+  int audioChunksReceived = 0;
+
   /// Длительность последней записи в миллисекундах.
   int lastDurationMs = 0;
   String liveText = '';
@@ -80,6 +87,14 @@ class RecordingController {
         final text = event['value'] as String?;
         if (text != null && text.isNotEmpty) liveText = text;
         _emit();
+      } else if (event['type'] == 'audio') {
+        // Кусок звука для онлайн-распознавания. Не копим: держать в памяти всю запись —
+        // верный способ уронить телефон на длинном разговоре.
+        final pcm = event['pcm'];
+        if (pcm is List<int> && pcm.isNotEmpty) {
+          lastAudioChunk = pcm;
+          audioChunksReceived++;
+        }
       } else if (event['type'] == 'saved') {
         // Файл готов: путь приходит от натива сразу после финализации WAV.
         final path = event['path'] as String?;

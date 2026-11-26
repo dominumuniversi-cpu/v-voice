@@ -109,6 +109,9 @@ class RecordingService : Service() {
         worker = Thread {
             val buf = ByteArray(minBuf)
             var sinceLevel = 0
+            // Куски меньше 100 мс отправлять бессмысленно: событий будет больше, чем пользы,
+            // а распознаватель всё равно ждёт окно. Копим и отдаём пачкой.
+            val pendingAudio = java.io.ByteArrayOutputStream()
             while (running) {
                 val read = record.read(buf, 0, buf.size)
                 if (read > 0) {
@@ -120,6 +123,15 @@ class RecordingService : Service() {
                     if (sinceLevel >= LEVEL_WINDOW_BYTES) {
                         sinceLevel = 0
                         RecordingChannel.emitLevel(rmsOf(buf, read))
+                    }
+                    // Живой текст: отдаём звук наружу небольшими кусками. Файл при этом пишется
+                    // как раньше — разбор после «стоп» не должен пострадать от онлайн-режима.
+                    // Отдельной проверки паузы здесь нет намеренно: сервис не держит состояния паузы,
+                    // а выдумать поле, которого нет, — значит получить ошибку компиляции вместо работы.
+                    pendingAudio.write(buf, 0, read)
+                    if (pendingAudio.size() >= AUDIO_CHUNK_BYTES) {
+                        RecordingChannel.emitAudio(pendingAudio.toByteArray())
+                        pendingAudio.reset()
                     }
                 }
             }
@@ -157,6 +169,8 @@ class RecordingService : Service() {
         private const val NOTIF_ID = 42
         private const val SAMPLE_RATE = 16_000
         /** ~200 мс при 16 кГц моно 16 бит: частота индикатора, а не запись. */
+        // 100 мс при 16 кГц, 16 бит, моно.
+        private const val AUDIO_CHUNK_BYTES = 3200
         private const val LEVEL_WINDOW_BYTES = 6400
         const val ACTION_STOP = "ru.vernadsky.vvoice.STOP"
         const val ACTION_PAUSE = "ru.vernadsky.vvoice.PAUSE"

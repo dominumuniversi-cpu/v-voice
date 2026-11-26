@@ -90,6 +90,17 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
          * Зачем событием, а не возвратом из stop(): stop() уже отдаёт "ok" и эту форму знает iOS;
          * ломать общий контракт ради пути дороже, чем добавить ещё одно событие.
          */
+        /**
+         * Кусок звука для онлайн-распознавания (PCM 16 бит, 16 кГц, моно).
+         *
+         * Почему через EventChannel, а не через поток Flutter: звук идёт десятки раз в секунду,
+         * а канал событий уже используется для состояния — второй механизм добавил бы стык,
+         * которого нет смысла проверять отдельно.
+         */
+        fun emitAudio(pcm: ByteArray) {
+            eventSink?.success(mapOf("type" to "audio", "pcm" to pcm))
+        }
+
         fun emitSaved(path: String, durationMs: Long) {
             eventSink?.success(mapOf("type" to "saved", "path" to path, "duration_ms" to durationMs))
         }

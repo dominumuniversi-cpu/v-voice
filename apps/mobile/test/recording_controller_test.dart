@@ -78,6 +78,23 @@ void main() {
       expect(controller.state, RecordingState.recording);
     });
 
+    test('кусок звука доходит и не копится', () async {
+      await controller.start();
+      bridge.push({'type': 'audio', 'pcm': [1, 2, 3, 4]});
+      bridge.push({'type': 'audio', 'pcm': [5, 6]});
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.audioChunksReceived, 2);
+      // Хранится только последний кусок: память не растёт с длиной разговора.
+      expect(controller.lastAudioChunk, [5, 6]);
+    });
+
+    test('пустой кусок звука не считается', () async {
+      await controller.start();
+      bridge.push({'type': 'audio', 'pcm': <int>[]});
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.audioChunksReceived, 0);
+    });
+
     test('путь к записи доходит до экрана', () async {
       await controller.start();
       bridge.push({'type': 'saved', 'path': '/data/seg/segment.wav', 'duration_ms': 12000});
