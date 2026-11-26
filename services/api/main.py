@@ -52,6 +52,15 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
     }
 
 
+def _safe_path(path: str) -> str:
+    """Путь для лога без query-строки.
+
+    Сейчас секретов в адресе нет, но одна привычка «положить токен в ссылку» — и он окажется
+    в журнале навсегда: журналы копируют, пересылают и хранят дольше, чем сам токен живёт.
+    """
+    return path.split('?', 1)[0]
+
+
 class Handler(BaseHTTPRequestHandler):
     """Переводит HTTP-запрос в вызов handle() и обратно."""
 
@@ -107,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt: str, *args: Any) -> None:
         # Тело запроса в лог не попадает никогда: там аудио и ключи.
-        print('%s %s' % (self.command, self.path))
+        print('%s %s' % (self.command, _safe_path(self.path)))
 
 
 def make_server(host: str, port: int, settings: Settings, data_dir: str | Path) -> ThreadingHTTPServer:

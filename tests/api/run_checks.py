@@ -838,6 +838,10 @@ _missing_asr = [p for p in _ASR_OK if p not in _env]
 _missing_llm = [p for p in _LLM_OK if p not in _env]
 check("env_example_lists_providers", not _missing_asr and not _missing_llm,
       ('asr', _missing_asr, 'llm', _missing_llm))
+# В журнал не должен попадать query: там когда-нибудь окажется токен.
+check("log_hides_query", '_safe_path(self.path)' in _main_src and "split('?', 1)[0]" in _main_src,
+      'журнал пишет путь с query — туда попадёт токен')
+check("log_keeps_plain_path", 'print(\'%s %s\' % (self.command' in _main_src)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
