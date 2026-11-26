@@ -123,4 +123,14 @@ void main() {
     final d = Digest.fromJson({'summary': ['Коротко'], 'items': [], 'participants': []});
     expect(d.truncated, isFalse);
   });
+
+  test('тема разговора доходит до экрана', () {
+    final d = Digest.fromJson({'topic': 'Бюджет и сроки', 'summary': [], 'items': [], 'participants': []});
+    expect(d.topic, 'Бюджет и сроки');
+  });
+
+  test('без темы экран не показывает пустой блок', () {
+    final d = Digest.fromJson({'summary': [], 'items': [], 'participants': []});
+    expect(d.topic, isEmpty);
+  });
 }

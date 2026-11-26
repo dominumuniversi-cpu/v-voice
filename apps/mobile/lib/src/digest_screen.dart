@@ -120,7 +120,17 @@ class _DigestScreenState extends State<DigestScreen> {
               ),
             )
           else
-            _section('Коротко', d.summary),
+            if (d.topic.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              // Тема — первой и крупнее: это ответ на вопрос «о чём вообще был разговор»,
+              // который человек задаёт раньше, чем читает список задач.
+              child: Text(
+                d.topic,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.35),
+              ),
+            ),
+          _section('Коротко', d.summary),
           _participants(d.participants),
           _section('Решили', d.decisions),
           _section('Осталось неясным', d.openQuestions),

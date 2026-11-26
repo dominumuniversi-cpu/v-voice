@@ -78,6 +78,9 @@ def make_digest(
         members_only=members_only and seen_foreign,
     )
     return {
+        # Одна строка «о чём был разговор». Раньше её теряли: промпт просил, модель отвечала,
+        # а в результат она не попадала — и человек видел список, но не видел сути.
+        "topic": str(raw.get("topic") or "").strip(),
         # True — разобрана только часть разговора. Молчать об этом значит выдать половину за целое.
         "truncated": prompt_is_truncated(transcript),
         "summary": [str(s) for s in (raw.get("summary") or [])],

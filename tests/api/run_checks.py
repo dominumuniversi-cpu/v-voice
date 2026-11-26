@@ -873,6 +873,11 @@ _main_src = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'main.py
 check("host_defaults_to_localhost", "or '127.0.0.1'" in _main_src, 'дефолт VV_HOST')
 check("host_default_not_wildcard", "or '0.0.0.0'" not in _main_src, 'дефолт 0.0.0.0 вернулся')
 check("startup_names_listen_scope", 'доступен из сети' in _main_src and 'только этот компьютер' in _main_src, 'строка о прослушивании')
+# Модель отвечает темой разговора — она обязана дойти до человека, а не остаться в ответе модели.
+_dg_topic = _make_digest(_tr_short2, lambda s, u: {'topic': 'Бюджет и сроки', 'summary': ['Смета'], 'items': [], 'participants': []})
+check("topic_reaches_result", _dg_topic.get('topic') == 'Бюджет и сроки', _dg_topic.get('topic'))
+_dg_notopic = _make_digest(_tr_short2, lambda s, u: {'summary': ['Смета'], 'items': [], 'participants': []})
+check("topic_empty_when_model_silent", _dg_notopic.get('topic') == '', _dg_notopic.get('topic'))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
