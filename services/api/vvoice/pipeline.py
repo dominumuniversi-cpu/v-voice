@@ -14,7 +14,7 @@ from .assemble import Transcript, assemble
 from .digest import make_digest
 from .live import LiveBuffer, gate_chunks
 from .providers.fake_asr import Segment
-from .vad import VadGate
+from .vad import FRAME_MS, VadGate
 
 
 @dataclass
@@ -72,6 +72,9 @@ def run_session(
         "dropped_noise": transcript.dropped_noise,
         "dropped_by_vad": dropped_frames,
         "sent_chunks": len(sent),
+        # Сколько секунд аудио реально ушло провайдеру. Человеку и расчёту стоимости нужно это,
+        # а не число кусков: по кускам цену не посчитать, не зная длины куска.
+        "sent_seconds": round(len(sent) * FRAME_MS / 1000.0, 1),
         "dropped_short": transcript.dropped_short,
         # Сколько строк распознавание придумало в тишине. Нужно человеку как мера шума в зале.
         "dropped_invented": transcript.dropped_invented,

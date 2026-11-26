@@ -1060,6 +1060,9 @@ check("llm_request_built", _r.url.startswith('https://') and 'model' in _r.body,
 check("llm_answer_from_choices", _answer('{\"choices\":[{\"message\":{\"content\":\"да\"}}]}') == 'да')
 check("llm_answer_from_content", _answer('{\"content\":[{\"text\":\"да\"}]}') == 'да')
 check("llm_garbage_is_empty", _answer('не json') == '')
+# AC-9: сколько секунд ушло провайдеру — считается из тех же чисел, что и куски.
+from vvoice.vad import FRAME_MS as _FM
+check("sent_seconds_formula", abs(50 * _FM / 1000.0 - 1.0) < 1e-9, 'кадр ' + str(_FM) + ' мс')
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
