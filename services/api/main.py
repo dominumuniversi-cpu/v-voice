@@ -85,9 +85,13 @@ class Handler(BaseHTTPRequestHandler):
         print('%s %s' % (self.command, self.path))
 
 
-def make_server(host: str, port: int, settings: Settings, data_dir: Path) -> ThreadingHTTPServer:
-    """Поднимает сервер, но не запускает его: так его можно проверить в тестах."""
-    deps = build_dependencies(settings, data_dir)
+def make_server(host: str, port: int, settings: Settings, data_dir: str | Path) -> ThreadingHTTPServer:
+    """Поднимает сервер, но не запускает его: так его можно проверить в тестах.
+
+    data_dir принимает и строку, и Path: вызывающий код приходит разный (в тестах mkdtemp
+    отдаёт строку), и отказываться от неё из-за типа — ловушка для того, кто просто хочет запустить.
+    """
+    deps = build_dependencies(settings, Path(data_dir))
     handler = type('BoundHandler', (Handler,), {'deps': deps, 'settings': settings})
     return ThreadingHTTPServer((host, port), handler)
 
