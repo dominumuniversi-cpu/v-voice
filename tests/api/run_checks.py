@@ -980,6 +980,17 @@ _r4 = _handle('POST', '/api/v1/sessions', _pay3, store=_st3, live_sessions=_LS(l
 check("non_live_second_upload_refused", _r4.status == 409, _r4.status)
 _msrc = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'main.py').read_text(encoding='utf-8')
 check("refuses_open_without_lock", 'ОТКАЗ — сервер открыт в сеть' in _msrc and 'return 2' in _msrc)
+# Замок обязан закрывать КАЖДЫЙ путь, а не только те, что были на момент написания.
+from vvoice.http_api import ROUTES as _ROUTES
+_leaks = []
+for _tpl in _ROUTES:
+    _path = _tpl.replace('{session_id}', 'abc123def4567890')
+    _r = _handle('GET' if 'GET' in _ROUTES[_tpl] else 'POST', _path, '{}', device_tokens=('key-one', 'key-two'), auth_token=None)
+    if _r.status != 401:
+        _leaks.append((_path, _r.status))
+check("lock_covers_every_route", not _leaks, _leaks)
+_ok = _handle('GET', '/api/v1/health', '', device_tokens=('key-one',), auth_token='key-one')
+check("lock_lets_own_device_in", _ok.status != 401, _ok.status)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
