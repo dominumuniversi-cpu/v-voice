@@ -80,7 +80,7 @@ class _DigestLoaderState extends State<DigestLoader> {
     }
     final digest = _digest;
     if (digest != null) {
-      return DigestScreen(digest: digest, onApprove: widget.onApprove);
+      return DigestScreen(digest: digest, onApprove: widget.onApprove, api: widget.api, sessionId: widget.sessionId);
     }
     final text = _problem.isEmpty ? 'Разбор не получен.' : _problem;
     return Scaffold(

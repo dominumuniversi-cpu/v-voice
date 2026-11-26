@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'api_client.dart';
 
 import 'digest_model.dart';
 import 'theme.dart';
@@ -7,16 +8,23 @@ import 'theme.dart';
 /// что решили, что осталось неясным, что теперь делать. Цитата — под каждой задачей,
 /// потому что задача без источника не принимается.
 class DigestScreen extends StatefulWidget {
-  const DigestScreen({super.key, required this.digest, this.onApprove});
+  const DigestScreen({super.key, required this.digest, this.onApprove, this.api, this.sessionId});
 
   final Digest digest;
   final void Function(Item item)? onApprove;
+
+  /// Сервер и сессия нужны для отправки задач наружу. Могут быть null — тогда экран
+  /// остаётся читаемым, но кнопки отправки нет: обещать действие, которого не будет, нельзя.
+  final ApiClient? api;
+  final String? sessionId;
 
   @override
   State<DigestScreen> createState() => _DigestScreenState();
 }
 
 class _DigestScreenState extends State<DigestScreen> {
+  bool _sending = false;
+  String _sentMessage = '';
   @override
   Widget build(BuildContext context) {
     final d = widget.digest;
@@ -42,9 +50,68 @@ class _DigestScreenState extends State<DigestScreen> {
                   setState(() => item.approved = true);
                   widget.onApprove?.call(item);
                 })),
+          const SizedBox(height: 8),
+          _exportBlock(),
         ],
       ),
     );
+  }
+
+  /// Отправка одобренных задач наружу.
+  ///
+  /// Кнопка появляется, только если есть куда отправлять и через что. Иначе человек нажал бы
+  /// и получил отказ — а обещание, которое не сбывается, хуже отсутствия кнопки.
+  Widget _exportBlock() {
+    final api = widget.api;
+    final sessionId = widget.sessionId;
+    final approved = widget.digest.items.where((i) => i.approved).length;
+    if (api == null || sessionId == null || widget.digest.items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (approved == 0) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text('Отметьте нужные задачи — тогда их можно будет отправить.',
+            style: TextStyle(color: VVTheme.inkMuted)),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FilledButton.icon(
+            onPressed: _sending ? null : () => _sendApproved(api, sessionId),
+            icon: const Icon(Icons.send),
+            label: Text(_sending ? 'Отправляю…' : 'Отправить в задачник'),
+          ),
+          if (_sentMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_sentMessage, style: const TextStyle(color: VVTheme.inkMuted)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Отправляет и говорит человеку правду: сколько ушло, сколько не дошло и почему.
+  Future<void> _sendApproved(ApiClient api, String sessionId) async {
+    setState(() {
+      _sending = true;
+      _sentMessage = '';
+    });
+    // Цель — задачник Helper. Адрес берём с того же сервера, что и разбор: отдельная настройка
+    // адреса задачника на телефоне не нужна, пока цель одна.
+    final targets = <String, String>{'helper': api.baseUrl};
+    final (sent, failed, problem) = await api.exportItems(sessionId, widget.digest.items, targets);
+    if (!mounted) return;
+    setState(() {
+      _sending = false;
+      _sentMessage = problem.isNotEmpty
+          ? problem
+          : (sent > 0 ? 'Отправлено задач: ' + sent.toString() + '.' : 'Отправлять было нечего.');
+    });
   }
 
   Widget _section(String title, List<String> lines) {
