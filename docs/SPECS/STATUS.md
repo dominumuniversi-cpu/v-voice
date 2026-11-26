@@ -14,6 +14,8 @@
 | **Android-мост записи** | **написан** (сервис, канал, пути, разрешения) | `apps/mobile/android/` |
 | **iOS-мост записи** | **написан** (движок, канал, Info.plist) | `apps/mobile/ios/` |
 | **Конвейер разбора** | **написан** (ASR-заглушка, сборка реплик, валидатор цитат) | `services/api/vvoice/` |
+| **Восстановление** | **есть**: пересборка WAV-заголовка, обрывки отсекаются (FR-6) | `services/api/vvoice/recovery.py` |
+| **Лимиты** | **есть**: расход месяца, предупреждение 80%, сколько встреч осталось (FR-27) | `services/api/vvoice/limits.py` |
 | **Экспорт** | **TXT, Markdown, SRT, VTT, JSON** с таймкодами и спикерами (FR-11) | `services/api/vvoice/formats.py` |
 | **HTTP-слой** | **4 пути**: health, presets, probe, items/validate; коды и причины | `services/api/vvoice/http_api.py` |
 | **Схема БД** | **есть миграция v1** (биометрия — в отдельной схеме) | `services/api/migrations/0001_init.sql` |
@@ -26,11 +28,12 @@
 | **Задачник репозитория** | **описан**: метки, вехи, шаблон задачи, PR-шаблон | `docs/SPECS/ISSUE-SPEC.md` |
 | **Экран разбора** | **есть**: выжимка, решения, вопросы, задачи с цитатой и таймкодом | `apps/mobile/lib/src/digest_screen.dart` |
 | **Мобильное приложение** | **экран «Слушаю» и контроллер записи**: `flutter analyze` и 6 тестов зелёные в CI | `apps/mobile/lib/` |
-| **Проверки** | **10 локальных + 12 Flutter + 145 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
+| **Проверки** | **10 локальных + 12 Flutter + 165 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
 
 ## Проверено фактом (числа)
 
 - `npm run check` → 19 тестов, 0 падений; `syntax-check` → 12 python-файлов без ошибок.
+- CI на коммите `44b637d`: шаг валидатора — **total=165 passed=165 failed=0**.
 - CI на коммите `43770db`: шаг валидатора — **total=145 passed=145 failed=0**.
 - CI на коммите `31aa687`: шаг валидатора — **total=124 passed=124 failed=0**, pytest 18, flutter 12, node 10, все шаги зелёные.
 - CI на коммите `4097bb6`: **все шаги зелёные**; событийный канал Android переведён на EventChannel (был MethodChannel — события не дошли бы до Dart), контракт теперь это проверяет.
