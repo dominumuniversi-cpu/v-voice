@@ -28,6 +28,12 @@ final class RecordingChannel: NSObject {
                 if let reason = self?.engine.start() { result(reason) } else { result("ok") }
             case "stop":
                 self?.engine.stop(); result("ok")
+            // Пауза обязана реально прекращать запись: в движке она отсекает звук до записи в файл.
+            // false — запись не шла, паузе нечего останавливать; экран это переживёт.
+            case "pause":
+                result((self?.engine.pause() ?? false) ? "ok" : "not_recording")
+            case "resume":
+                result((self?.engine.resume() ?? false) ? "ok" : "not_paused")
             case "state":
                 result(RecordingChannel.state)
             default:

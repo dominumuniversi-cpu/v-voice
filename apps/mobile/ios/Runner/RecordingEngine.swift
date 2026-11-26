@@ -15,6 +15,8 @@ final class RecordingEngine {
     private var file: AVAudioFile?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private(set) var isRecording = false
+    /// Пауза человека: tap продолжает идти, но звук не пишется.
+    private var isPaused = false
 
     /// Старт записи. Возвращает nil при успехе, иначе человекочитаемую причину.
     func start() -> String? {
@@ -38,6 +40,9 @@ final class RecordingEngine {
         }
 
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
+            // Пауза: звук в файл не попадает. Микрофон продолжает работать, поэтому возврат мгновенный,
+            // но сказанное на паузе не записывается — иначе пауза была бы надписью на экране.
+            if self?.isPaused == true { return }
             do {
                 try self?.file?.write(from: buffer)
             } catch {
@@ -62,9 +67,26 @@ final class RecordingEngine {
         return nil
     }
 
+    /// Пауза. Возвращает false, если запись не идёт: тогда паузе нечего останавливать.
+    func pause() -> Bool {
+        guard isRecording else { return false }
+        isPaused = true
+        RecordingChannel.emitState("paused")
+        return true
+    }
+
+    /// Продолжение после паузы.
+    func resume() -> Bool {
+        guard isRecording, isPaused else { return false }
+        isPaused = false
+        RecordingChannel.emitState("recording")
+        return true
+    }
+
     func stop() {
         guard isRecording else { return }
         isRecording = false
+        isPaused = false
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         file = nil
