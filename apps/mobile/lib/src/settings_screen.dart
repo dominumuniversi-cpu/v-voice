@@ -98,6 +98,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   TextEditingController _keyFor(String id) => keys.putIfAbsent(id, () => TextEditingController());
 
+  /// Клиент действующего адреса: если человек поменял адрес, проверка уйдёт на новый,
+  /// а не на тот, что был при открытии экрана.
+  ApiClient? get _client => ServerScope.maybeOf(context)?.config.api ?? widget.api;
+
   Future<void> _probe(ProviderInfo info) async {
     final key = _keyFor(info.id).text;
     final local = KeyCheck.problem(info.id, key);
@@ -105,13 +109,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => results[info.id] = Pair('rejected', local));
       return;
     }
-    if (widget.api == null) {
+    final client = _client;
+    if (client == null) {
       setState(() => results[info.id] = const Pair('unknown', 'Сначала укажите адрес сервера выше.'));
       return;
     }
     setState(() => busy = true);
     try {
-      final (verdict, message) = await widget.api!.probe(info.id, key);
+      final (verdict, message) = await client.probe(info.id, key);
       setState(() => results[info.id] = Pair(verdict, message));
     } catch (e) {
       setState(() => results[info.id] = Pair('rejected', 'Не удалось соединиться: ' + e.toString()));
