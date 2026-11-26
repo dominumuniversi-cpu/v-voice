@@ -42,6 +42,9 @@ jobs:
       # «Missing concrete implementations», а локально это видно только здесь.
       - name: dart implements complete
         run: node tests/native/dart-implements.mjs
+      # Подписи про готовность моделей не обещают проверку ключа, которой сервер не делал.
+      - name: settings claims
+        run: node tests/native/settings-claims-check.mjs
 
       # 2) Контракт нативных мостов: записи на Android/iOS не разошлись.
       - name: live upload starts analysis

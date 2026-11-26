@@ -9,7 +9,7 @@
     "test:native": "node --test \"tests/native/*.test.mjs\"",
     "test:api": "node --test \"tests/api/*.mjs\"",
     "test:py": "python tests/api/run_checks.py",
-    "check": "node scripts/syntax-check.mjs && node tests/native/dart-implements.mjs && node tests/native/native-drift-check.mjs && node --test \"tests/native/*.test.mjs\" \"tests/api/*.mjs\""
+    "check": "node scripts/syntax-check.mjs && node tests/native/dart-implements.mjs && node tests/native/settings-claims-check.mjs && node tests/native/native-drift-check.mjs && node --test \"tests/native/*.test.mjs\" \"tests/api/*.mjs\""
   },
   "engines": {
     "node": ">=20"

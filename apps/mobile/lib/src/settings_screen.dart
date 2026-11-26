@@ -219,7 +219,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // отправляет человека искать ошибку у себя, хотя её там нет.
     if (!implemented) return title + ': ' + provider + ' — в этой версии ещё не подключена';
     if (!configured) return title + ': ' + provider + ' — ключ не указан';
-    return title + ': ' + provider + (ready ? ' — готово' : ' — ключ не принят');
+    if (!ready) return title + ': ' + provider + ' — ключ не принят';
+    // Сервер честно сообщает, что живой запрос к провайдеру не делался (key_checked: false).
+    // Писать «готово» в этом случае — значит обещать то, чего не проверяли: ключ может быть опечаткой.
+    final checked = part['key_checked'] == true;
+    if (checked) return title + ': ' + provider + ' — ключ проверен и работает';
+    return title + ': ' + provider + ' — настроено; ключ проверится первой записью';
   }
 
   Future<void> _probe(ProviderInfo info) async {
