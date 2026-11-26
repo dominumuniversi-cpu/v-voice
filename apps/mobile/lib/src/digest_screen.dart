@@ -133,6 +133,13 @@ class _DigestScreenState extends State<DigestScreen> {
             )
           else
             _section('Коротко', d.summary),
+          if (_noiseLine(d) != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              // Отсечённый шум объясняет, почему в расшифровке есть провалы. Без этой строки
+              // человек считает, что в тишине ничего не говорили, а не что звук выбросили.
+              child: Text(_noiseLine(d)!, style: const TextStyle(fontSize: 12, color: VVTheme.inkMuted)),
+            ),
           if (d.budgetRub != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -154,6 +161,15 @@ class _DigestScreenState extends State<DigestScreen> {
               // Показана часть — говорим прямо. Иначе человек считает, что главное он увидел.
               child: Text('Ещё ' + d.summaryHidden.toString() + ' пунктов выжимки не показаны — они в ответе сервера.',
                   style: const TextStyle(fontSize: 12, color: VVTheme.inkMuted)),
+            ),
+          if (d.errors.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              // Разбор сохранён частично — говорим до того, как человек начнёт ему верить.
+              child: Text(
+                'Разбор прошёл не полностью: ' + d.errors.join('; ') + '. Проверьте расшифровку перед отправкой задач.',
+                style: const TextStyle(fontSize: 13, height: 1.4, color: VVTheme.ink),
+              ),
             ),
           if (d.rejected.isNotEmpty)
             Padding(
@@ -365,5 +381,17 @@ String? _costLine(Digest d) {
   final parts = <String>[];
   if (seconds != null && seconds > 0) parts.add('В распознавание ушло ~' + minutes + ' мин');
   if (cost != null) parts.add('≈ ' + cost.toStringAsFixed(2) + ' ₽');
+  return parts.join(' · ') + '.';
+}
+
+/// Строка про отсечённый шум. null — отсекать было нечего или сервер не сказал.
+///
+/// Кадр у нас 20 мс, поэтому число кадров переводим в секунды: «24000 кадров» человеку ничего не говорит.
+String? _noiseLine(Digest d) {
+  final seconds = (d.droppedNoise * 20 / 1000).round();
+  final parts = <String>[];
+  if (seconds >= 1) parts.add('Отсечено как шум: ~' + seconds.toString() + ' с');
+  if (d.droppedInvented > 0) parts.add('в тишине отброшено ' + d.droppedInvented.toString() + ' выдуманных строк');
+  if (parts.isEmpty) return null;
   return parts.join(' · ') + '.';
 }

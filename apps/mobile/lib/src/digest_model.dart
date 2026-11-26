@@ -4,7 +4,7 @@
 /// отбрасывает элементы без непустой цитаты, а не показывает их без доказательства:
 /// человек, который не может проверить, откуда взялась задача, задачи не примет.
 class Digest {
-  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const [], this.costRub, this.sentSeconds, this.budgetRub});
+  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const [], this.costRub, this.sentSeconds, this.budgetRub, this.droppedNoise = 0, this.droppedInvented = 0, this.errors = const []});
 
   final List<String> summary;
   final List<String> decisions;
@@ -82,6 +82,9 @@ class Digest {
       budgetRub: json['budget_exceeded'] == true && json['budget_rub'] is num
           ? (json['budget_rub'] as num).toDouble()
           : null,
+      droppedNoise: json['dropped_noise'] is num ? (json['dropped_noise'] as num).toInt() : 0,
+      droppedInvented: json['dropped_invented'] is num ? (json['dropped_invented'] as num).toInt() : 0,
+      errors: list(json['errors']),
     );
   }
 
@@ -91,6 +94,16 @@ class Digest {
 
   /// Предел на одну встречу, если он задан и превышен. null — всё в порядке или предела нет.
   final double? budgetRub;
+
+  /// Сколько кадров (по 20 мс) отсечено как шум. Человеку это нужно знать: иначе он решит,
+  /// что в тихой части разговора просто «ничего не сказали», хотя звук был и его выбросили.
+  final int droppedNoise;
+
+  /// Сколько строк распознавание придумало в тишине. Показывает, насколько шумная запись.
+  final int droppedInvented;
+
+  /// Ошибки частичного разбора. Пусто — разбор прошёл целиком.
+  final List<String> errors;
 
   /// Сколько секунд аудио ушло в распознавание. Нужно, чтобы человек видел объём даже без тарифа.
   final double? sentSeconds;

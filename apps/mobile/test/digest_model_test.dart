@@ -3,6 +3,24 @@ import 'package:v_voice/src/digest_model.dart';
 
 void main() {
   group('Digest.fromJson', () {
+    test('отсечённый шум и ошибки читаются', () {
+      final digest = Digest.fromJson({
+        'summary': ['x'],
+        'dropped_noise': 1500,
+        'dropped_invented': 2,
+        'errors': ['noise_dropped: 1500'],
+      });
+      expect(digest.droppedNoise, 1500);
+      expect(digest.droppedInvented, 2);
+      expect(digest.errors.length, 1);
+    });
+
+    test('без шума и ошибок поля пустые, а не выдуманные', () {
+      final digest = Digest.fromJson({'summary': ['x']});
+      expect(digest.droppedNoise, 0);
+      expect(digest.errors, isEmpty);
+    });
+
     test('предел превышен — видно, сколько он составляет', () {
       final digest = Digest.fromJson({'summary': ['x'], 'cost_rub': 80.0, 'budget_exceeded': true, 'budget_rub': 50.0});
       expect(digest.budgetRub, 50.0);
