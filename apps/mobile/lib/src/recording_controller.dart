@@ -67,6 +67,12 @@ class RecordingController {
       } else if (event['type'] == 'error') {
         lastError = RecordingError.explain(event['code'] as String? ?? 'unknown');
         _emit();
+      } else if (event['type'] == 'live') {
+        // Живой текст может прийти и от натива (если распознавание пойдёт на устройстве),
+        // и от серверного потока через тот же мост. Пустая строка не затирает сказанное.
+        final text = event['value'] as String?;
+        if (text != null && text.isNotEmpty) liveText = text;
+        _emit();
       } else if (event['type'] == 'level') {
         // Натив присылает RMS (0..1). Неизвестный формат не должен ронять поток.
         final raw = event['value'];
