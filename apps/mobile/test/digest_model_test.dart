@@ -108,4 +108,19 @@ void main() {
     final d = Digest.fromJson(<String, dynamic>{'summary': <String>[], 'items': <dynamic>[]});
     expect(d.participants, isEmpty);
   });
+
+  test('признак частичного разбора доходит до экрана', () {
+    final d = Digest.fromJson({
+      'summary': ['Коротко'],
+      'items': [],
+      'participants': [],
+      'truncated': true,
+    });
+    expect(d.truncated, isTrue);
+  });
+
+  test('обычный разбор не считается частичным', () {
+    final d = Digest.fromJson({'summary': ['Коротко'], 'items': [], 'participants': []});
+    expect(d.truncated, isFalse);
+  });
 }

@@ -85,6 +85,22 @@ class _DigestScreenState extends State<DigestScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          // Разговор длиннее одного прохода модели: говорим об этом сверху, а не мелким шрифтом внизу.
+          if (d.truncated)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: VVTheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE0A030)),
+              ),
+              child: const Text(
+                'Разговор длиннее, чем помещается в один проход. Разобрано начало — остальное пока не разобрано, '
+                'это не значит, что там ничего не говорили.',
+                style: TextStyle(fontSize: 13, height: 1.45),
+              ),
+            ),
           _section('Коротко', d.summary),
           _participants(d.participants),
           _section('Решили', d.decisions),

@@ -4,7 +4,7 @@
 /// отбрасывает элементы без непустой цитаты, а не показывает их без доказательства:
 /// человек, который не может проверить, откуда взялась задача, задачи не примет.
 class Digest {
-  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model});
+  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false});
 
   final List<String> summary;
   final List<String> decisions;
@@ -14,6 +14,10 @@ class Digest {
   /// Кто участвовал: [имя, вердикт]. Вердикт — это и есть проверка «свой голос или чужой»:
   /// без него человек не поймёт, почему часть сказанного не попала в задачи.
   final List<List<String>> participants;
+
+  /// Разобрана только часть разговора: он длиннее, чем помещается в один проход модели.
+  /// Показывать «готово» на половине — значит соврать про встречу.
+  final bool truncated;
   final String model;
 
   static Digest fromJson(Map<String, dynamic> json) {
@@ -45,6 +49,7 @@ class Digest {
       openQuestions: list(json['open_questions'] ?? json['openQuestions']),
       items: items,
       model: (json['model'] ?? '').toString(),
+      truncated: json['truncated'] == true,
     );
   }
 

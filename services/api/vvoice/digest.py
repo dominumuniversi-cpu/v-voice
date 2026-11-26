@@ -32,8 +32,18 @@ SYSTEM_PROMPT = load_system_prompt()
 
 
 
+def prompt_is_truncated(transcript: Transcript) -> bool:
+    """Поместилась ли расшифровка в один проход целиком."""
+    return len(transcript.text) > MAX_TRANSCRIPT_CHARS
+
+
 def build_prompt(transcript: Transcript, *, previous_summary: list[str] | None = None) -> str:
-    """Промпт для одного прохода разбора. previous_summary нужен для добавочного разбора."""
+    """Промпт для одного прохода разбора. previous_summary нужен для добавочного разбора.
+
+    Длинную расшифровку обрезаем по лимиту модели — иначе разбор не пройдёт вовсе. Но факт обрезки
+    не теряем: make_digest кладёт его в результат, чтобы человек увидел, что конец разговора
+    ещё не разобран, а не думал, что там ничего не говорили.
+    """
     text = transcript.text
     if len(text) > MAX_TRANSCRIPT_CHARS:
         text = text[:MAX_TRANSCRIPT_CHARS]
@@ -68,6 +78,8 @@ def make_digest(
         members_only=members_only and seen_foreign,
     )
     return {
+        # True — разобрана только часть разговора. Молчать об этом значит выдать половину за целое.
+        "truncated": prompt_is_truncated(transcript),
         "summary": [str(s) for s in (raw.get("summary") or [])],
         "participants": raw.get("participants") or [],
         "open_questions": [str(s) for s in (raw.get("open_questions") or [])],

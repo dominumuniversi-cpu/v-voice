@@ -842,6 +842,15 @@ check("env_example_lists_providers", not _missing_asr and not _missing_llm,
 check("log_hides_query", '_safe_path(self.path)' in _main_src and "split('?', 1)[0]" in _main_src,
       'журнал пишет путь с query — туда попадёт токен')
 check("log_keeps_plain_path", 'print(\'%s %s\' % (self.command' in _main_src)
+# Длинный разговор не должен выглядеть полностью разобранным.
+from vvoice.digest import build_prompt as _build_prompt, prompt_is_truncated as _trunc, MAX_TRANSCRIPT_CHARS as _MAX
+from vvoice.assemble import Transcript as _Tr, Utterance as _Ut
+_filler = 'а' * (_MAX + 10)
+_long = _Tr(utterances=[_Ut(start_s=0.0, end_s=1.0, speaker='S1', text=_filler)])
+check("long_transcript_is_marked", _trunc(_long) is True)
+_short = _Tr(utterances=[_Ut(start_s=0.0, end_s=1.0, speaker='S1', text='короткий разговор')])
+check("short_transcript_not_marked", _trunc(_short) is False)
+check("long_prompt_fits_limit", len(_build_prompt(_long)) < _MAX + 200, len(_build_prompt(_long)))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
