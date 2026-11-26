@@ -11,8 +11,9 @@ void main() {
       expect(ServerSettings.problem('v-voice.ru')!, contains('http://'));
     });
 
-    test('слэш в конце — отдельная подсказка', () {
-      expect(ServerSettings.problem('https://v-voice.ru/')!, contains('слэш'));
+    test('слэш в конце не считается ошибкой — он нормализуется', () {
+      expect(ServerSettings.problem('https://v-voice.ru/'), isNull);
+      expect(ServerSettings.normalize('https://v-voice.ru/'), 'https://v-voice.ru');
     });
 
     test('мусор в домене ловится', () {
@@ -21,6 +22,10 @@ void main() {
 
     test('запрос и якорь недопустимы', () {
       expect(ServerSettings.problem('https://v.ru?x=1')!, contains('?'));
+    });
+
+    test('адрес с завершающим слэшем сохраняется и потом читается', () {
+      expect(ServerSettings.problem('https://v-voice.ru/'), isNull);
     });
 
     test('нормальный адрес проходит', () {

@@ -23,7 +23,8 @@ class ServerSettings {
     final uri = Uri.tryParse(text);
     if (uri == null || uri.host.isEmpty) return 'Похоже, в адресе ошибка: не удалось разобрать домен.';
     if (uri.hasQuery || uri.hasFragment) return 'Уберите знак «?» и «#» из адреса сервера.';
-    if (text.endsWith('/')) return 'Уберите слэш в конце адреса.';
+    // Завершающий слэш — не ошибка: normalize() его уберёт. Отказывать здесь значит
+    // требовать от человека ручной правки того, что машина правит сама.
     return null;
   }
 
