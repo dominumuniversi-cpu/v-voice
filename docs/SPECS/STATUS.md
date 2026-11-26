@@ -14,6 +14,7 @@
 | **Android-мост записи** | **написан** (сервис, канал, пути, разрешения) | `apps/mobile/android/` |
 | **iOS-мост записи** | **написан** (движок, канал, Info.plist) | `apps/mobile/ios/` |
 | **Конвейер разбора** | **написан** (ASR-заглушка, сборка реплик, валидатор цитат) | `services/api/vvoice/` |
+| **Экспорт** | **TXT, Markdown, SRT, VTT, JSON** с таймкодами и спикерами (FR-11) | `services/api/vvoice/formats.py` |
 | **HTTP-слой** | **4 пути**: health, presets, probe, items/validate; коды и причины | `services/api/vvoice/http_api.py` |
 | **Схема БД** | **есть миграция v1** (биометрия — в отдельной схеме) | `services/api/migrations/0001_init.sql` |
 | **Горячий путь** | **правила задержки и досыла покрыты тестами** | `services/api/vvoice/hotpath.py` |
@@ -25,11 +26,12 @@
 | **Задачник репозитория** | **описан**: метки, вехи, шаблон задачи, PR-шаблон | `docs/SPECS/ISSUE-SPEC.md` |
 | **Экран разбора** | **есть**: выжимка, решения, вопросы, задачи с цитатой и таймкодом | `apps/mobile/lib/src/digest_screen.dart` |
 | **Мобильное приложение** | **экран «Слушаю» и контроллер записи**: `flutter analyze` и 6 тестов зелёные в CI | `apps/mobile/lib/` |
-| **Проверки** | **10 локальных + 12 Flutter + 124 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
+| **Проверки** | **10 локальных + 12 Flutter + 145 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
 
 ## Проверено фактом (числа)
 
 - `npm run check` → 19 тестов, 0 падений; `syntax-check` → 12 python-файлов без ошибок.
+- CI на коммите `43770db`: шаг валидатора — **total=145 passed=145 failed=0**.
 - CI на коммите `31aa687`: шаг валидатора — **total=124 passed=124 failed=0**, pytest 18, flutter 12, node 10, все шаги зелёные.
 - CI на коммите `4097bb6`: **все шаги зелёные**; событийный канал Android переведён на EventChannel (был MethodChannel — события не дошли бы до Dart), контракт теперь это проверяет.
 - CI на коммите `6c24b02`: **все шаги зелёные**, включая `flutter analyze` и `flutter test` (12 тестов: 6 контроллер + 6 модель разбора), серверных проверок 110.
