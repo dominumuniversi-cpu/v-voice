@@ -43,6 +43,9 @@ jobs:
       # 5) Серверные проверки и валидатор цитат («нет цитаты — нет задачи»).
       # Стоят ДО Flutter и сборки намеренно: падение чужого шага (например, Maven ответил 429)
       # раньше скрывало их целиком — шаг просто помечался skipped, и проверки не выполнялись.
+      - name: end-to-end scenario
+        run: python tests/api/scenario.py
+
       - name: server checks
         run: |
           pip install pytest
