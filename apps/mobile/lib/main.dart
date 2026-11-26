@@ -372,6 +372,14 @@ class _ListenScreenState extends State<ListenScreen> {
                   ),
                 ),
               ),
+              if (recording && _quietChunks >= 4)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Пока слишком тихо — проверьте, что микрофон не закрыт.',
+                    style: TextStyle(color: VVTheme.warn, fontSize: 12),
+                  ),
+                ),
               if (c.liveWarning.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
