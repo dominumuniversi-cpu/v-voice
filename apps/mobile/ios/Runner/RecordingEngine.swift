@@ -48,6 +48,7 @@ final class RecordingEngine {
             return "engine_failed"
         }
 
+        observeSystemEvents()
         beginBackgroundBudget()
         isRecording = true
         RecordingChannel.emitState("recording")
@@ -63,6 +64,57 @@ final class RecordingEngine {
         endBackgroundBudget()
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         RecordingChannel.emitState("stopped")
+    }
+
+    /// Подписка на события системы, которые МОГУТ остановить запись.
+    ///
+    /// Почему это обязательно: звонок или выдёргивание наушников останавливает ввод, а без подписки
+    /// приложение об этом не узнаёт. Человек уверен, что пишет совещание, а записи уже нет.
+    private func observeSystemEvents() {
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(handleInterruption(_:)),
+                           name: AVAudioSession.interruptionNotification, object: nil)
+        center.addObserver(self, selector: #selector(handleRouteChange(_:)),
+                           name: AVAudioSession.routeChangeNotification, object: nil)
+    }
+
+    @objc private func handleInterruption(_ note: Notification) {
+        guard isRecording,
+              let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let kind = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        switch kind {
+        case .began:
+            // Говорим правду: запись стоит, человек должен это увидеть, а не догадываться.
+            RecordingChannel.emitError(code: "recording_interrupted")
+        case .ended:
+            // Продолжаем только если система разрешает — без согласия она отберёт микрофон снова.
+            let options = (note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt)
+                .map { AVAudioSession.InterruptionOptions(rawValue: $0) }
+            if options?.contains(.shouldResume) ?? false {
+                do {
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    if !engine.isRunning { try engine.start() }
+                    RecordingChannel.emitState("recording")
+                } catch {
+                    RecordingChannel.emitError(code: "resume_failed")
+                }
+            } else {
+                RecordingChannel.emitState("paused")
+            }
+        @unknown default:
+            return
+        }
+    }
+
+    @objc private func handleRouteChange(_ note: Notification) {
+        guard isRecording,
+              let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: raw) else { return }
+        // Потеря устройства ввода — не повод притворяться, что пишем: сообщаем наверх.
+        if reason == .oldDeviceUnavailable {
+            let inputs = AVAudioSession.sharedInstance().currentRoute.inputs
+            if inputs.isEmpty { RecordingChannel.emitError(code: "input_lost") }
+        }
     }
 
     /// Короткое продление жизни в фоне: покупаем время на закрытие файлов и досыл сегментов.
