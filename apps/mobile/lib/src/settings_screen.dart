@@ -62,7 +62,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       keeper.load(widget.initialServerUrl).then((url) {
         if (!mounted) return;
         setState(() => server.text = url);
+        // Загрузка моделей — после адреса: иначе запрос уйдёт на пустой сервер.
+        _loadServerModels();
       });
+    } else {
+      _loadServerModels();
     }
   }
 
@@ -185,13 +189,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       setState(() => busy = false);
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Загружаем без ожидания: если сервер не отвечает, экран всё равно открывается.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadServerModels());
   }
 
   @override
