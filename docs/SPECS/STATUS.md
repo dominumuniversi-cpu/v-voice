@@ -14,6 +14,7 @@
 | **Android-мост записи** | **написан** (сервис, канал, пути, разрешения) | `apps/mobile/android/` |
 | **iOS-мост записи** | **написан** (движок, канал, Info.plist) | `apps/mobile/ios/` |
 | **Конвейер разбора** | **написан** (ASR-заглушка, сборка реплик, валидатор цитат) | `services/api/vvoice/` |
+| **Промпт разбора** | **файл под ревью + 13 проверок содержимого** | `services/api/vvoice/prompts/digest_ru.md` |
 | **Восстановление** | **есть**: пересборка WAV-заголовка, обрывки отсекаются (FR-6) | `services/api/vvoice/recovery.py` |
 | **Лимиты** | **есть**: расход месяца, предупреждение 80%, сколько встреч осталось (FR-27) | `services/api/vvoice/limits.py` |
 | **Экспорт** | **TXT, Markdown, SRT, VTT, JSON** с таймкодами и спикерами (FR-11) | `services/api/vvoice/formats.py` |
@@ -28,11 +29,12 @@
 | **Задачник репозитория** | **описан**: метки, вехи, шаблон задачи, PR-шаблон | `docs/SPECS/ISSUE-SPEC.md` |
 | **Экран разбора** | **есть**: выжимка, решения, вопросы, задачи с цитатой и таймкодом | `apps/mobile/lib/src/digest_screen.dart` |
 | **Мобильное приложение** | **экран «Слушаю» и контроллер записи**: `flutter analyze` и 6 тестов зелёные в CI | `apps/mobile/lib/` |
-| **Проверки** | **10 локальных + 12 Flutter + 165 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
+| **Проверки** | **10 локальных + 12 Flutter + 174 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
 
 ## Проверено фактом (числа)
 
 - `npm run check` → 19 тестов, 0 падений; `syntax-check` → 12 python-файлов без ошибок.
+- CI на коммите `1e6c006`: шаг валидатора — **total=174 passed=174 failed=0**.
 - CI на коммите `44b637d`: шаг валидатора — **total=165 passed=165 failed=0**.
 - CI на коммите `43770db`: шаг валидатора — **total=145 passed=145 failed=0**.
 - CI на коммите `31aa687`: шаг валидатора — **total=124 passed=124 failed=0**, pytest 18, flutter 12, node 10, все шаги зелёные.
