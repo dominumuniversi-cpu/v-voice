@@ -19,6 +19,9 @@ abstract class RecordingBridge {
   /// не обязаны знать про батарею.
   Future<bool> batteryRestricted() async => false;
 
+  /// Записи на телефоне. Пусто по умолчанию: тестовые бриджи не обязаны знать про файлы.
+  Future<List<Map<String, Object>>> listRecordings() async => const [];
+
   /// Открыть системный экран, где человек снимает ограничение сам.
   Future<void> openBatterySettings() async {}
 }
@@ -78,6 +81,9 @@ class RecordingController {
   /// Пока натив не присылает уровень, значение остаётся 0.
   double level = 0;
   String lastError = '';
+
+  /// Записи, лежащие на телефоне (после сбоя их видно и можно разобрать).
+  Future<List<Map<String, Object>>> listRecordings() => bridge.listRecordings();
 
   /// Путь к последней сохранённой записи (пустой, пока ничего не сохранено).
   /// Нужен, чтобы разбор знал, какую запись отправлять на сервер.

@@ -33,6 +33,9 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
                 // и человек об этом не знает, пока не потеряет запись встречи.
                 "batteryRestricted" -> result.success(batteryRestricted())
                 "openBatterySettings" -> { openBatterySettings(); result.success("ok") }
+                // Записи, лежащие на телефоне. Нужны после падения процесса: файл цел (заголовок
+                // WAV обновляется на лету), но приложение о нём не знает — и разговор пропадает.
+                "listRecordings" -> result.success(listRecordings())
                 else -> result.notImplemented()
             }
         }
@@ -44,6 +47,18 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
      * Возвращаем причину, чтобы приложение показало человеку понятный экран, а не «ничего не произошло».
      */
     /** true — система ограничивает фон, запись может оборваться без предупреждения. */
+    /** Все записи на телефоне, свежие сверху. Только имя, путь, размер и время — без чтения звука. */
+    private fun listRecordings(): List<Map<String, Any>> {
+        val dir = RecordingPaths.sessionDir(context)
+        val files = dir.listFiles() ?: return emptyList()
+        return files.filter { it.isFile && it.name.endsWith(".wav") && it.length() > 44 }
+            .sortedByDescending { it.lastModified() }
+            .map {
+                mapOf("path" to it.absolutePath, "name" to it.name,
+                      "bytes" to it.length(), "modified_ms" to it.lastModified())
+            }
+    }
+
     private fun batteryRestricted(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
         val pm = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager

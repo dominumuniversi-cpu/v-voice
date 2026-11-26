@@ -32,6 +32,20 @@ class MethodChannelBridge implements RecordingBridge {
 
   /// Спрашиваем систему. Ошибку не выдаём за «всё хорошо»: неизвестность — это false,
   /// но решение принимает экран, а не этот метод.
+  /// Записи, лежащие на телефоне. Пустой список при любой ошибке: показать «ничего нет»
+  /// безопаснее, чем уронить главный экран из-за отсутствия метода на старой версии натива.
+  @override
+  Future<List<Map<String, Object>>> listRecordings() async {
+    try {
+      final result = await _method.invokeListMethod<Map<Object?, Object?>>('listRecordings');
+      return (result ?? const [])
+          .map((m) => m.map((k, v) => MapEntry(k.toString(), v ?? '')))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   @override
   Future<bool> batteryRestricted() async {
     try {

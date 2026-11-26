@@ -11,6 +11,7 @@ import 'src/prefs_key_value_store.dart' as prefs;
 import 'src/method_channel_bridge.dart';
 import 'src/prefs_server_store.dart';
 import 'src/recording_controller.dart';
+import 'src/recovered_screen.dart';
 import 'src/server_scope.dart';
 import 'src/session_model.dart';
 import 'src/settings_screen.dart';
@@ -206,6 +207,30 @@ class _ListenScreenState extends State<ListenScreen> {
     }
   }
 
+  /// Показывает записи на телефоне и даёт отправить любую на разбор.
+  ///
+  /// Зачем: после падения процесса файл остаётся целым, но экран о нём не знает.
+  /// Раньше такой разговор было не вернуть — он лежал рядом и пропадал.
+  Future<void> _openRecordings() async {
+    final list = await widget.controller.listRecordings();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (ctx) => RecoveredScreen(
+          recordings: list,
+          onOpen: (path) {
+            Navigator.of(ctx).pop();
+            _openDigest(path);
+          },
+          onDelete: (path) async {
+            await deleteRecording(path);
+            if (ctx.mounted) Navigator.of(ctx).pop();
+          },
+        ),
+      ),
+    );
+  }
+
   /// Согласие на запись: приложение слушает чужие голоса, и человек должен знать это заранее.
   ConsentModel consent = ConsentModel(
     version: '2026-11-01',
@@ -351,6 +376,13 @@ class _ListenScreenState extends State<ListenScreen> {
                   const Spacer(),
                   // Индикатор записи обязателен и виден всегда (правило UI-канона).
                   RecordingDot(active: recording),
+                  const SizedBox(width: 8),
+                  // Записи, оставшиеся после сбоя: показать — единственный способ не потерять разговор.
+                  IconButton(
+                    tooltip: 'Записи на телефоне',
+                    icon: const Icon(Icons.folder_open, size: 20, color: VVTheme.inkMuted),
+                    onPressed: () => _openRecordings(),
+                  ),
                   const SizedBox(width: 8),
                   IconButton(
                     tooltip: 'Подключение моделей',
