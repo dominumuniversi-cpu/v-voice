@@ -708,7 +708,11 @@ from vvoice.digest import load_system_prompt as _load_prompt, SYSTEM_PROMPT as _
 _prompt_text = _load_prompt()
 check("prompt_file_is_used", len(_prompt_text) > 500, len(_prompt_text))
 check("prompt_matches_code", _sys_prompt == _prompt_text)
-check("prompt_has_schema", "evidence_quote" in _prompt_text and "summary" in _prompt_text)
+# Схема в промпте обязана совпадать с тем, что читает валидатор: evidence.quote и таймкоды.
+# Раньше здесь стояла проверка на evidence_quote — плоское поле, которого валидатор не читает:
+# проверка закрепляла ложную схему и мешала её исправить.
+check("prompt_has_schema", "evidence.quote" in _prompt_text and "start_s" in _prompt_text and "summary" in _prompt_text)
+check("prompt_has_one_schema", _prompt_text.count("## Формат ответа") == 1)
 _tmp_empty = Path(_tempfile.mkdtemp()) / "empty.md"
 _tmp_empty.write_text("", encoding="utf-8")
 _raised = False
