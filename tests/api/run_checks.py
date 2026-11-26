@@ -944,6 +944,13 @@ check("summary_hidden_counted", _dgm['summary_hidden'] == 3, _dgm['summary_hidde
 _few = _make_digest(_tr_short2, lambda s, u: {'summary': ['один', 'два'], 'items': [], 'participants': []})
 check("summary_hidden_zero_when_short", _few['summary_hidden'] == 0, _few['summary_hidden'])
 check("summary_keeps_all_when_short", _few['summary'] == ['один', 'два'], _few['summary'])
+# Свои токены на цель: Helper, Jira и Bitrix24 ждут РАЗНЫЕ ключи. Общий токен пускал только один приёмник.
+from vvoice.config import from_settings as _from_settings
+_s1 = _from_settings({'VV_ASR_PROVIDER': 'fake', 'VV_LLM_PROVIDER': 'fake', 'VV_EXPORT_HELPER_URL': 'https://h', 'VV_EXPORT_HELPER_TOKEN': 'prokhor', 'VV_EXPORT_TOKEN': 'common'})
+check("token_per_target", _s1.token_for('helper') == 'prokhor', _s1.token_for('helper'))
+check("token_falls_back_to_common", _s1.token_for('jira') == 'common', _s1.token_for('jira'))
+_s2 = _from_settings({'VV_ASR_PROVIDER': 'fake', 'VV_LLM_PROVIDER': 'fake'})
+check("token_empty_when_unset", _s2.token_for('helper') == '', _s2.token_for('helper'))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

@@ -45,7 +45,9 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         'gate': VadGate(config=VadConfig()) if settings.noise_gate else None,
         # Отправка задач наружу. Без ключей интеграций маршрут честно отвечает 503:
         # настроек нет — значит и цели нет. С ключом задача уходит тем же отправителем.
-        'exporter': (lambda request: send_request(request, token=settings.export_token)) if settings.export_targets else None,
+        # Токен — по цели запроса: Helper, Jira и Bitrix24 разные сервисы и ждут разные ключи.
+        'exporter': (lambda request: send_request(request, token=settings.token_for(request.target)))
+                     if settings.export_targets else None,
         # Адреса целей — из настроек: телефон не должен знать, где живёт задачник.
         'export_targets': settings.export_targets,
         # Пусто — сервер открыт (режим разработки). Задан — без токена не пустим.

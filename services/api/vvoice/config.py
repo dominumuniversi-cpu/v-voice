@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+from dataclasses import field
+
 import hashlib
 import os
 from pathlib import Path
@@ -36,6 +38,13 @@ class Settings:
     # Токен приёмника задач (задачник, CRM). Пусто — отправляем без заголовка: свой приёмник может
     # быть открыт внутри сети; чужой откажет и скажет об этом, а не потеряет задачу молча.
     export_token: str = ''
+    # Свой токен на каждую цель: Helper принимает Bearer Прохора, Jira — свой, Bitrix24 — свой.
+    # Один общий токен позволял подключить реально только один приёмник.
+    export_tokens: dict[str, str] = field(default_factory=dict)
+
+    def token_for(self, target: str) -> str:
+        """Токен именно для этой цели, иначе общий."""
+        return self.export_tokens.get(target) or self.export_token
     # Отсечение шума и тишины. Человек может выключить, но по умолчанию — включено:
     # в записанном разговоре шум мешает модели сильнее, чем редкая потерянная пауза.
     noise_gate: bool = True
@@ -143,6 +152,10 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
         llm_key=(source.get('VV_LLM_KEY') or '').strip(),
         export_targets=targets,
         export_token=(source.get('VV_EXPORT_TOKEN') or '').strip(),
+        # Свой токен на цель: VV_EXPORT_HELPER_TOKEN, VV_EXPORT_JIRA_TOKEN, VV_EXPORT_BITRIX_TOKEN.
+        # Имена целей — те же, что у адресов (VV_EXPORT_<ЦЕЛЬ>_URL), чтобы искать один раз и не гадать.
+        export_tokens={t: (source.get('VV_EXPORT_' + t.upper() + '_TOKEN') or '').strip()
+                       for t in targets if (source.get('VV_EXPORT_' + t.upper() + '_TOKEN') or '').strip()},
         device_tokens=device_tokens,
         noise_gate=(source.get('VV_NOISE_GATE') or 'on').strip().lower() not in ('off', '0', 'false', 'нет'),
     )
