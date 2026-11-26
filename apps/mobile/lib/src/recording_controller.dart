@@ -6,7 +6,7 @@ enum RecordingState { idle, recording, paused, stopped, unavailable }
 /// Абстракция нативного моста записи.
 ///
 /// У нас две нативные реализации (Android Kotlin, iOS Swift) с одним контрактом
-/// `vvoice/recording`: start() -> "ok" | "denied" | "not_allowed_in_background",
+/// `vvoice/recording`: start() -> "ok" | "denied" | "not_allowed_in_background" | "start_failed",
 /// stop() -> "ok". Тесты подставляют фейковый мост, поэтому логика экрана проверяется
 /// без телефона — это единственный способ проверить её здесь, где Flutter SDK нет.
 abstract class RecordingBridge {
@@ -31,6 +31,10 @@ class RecordingError {
         return 'Микрофон запрещён. Разрешите доступ в настройках телефона.';
       case 'not_allowed_in_background':
         return 'Запись можно начать только с открытого экрана приложения. Откройте его и нажмите «Слушаю» снова.';
+      case 'start_failed':
+        // Android 8–11 не знает о запрете запуска из фона, но система может отказать иначе.
+        // Причина без объяснения читается как «ничего не произошло».
+        return 'Телефон не дал включить запись. Закройте другие приложения и нажмите «Слушаю» ещё раз.';
       case 'mic_unavailable':
         return 'Микрофон занят другим приложением. Закройте его и попробуйте снова.';
       case 'session_failed':

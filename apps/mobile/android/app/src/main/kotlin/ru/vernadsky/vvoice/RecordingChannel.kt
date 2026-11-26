@@ -75,6 +75,12 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
             Log.w(TAG, "start denied by system: " + e.message)
             emitError("not_allowed_in_background")
             "not_allowed_in_background"
+        } catch (e: Exception) {
+            // На Android 8–11 этого исключения нет, но бывают SecurityException и лимит сервисов.
+            // Без общего перехвата метод падал бы целиком, и человек видел бы «ничего не произошло».
+            Log.w(TAG, "start failed: " + e.message)
+            emitError("start_failed")
+            "start_failed"
         }
     }
 

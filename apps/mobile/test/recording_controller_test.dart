@@ -179,4 +179,10 @@ void main() {
     expect(await bridge.batteryRestricted(), isTrue);
     expect(bridge.batteryAsked, 1);
   });
+
+  test('отказ телефона объясняется человеку, а не сырым кодом', () {
+    final text = RecordingError.explain('start_failed');
+    expect(text.contains('start_failed'), isFalse);
+    expect(text, contains('Телефон не дал включить запись'));
+  });
 }
