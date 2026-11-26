@@ -965,6 +965,19 @@ try:
     check("second_upload_without_replace_refused", False)
 except FileExistsError:
     check("second_upload_without_replace_refused", True)
+# Живая встреча: звук приходит ПОСЛЕ записи. Файл должен лечь в ту же сессию, а не пропасть.
+_td3 = _tempfile.mkdtemp(prefix='vvoice-live-')
+_st3 = _AudioStore(_td3)
+_ls4 = _LS(limit=4)
+_push(_ls4, 'livelysess000001', b'\x00' * 3200, provider_factory=lambda sid: _FakeAsr())
+_wav3 = _wav(1500)
+_pay3 = __import__('json').dumps({'audio_base64': _b64.b64encode(_wav3).decode(), 'session_id': 'livelysess000001'})
+_r3 = _handle('POST', '/api/v1/sessions', _pay3, store=_st3, live_sessions=_ls4)
+check("live_upload_after_stop", _r3.status == 200 and _r3.body.get('session_id') == 'livelysess000001', (_r3.status, _r3.body.get('error')))
+check("live_upload_stored", _st3.find('livelysess000001') is not None and _st3.read('livelysess000001') == _wav3)
+# Обычная сессия по-прежнему защищена: второй файл не затирает первый.
+_r4 = _handle('POST', '/api/v1/sessions', _pay3, store=_st3, live_sessions=_LS(limit=4))
+check("non_live_second_upload_refused", _r4.status == 409, _r4.status)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
