@@ -144,9 +144,15 @@ class _ListenScreenState extends State<ListenScreen> {
       if (mounted) setState(() => _uploading = false);
     }
     if (!mounted) return;
+    final sessionId = _sessionId;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => DigestLoader(api: api, sessionId: _sessionId)),
+      MaterialPageRoute<void>(builder: (_) => DigestLoader(api: api, sessionId: sessionId)),
     );
+    // Разбор открыт и закрыт — сервер запись получил. Только теперь её можно убрать с телефона.
+    // Раньше — нет: иначе человек с кончившимся местом потеряет разговор ради двух мегабайт.
+    if (sessionId != null && path.isNotEmpty) {
+      await deleteRecording(path);
+    }
   }
 
   /// Согласие на запись: приложение слушает чужие голоса, и человек должен знать это заранее.

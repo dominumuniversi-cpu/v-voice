@@ -29,7 +29,12 @@ jobs:
       - name: node tests
         run: node --test "tests/native/*.test.mjs" "tests/api/*.mjs"
 
-      # 4) Серверные проверки и валидатор цитат («нет цитаты — нет задачи»).
+      # 4) Связность: функция без вызовов — это «сделано, но не подключено».
+      # Ставится рано намеренно: дешёвая проверка идёт до дорогих.
+      - name: connectivity
+        run: node scripts/connectivity-check.mjs
+
+      # 5) Серверные проверки и валидатор цитат («нет цитаты — нет задачи»).
       # Стоят ДО Flutter и сборки намеренно: падение чужого шага (например, Maven ответил 429)
       # раньше скрывало их целиком — шаг просто помечался skipped, и проверки не выполнялись.
       - name: server checks
@@ -38,7 +43,7 @@ jobs:
           python tests/api/run_checks.py
           python -m pytest tests/api -q
 
-      # 5) Мобильное приложение: анализатор и тесты контроллера (реальные, без телефона).
+      # 6) Мобильное приложение: анализатор и тесты контроллера (реальные, без телефона).
       # Java 17 явно: на раннере может стоять Java 25, и Gradle 8.x падает на
       # "Unsupported class file major version 69" — ошибка выглядит как проблема проекта.
       - uses: actions/setup-java@v4
@@ -56,7 +61,7 @@ jobs:
         working-directory: apps/mobile
         run: flutter test
 
-      # 6) Сборка мобильного приложения. analyze и test НЕ собирают Kotlin и Swift:
+      # 7) Сборка мобильного приложения. analyze и test НЕ собирают Kotlin и Swift:
       # ошибка в нативном коде видна только здесь, и лучше здесь, чем на телефоне.
       - name: flutter build apk
         working-directory: apps/mobile
