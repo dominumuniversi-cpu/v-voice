@@ -351,6 +351,7 @@ class _ItemCard extends StatelessWidget {
       ),
     );
   }
+}
 
 /// Строка про израсходованное аудио и деньги.
 ///
@@ -365,5 +366,4 @@ String? _costLine(Digest d) {
   if (seconds != null && seconds > 0) parts.add('В распознавание ушло ~' + minutes + ' мин');
   if (cost != null) parts.add('≈ ' + cost.toStringAsFixed(2) + ' ₽');
   return parts.join(' · ') + '.';
-}
 }
