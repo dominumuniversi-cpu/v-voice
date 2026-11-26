@@ -851,6 +851,13 @@ check("long_transcript_is_marked", _trunc(_long) is True)
 _short = _Tr(utterances=[_Ut(start_s=0.0, end_s=1.0, speaker='S1', text='короткий разговор')])
 check("short_transcript_not_marked", _trunc(_short) is False)
 check("long_prompt_fits_limit", len(_build_prompt(_long)) < _MAX + 200, len(_build_prompt(_long)))
+# «Модель ничего не выделила» — факт о разборе, а не пустота.
+from vvoice.digest import make_digest as _make_digest
+_tr_short2 = _Tr(utterances=[_Ut(start_s=0.0, end_s=2.0, speaker='S1', text='обсудили смету и сроки')])
+_dg_empty = _make_digest(_tr_short2, lambda s, u: {'summary': [], 'items': [], 'participants': []})
+check("empty_summary_is_marked", _dg_empty['summary_missing'] is True, _dg_empty)
+_dg_ok = _make_digest(_tr_short2, lambda s, u: {'summary': ['Обсудили смету'], 'items': [], 'participants': []})
+check("filled_summary_not_marked", _dg_ok['summary_missing'] is False, _dg_ok)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

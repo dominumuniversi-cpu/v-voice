@@ -101,7 +101,19 @@ class _DigestScreenState extends State<DigestScreen> {
                 style: TextStyle(fontSize: 13, height: 1.45),
               ),
             ),
-          _section('Коротко', d.summary),
+          if (d.summary.isEmpty)
+            // Пустой раздел молча исчезает — и человек не отличит «обсуждать было нечего»
+            // от «модель не справилась». Говорим, что именно произошло.
+            const Padding(
+              padding: EdgeInsets.only(bottom: 20),
+              child: Text(
+                'Модель не выделила главное. Это не значит, что разговор был пустым — '
+                'посмотрите расшифровку и задачи ниже.',
+                style: TextStyle(fontSize: 14, height: 1.45, color: VVTheme.inkMuted),
+              ),
+            )
+          else
+            _section('Коротко', d.summary),
           _participants(d.participants),
           _section('Решили', d.decisions),
           _section('Осталось неясным', d.openQuestions),

@@ -81,6 +81,9 @@ def make_digest(
         # True — разобрана только часть разговора. Молчать об этом значит выдать половину за целое.
         "truncated": prompt_is_truncated(transcript),
         "summary": [str(s) for s in (raw.get("summary") or [])],
+        # Модель ничего не выделила — это факт о разборе, а не пустое место.
+        # Тот, кто строит интеграцию, должен уметь отличить «нечего сказать» от «не справилась».
+        "summary_missing": not (raw.get("summary") or []),
         "participants": raw.get("participants") or [],
         "open_questions": [str(s) for s in (raw.get("open_questions") or [])],
         "items": checked["items"],
