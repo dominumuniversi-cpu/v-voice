@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Mapping
 
@@ -65,9 +66,41 @@ def _fingerprint(key: str) -> str:
     return hashlib.sha256(key.encode('utf-8')).hexdigest()[:8]
 
 
+def load_env_file(path: str | Path) -> dict[str, str]:
+    """Читает .env и возвращает пары ключ-значение.
+
+    Зачем свой разбор вместо библиотеки: зависимостей у сервиса нет намеренно. Формат простой —
+    строки ИМЯ=значение, решётка начинает комментарий, кавычки по краям снимаются.
+    Если файла нет — пустой словарь: отсутствие .env не должно валить запуск.
+    """
+    file = Path(path)
+    if not file.exists():
+        return {}
+    parsed: dict[str, str] = {}
+    for raw in file.read_text(encoding='utf-8').splitlines():
+        line = raw.strip()
+        if not line or line.startswith('#'):
+            continue
+        if '=' not in line:
+            continue
+        name, _, value = line.partition('=')
+        name = name.strip()
+        value = value.strip().strip('"').strip("'")
+        if name:
+            parsed[name] = value
+    return parsed
+
+
 def load(env: Mapping[str, str] | None = None) -> Settings:
     """Собирает настройки из окружения. Неизвестный провайдер — пустая строка, а не догадка."""
-    source = os.environ if env is None else env
+    source: Mapping[str, str]
+    if env is None:
+        from_file = load_env_file(os.environ.get('VV_ENV_FILE') or Path(__file__).resolve().parents[1] / '.env')
+        # Окружение важнее файла: так переменную можно переопределить на конкретной машине,
+        # не трогая общий файл.
+        source = {**from_file, **os.environ}
+    else:
+        source = env
 
     def picked(name: str, allowed: tuple[str, ...]) -> str:
         value = (source.get(name) or '').strip().lower()

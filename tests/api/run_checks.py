@@ -652,6 +652,15 @@ _srv.shutdown()
 # Разбор несуществующей записи — 404, а не выдуманный пустой разбор.
 _absent = _handle('GET', '/api/v1/sessions/abcdef0123456789/digest')
 check("digest_route_missing", _absent.status == 404 and _absent.body.get("error") == "digest_not_found")
+# .env действительно читается: иначе инструкция настройки врала бы, а человек видел «НЕ настроено».
+_envdir = _tempfile.mkdtemp()
+_envpath = _envdir + '/.env'
+with open(_envpath, 'w', encoding='utf-8') as _fh:
+    _fh.write('# комментарий\nVV_ASR_PROVIDER=assemblyai\nVV_ASR_KEY="ключ-из-файла"\n\nVV_LLM_PROVIDER=gigachat\n')
+_fromfile = _cfg.load_env_file(_envpath)
+check("config_reads_env_file", _fromfile.get("VV_ASR_PROVIDER") == "assemblyai" and _fromfile.get("VV_ASR_KEY") == "ключ-из-файла", _fromfile)
+check("config_env_ignores_comments", len(_fromfile) == 3)
+check("config_missing_env_file_ok", _cfg.load_env_file(_envdir + "/нет-такого") == {})
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
