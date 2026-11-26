@@ -420,6 +420,18 @@ check("prompt_example_valid_json", isinstance(example, dict) and "items" in exam
 check("prompt_example_item_has_evidence", all("evidence" in it for it in example["items"]))
 check("prompt_example_kinds", set(example) >= {"topic", "participants", "summary", "decisions", "open_questions", "items"})
 
+# Шаблонный путь разбора: клиент обращается к /api/v1/sessions/<id>/digest.
+from vvoice.http_api import handle as _handle
+
+_ok = _handle("GET", "/api/v1/sessions/abc123/digest")
+check("digest_route_exists", _ok.body.get("error") == "digest_not_found", "путь должен существовать, а не давать «нет такого пути»")
+check("digest_route_names_session", _ok.body.get("session_id") == "abc123")
+check("digest_route_rejects_empty_id", _handle("GET", "/api/v1/sessions//digest").body.get("error") == "not_found")
+check("digest_route_rejects_huge_id", _handle("GET", "/api/v1/sessions/" + "a" * 65 + "/digest").body.get("error") == "not_found")
+_wrong = _handle("POST", "/api/v1/sessions/abc123/digest")
+check("digest_route_method", _wrong.status == 405)
+check("digest_route_allow", _wrong.headers.get("Allow") == "GET")
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

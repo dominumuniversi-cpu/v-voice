@@ -31,12 +31,32 @@ class Response:
         return {"status": self.status, "body": self.body, "headers": self.headers}
 
 
+import re
+
 ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/health": ("GET",),
     "/api/v1/presets": ("GET",),
     "/api/v1/probe": ("POST",),
     "/api/v1/items/validate": ("POST",),
+    # Готовый разбор сессии. Путь шаблонный: id приходит от клиента.
+    "/api/v1/sessions/{session_id}/digest": ("GET",),
 }
+
+# Шаблонные пути: клиент обращается к /api/v1/sessions/<id>/digest, поэтому точного совпадения мало.
+_TEMPLATED: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/digest$"), "/api/v1/sessions/{session_id}/digest"),
+]
+
+
+def _route(path: str) -> tuple[str | None, str | None]:
+    """Возвращает (шаблон маршрута, параметр) или (None, None), если пути нет."""
+    if path in ROUTES:
+        return path, None
+    for pattern, template in _TEMPLATED:
+        match = pattern.match(path)
+        if match:
+            return template, match.group(1)
+    return None, None
 
 
 def _bad_request(reason: str) -> Response:
@@ -45,7 +65,8 @@ def _bad_request(reason: str) -> Response:
 
 def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
-    allowed = ROUTES.get(path)
+    template, param = _route(path)
+    allowed = ROUTES.get(template) if template else None
     if allowed is None:
         return Response(404, {"error": "not_found", "message": "Нет такого пути: " + path})
     if method.upper() not in allowed:
@@ -53,6 +74,11 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None) ->
                         {"Allow": ", ".join(allowed)})
 
     if method.upper() == "GET":
+        if template == "/api/v1/sessions/{session_id}/digest":
+            # Пока нет базы (M4), честный ответ: разбора по этой сессии нет.
+            # Важно не врать «нет такого пути»: путь есть, данных ещё нет.
+            return Response(404, {"error": "digest_not_found", "session_id": param,
+                                  "message": "Разбор этой записи ещё не готов."})
         if path == "/api/v1/health":
             return Response(200, {"status": "ok", "service": "v-voice", "version": "1"})
         if path == "/api/v1/presets":
