@@ -467,6 +467,32 @@ check("session_rejects_not_wav", _code == 415 and _body.get("error") == "not_wav
 _stereo = _wav(1000).replace(_struct.pack("<HHIIHH", 1, 1, 16000, 32000, 2, 16), _struct.pack("<HHIIHH", 1, 2, 16000, 64000, 4, 16))
 _code, _body, _ = _create_session({"audio_base64": _b64.b64encode(_stereo).decode()})
 check("session_accepts_stereo", _code == 200, _body.get("error"))
+# Хранилище записей: сохранение, поиск, защита от перезаписи.
+import tempfile as _tempfile
+from vvoice.storage import AudioStore as _AudioStore
+from vvoice.http_api import handle as _handle
+
+_tmpdir = _tempfile.mkdtemp(prefix="vvoice-store-")
+_store = _AudioStore(_tmpdir)
+_payload = __import__('json').dumps({'audio_base64': _good})
+_resp = _handle("POST", "/api/v1/sessions", _payload, store=_store)
+check("store_upload_ok", _resp.status == 200, _resp.body)
+_sid = _resp.body.get('session_id', '')
+check("store_file_exists", _store.find(_sid) is not None)
+check("store_read_roundtrip", _store.read(_sid) == _store.read(_sid) and _store.read(_sid) is not None)
+
+_again = _handle("POST", "/api/v1/sessions", _payload, store=_store)
+check("store_no_overwrite", _again.status == 409 and _again.body.get("error") == "already_exists")
+
+_none = _handle("POST", "/api/v1/sessions", _payload)
+check("store_required", _none.status == 503 and _none.body.get("error") == "storage_unavailable")
+
+check("store_rejects_bad_id", _store.find("../etc/passwd") is None)
+check("store_rejects_long_id", _store.find("a" * 65) is None)
+
+_notes = []
+_resp2 = _handle("POST", "/api/v1/sessions", _payload, store=_store, sender=_notes.append)
+check("store_notifies_once", _resp2.status == 409 and _notes == [])
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

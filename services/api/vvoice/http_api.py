@@ -19,6 +19,7 @@ from typing import Any
 
 from .evidence import validate_item
 from .sessions import create_session, is_session_id
+from .storage import AudioStore
 from .provider_probe import presets
 
 
@@ -66,7 +67,8 @@ def _bad_request(reason: str) -> Response:
     return Response(400, {"error": "bad_request", "message": reason})
 
 
-def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None) -> Response:
+def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
+           store: "AudioStore | None" = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -110,14 +112,24 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None) ->
 
     if path == "/api/v1/sessions":
         status, body, audio = create_session(payload)
-        if audio is not None and sender is not None:
-            # Слой хранения: пока его нет, файл просто некуда положить, и это видно по ответу.
+        if status != 200 or audio is None:
+            return Response(status, body)
+        if store is None:
+            # Нет хранилища — не притворяемся, что запись принята и найдётся потом.
+            return Response(503, {"error": "storage_unavailable",
+                                  "message": "Сервер не настроен хранить записи."})
+        try:
+            store.save(body["session_id"], audio)
+        except FileExistsError:
+            return Response(409, {"error": "already_exists",
+                                  "message": "Такая запись уже загружена."})
+        if sender is not None:
+            # Уведомление для слоя разбора: сам разбор здесь не запускается.
             try:
-                sender(audio)
-            except Exception:  # pragma: no cover - защита от падения на хранилище
-                return Response(503, {"error": "storage_unavailable",
-                                      "message": "Не удалось сохранить запись."})
-        return Response(status, body)
+                sender({"session_id": body["session_id"], "size": len(audio)})
+            except Exception:  # pragma: no cover
+                pass
+        return Response(200, body)
 
     if path == "/api/v1/items/validate":
         item = payload.get("item")
