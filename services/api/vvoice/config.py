@@ -18,7 +18,9 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Mapping
 
-ASR_PROVIDERS = ('deepgram', 'assemblyai', 'whisper')
+# fake — заглушка для сквозных проверок. Допустима только по явному имени и никогда по умолчанию:
+# так выдуманный текст не может случайно оказаться на месте настоящего.
+ASR_PROVIDERS = ('deepgram', 'assemblyai', 'whisper', 'fake')
 LLM_PROVIDERS = ('openai', 'anthropic', 'gigachat', 'local')
 
 

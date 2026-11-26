@@ -671,6 +671,10 @@ _dg = _mk(_cfg.load({"VV_ASR_PROVIDER": "deepgram", "VV_ASR_KEY": "k"}))
 check("factory_unimplemented_gives_none", _dg is None)
 _desc = _describe(_cfg.load({"VV_ASR_PROVIDER": "deepgram", "VV_ASR_KEY": "k"}))
 check("factory_describes_gap", _desc["asr_configured"] == "deepgram" and _desc["asr_usable"] is False)
+# Списки провайдеров не должны расходиться: реализованный обязан быть разрешён в настройках.
+from vvoice.provider_factory import IMPLEMENTED_ASR as _impl
+_allowed = set(_cfg.ASR_PROVIDERS)
+check("factory_lists_agree", set(_impl) <= _allowed, (sorted(_impl), sorted(_allowed)))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
