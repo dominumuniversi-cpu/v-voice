@@ -37,7 +37,11 @@ class Digest {
 }
 
 class Item {
-  Item({required this.kind, required this.title, required this.owner, required this.due, required this.quote, required this.startS, required this.approved});
+  Item({required this.id, required this.kind, required this.title, required this.owner, required this.due, required this.quote, required this.startS, this.endS = 0, required this.approved});
+
+  /// Идентификатор элемента. Нужен при отправке наружу: без него сервер не знает, что именно уходит,
+  /// и отвергает элемент как «не годный к отправке».
+  final String id;
 
   final String kind;
   final String title;
@@ -45,7 +49,25 @@ class Item {
   final String due;
   final String quote;
   final double startS;
+
+  /// Конец фрагмента в записи, секунды. Может отсутствовать в старых ответах сервера.
+  final double endS;
+
   bool approved;
+
+  /// Тело для сервера при отправке наружу. Поле approved передаётся явно:
+  /// сервер обязан видеть, что человек подтвердил задачу, а не приложение решило за него.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'kind': kind,
+        'title': title,
+        'owner': owner,
+        'due_at': due,
+        'evidence_quote': quote,
+        'start_s': startS,
+        'end_s': endS,
+        'approved': approved,
+      };
 
   /// Возвращает null, если элемент недоказуем (нет цитаты) или безымянный (нет заголовка).
   static Item? fromJson(Map<String, dynamic> json) {
@@ -57,6 +79,12 @@ class Item {
     final evidence = json['evidence'] is Map ? json['evidence'] as Map : const {};
     final start = json['start_s'] ?? evidence['start_s'] ?? 0;
     return Item(
+      id: (json['id'] ?? '').toString().isNotEmpty
+          ? json['id'].toString()
+          // Стабильный запасной вариант: заголовок + время начала. Не случайный — иначе
+          // повторный разбор давал бы новые id для тех же задач.
+          : (title + '@' + (json['start_s'] ?? 0).toString()),
+      endS: (json['end_s'] is num) ? (json['end_s'] as num).toDouble() : 0,
       kind: (json['kind'] ?? 'task').toString(),
       title: title,
       owner: (json['owner'] ?? '').toString(),

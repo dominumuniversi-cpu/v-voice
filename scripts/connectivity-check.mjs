@@ -32,7 +32,10 @@ function files(dir) {
 }
 
 const sources = files(ROOT).map((path) => ({ path, text: readFileSync(path, 'utf8') }));
-const DECL = /^(?:Future<[^>]*>|void|bool|String|int|Widget|Uint8List)\s+(\w+)\s*\(/gm;
+// Объявление функции или метода: тип, имя, скобка. Отступ разрешён (методы классов),
+// тип может содержать угловые и круглые скобки (Future<(int, int, String)>).
+// Внимание: наивная регулярка «от начала строки» не видела методы и врала «связность в порядке».
+const DECL = /^[ \t]*(?:Future<[^(]*>|Future<[^>]*>>|void|bool|String\??|int|double|Widget|Uint8List\??|List<[^>]*>)\s+(\w+)\s*\(/gm;
 
 const orphans = [];
 for (const { path, text } of sources) {
@@ -41,9 +44,19 @@ for (const { path, text } of sources) {
   while ((match = DECL.exec(text)) !== null) {
     const name = match[1];
     if (ALLOWED.has(name)) continue;
-    const callers = sources.filter((other) =>
+    // Вызов внутри того же файла тоже считается: методы одного класса зовут друг друга.
+    // Объявление отличается от вызова тем, что перед именем стоит тип возврата.
+    const DECL_AT = new RegExp('(Future|void|bool|String|int|double|Widget|Uint8List|List)[^;{}=]*\\b' + name + '\\s*\\(', 'g');
+    const all = [...text.matchAll(new RegExp('\\b' + name + '\\s*\\(', 'g'))].length;
+    const declarations = [...text.matchAll(DECL_AT)].length;
+    let calls = all - declarations;
+    // Ссылка на метод без скобок тоже использование: onPressed: _retry — это вызов при нажатии.
+    // Ссылки без скобок: onPressed: _retry, map(_providerCard), элементы списков.
+    const asReference = new RegExp('(?:[:,]|\\()\\s*' + name + '\\s*[,)]').test(text);
+    const external = sources.some((other) =>
       other.path !== path && new RegExp('\\b' + name + '\\s*\\(').test(other.text));
-    if (callers.length === 0) orphans.push(path + ' :: ' + name);
+    if (asReference) calls = calls + 1;
+    if (calls === 0 && !external) orphans.push(path + ' :: ' + name);
   }
 }
 

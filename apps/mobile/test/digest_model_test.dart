@@ -62,4 +62,28 @@ void main() {
       expect(digest.items.last.kindLabel, 'Задача');
     });
   });
+
+  test('элемент сериализуется для отправки с признаком одобрения', () {
+    final item = Item.fromJson({
+      'id': 'i7',
+      'title': 'Отправить смету',
+      'kind': 'task',
+      'quote': 'я отправлю смету Ивану',
+      'start_s': 2.0,
+      'end_s': 4.0,
+    })!;
+    item.approved = true;
+    final json = item.toJson();
+    expect(json['id'], 'i7');
+    expect(json['evidence_quote'], 'я отправлю смету Ивану');
+    expect(json['approved'], isTrue);
+    expect(json['end_s'], 4.0);
+  });
+
+  test('без id в ответе сервера получается устойчивый запасной id', () {
+    final a = Item.fromJson({'title': 'Позвонить', 'quote': 'позвони ему', 'start_s': 5});
+    final b = Item.fromJson({'title': 'Позвонить', 'quote': 'позвони ему', 'start_s': 5});
+    expect(a!.id, b!.id);
+    expect(a.id, isNot(''));
+  });
 }

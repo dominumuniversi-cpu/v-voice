@@ -18,6 +18,34 @@ abstract class HttpTransport {
 class ApiClient {
   ApiClient({required this.transport, required this.baseUrl});
 
+  /// Отправляет одобренные человеком задачи во внешние системы.
+  ///
+  /// Почему сюда приходит уже одобренное: сервер отвергает неодобренное намеренно.
+  /// Приложение не решает за человека, что попадёт в его задачник.
+  Future<(int sent, int failed, String problem)> exportItems(
+    String sessionId,
+    List<Item> items,
+    Map<String, String> targets,
+  ) async {
+    final approved = items.where((i) => i.approved).toList();
+    if (approved.isEmpty) return (0, 0, 'Ни одна задача не одобрена — отправлять нечего.');
+    final (code, body) = await transport.post(
+      '/api/v1/sessions/' + sessionId + '/export',
+      {
+        'targets': targets,
+        'items': approved.map((i) => i.toJson()).toList(),
+      },
+    );
+    final data = _safeDecode(body);
+    if (code != 200) {
+      final message = (data['message'] ?? '').toString();
+      return (0, 0, message.isNotEmpty ? message : 'Сервер ответил кодом ' + code.toString() + '.');
+    }
+    final sent = (data['sent'] is num) ? (data['sent'] as num).toInt() : 0;
+    final failed = (data['failed'] is num) ? (data['failed'] as num).toInt() : 0;
+    return (sent, failed, failed > 0 ? 'Не дошли до ' + failed.toString() + ' адресатов.' : '');
+  }
+
   /// Открывает сессию заранее, до появления записи.
   ///
   /// Зачем: живому тексту нужен идентификатор, а он раньше появлялся только при загрузке
