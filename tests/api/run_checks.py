@@ -3,6 +3,7 @@
 Импортирует ровно те же функции валидатора, что и pytest-файл, и проверяет те же утверждения,
 чтобы поведение было проверено уже сейчас. Запуск: python tests/api/run_checks.py
 """
+import json
 import sys
 from pathlib import Path
 
