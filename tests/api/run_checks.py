@@ -1004,6 +1004,16 @@ check("every_template_resolves", not _unresolved, _unresolved)
 # Строка запроса — параметры, а не путь: иначе ?format=srt отвечает 404.
 _q1, _q2 = _route_of('/api/v1/sessions/abc123def4567890/transcript?format=srt')
 check("query_string_is_not_path", _q1 == '/api/v1/sessions/{session_id}/transcript' and _q2 == 'abc123def4567890', (_q1, _q2))
+# Без диаризации спикера нет: выдуманный «Голос 1» приписывал реплики несуществующему участнику.
+from vvoice.assemble import assemble as _assemble
+from vvoice.providers.fake_asr import Segment as _SegLabels
+_segA = _SegLabels(start_s=0.0, end_s=2.0, text='Проверяем отсутствие выдуманного участника', speaker='')
+_no_spk = _assemble([_segA])
+check("no_invented_speaker", all(not u.speaker for u in _no_spk.utterances), [u.speaker for u in _no_spk.utterances])
+check("no_invented_speaker_list", not _no_spk.speakers, sorted(_no_spk.speakers))
+_segB = _SegLabels(start_s=0.0, end_s=2.0, text='Проверяем наличие настоящего участника', speaker='Анна')
+_with_spk = _assemble([_segB])
+check("real_speaker_kept", 'Анна' in {u.speaker for u in _with_spk.utterances}, [u.speaker for u in _with_spk.utterances])
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

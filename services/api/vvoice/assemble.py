@@ -75,7 +75,9 @@ def assemble(segments: Iterable[Segment], *, merge_gap_s: float = MERGE_GAP_SEC)
             result.dropped_invented += 1
             continue
 
-        speaker = seg.speaker or "Голос 1"
+        # Без диаризации спикера НЕТ. Выдуманная метка «Голос 1» попадала в каждую строку файла
+        # и в список участников выжимки: человек читал про участника, которого в разговоре не было.
+        speaker = seg.speaker or ""
         if result.utterances:
             last = result.utterances[-1]
             if last.speaker == speaker and seg.start_s - last.end_s <= merge_gap_s:
