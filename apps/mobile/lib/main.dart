@@ -237,7 +237,7 @@ class _ListenScreenState extends State<ListenScreen> {
   ///
   /// Зачем: после падения процесса файл остаётся целым, но экран о нём не знает.
   /// Раньше такой разговор было не вернуть — он лежал рядом и пропадал.
-  Future<void> _openRecordings() async {
+  Future<void> _openRecordings(ApiClient api) async {
     final list = await widget.controller.listRecordings();
     if (!mounted) return;
     await Navigator.of(context).push(
@@ -246,7 +246,7 @@ class _ListenScreenState extends State<ListenScreen> {
           recordings: list,
           onOpen: (path) {
             Navigator.of(ctx).pop();
-            _analyzeRecovered(scope.config.api, path);
+            _analyzeRecovered(api, path);
           },
           onDelete: (path) async {
             await deleteRecording(path);
@@ -407,7 +407,7 @@ class _ListenScreenState extends State<ListenScreen> {
                   IconButton(
                     tooltip: 'Записи на телефоне',
                     icon: const Icon(Icons.folder_open, size: 20, color: VVTheme.inkMuted),
-                    onPressed: () => _openRecordings(),
+                    onPressed: () => _openRecordings(scope.config.api),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
