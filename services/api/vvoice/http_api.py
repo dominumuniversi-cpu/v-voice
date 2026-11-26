@@ -95,6 +95,22 @@ def _bad_request(reason: str) -> Response:
     return Response(400, {"error": "bad_request", "message": reason})
 
 
+def _with_cost(body: Any, price_per_hour: float) -> Any:
+    """Добавляет стоимость к разбору — и только если тариф задан.
+
+    Ноль означает «тариф неизвестен». Показывать «0 ₽» в этом случае — значит соврать человеку,
+    который начнёт думать, что встреча ничего не стоила.
+    """
+    if not isinstance(body, dict) or price_per_hour <= 0:
+        return body
+    seconds = body.get('sent_seconds')
+    if not isinstance(seconds, (int, float)):
+        return body
+    body = dict(body)
+    body['cost_rub'] = round(seconds / 3600.0 * price_per_hour, 2)
+    return body
+
+
 def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            store: "AudioStore | None" = None,
            digests: "DigestStore | None" = None,
@@ -105,6 +121,7 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            gate: Any = None,
            export_targets: Any = None,
            auth_token: str | None = None,
+           asr_price_per_hour: float = 0.0,
            device_tokens: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
@@ -207,7 +224,7 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         outcome = analyze(param, store=store, digests=digests,
                           provider_factory=recognizer, call_llm=call_llm, gate=gate,
                           members_only=payload.get('members_only') is True)
-        return Response(outcome.status, outcome.body)
+        return Response(outcome.status, _with_cost(outcome.body, asr_price_per_hour))
 
     if template == "/api/v1/sessions/{session_id}/stream":
         if recognizer is None:

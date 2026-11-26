@@ -41,6 +41,8 @@ class Settings:
     # Свой токен на каждую цель: Helper принимает Bearer Прохора, Jira — свой, Bitrix24 — свой.
     # Один общий токен позволял подключить реально только один приёмник.
     export_tokens: dict[str, str] = field(default_factory=dict)
+    # Тариф распознавания в рублях за час аудио. 0 — тариф не задан, и тогда стоимость не выдумываем.
+    asr_price_per_hour: float = 0.0
 
     def token_for(self, target: str) -> str:
         """Токен именно для этой цели, иначе общий."""
@@ -88,6 +90,15 @@ class Settings:
             'can_transcribe': asr_usable,
             'can_understand': llm_usable,
         }
+
+
+def _price(raw: object) -> float:
+    """Тариф из окружения. Мусор — это 0 (тариф не задан), а не падение старта."""
+    try:
+        value = float(str(raw or '0').replace(',', '.').strip() or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    return value if value > 0 else 0.0
 
 
 def _fingerprint(key: str) -> str:
@@ -157,6 +168,8 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
         llm_provider=picked('VV_LLM_PROVIDER', LLM_PROVIDERS),
         asr_key=(source.get('VV_ASR_KEY') or '').strip(),
         llm_key=(source.get('VV_LLM_KEY') or '').strip(),
+        # Тариф — настройка, а не константа: цены меняются, и вписанная в код цифра однажды станет ложью.
+        asr_price_per_hour=_price(source.get('VV_ASR_PRICE_PER_HOUR')),
         export_targets=targets,
         export_token=(source.get('VV_EXPORT_TOKEN') or '').strip(),
         # Свой токен на цель: VV_EXPORT_HELPER_TOKEN, VV_EXPORT_JIRA_TOKEN, VV_EXPORT_BITRIX_TOKEN.

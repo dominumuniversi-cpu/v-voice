@@ -1063,6 +1063,13 @@ check("llm_garbage_is_empty", _answer('не json') == '')
 # AC-9: сколько секунд ушло провайдеру — считается из тех же чисел, что и куски.
 from vvoice.vad import FRAME_MS as _FM
 check("sent_seconds_formula", abs(50 * _FM / 1000.0 - 1.0) < 1e-9, 'кадр ' + str(_FM) + ' мс')
+# AC-9: стоимость показывается только при заданном тарифе, иначе — молчание, а не «0 ₽».
+from vvoice.http_api import _with_cost as _cost
+_c1 = _cost({'sent_seconds': 1800.0}, 100.0)
+check("cost_computed", _c1.get('cost_rub') == 50.0, str(_c1.get('cost_rub')))
+check("cost_hidden_without_price", 'cost_rub' not in _cost({'sent_seconds': 1800.0}, 0.0))
+check("cost_skipped_without_seconds", 'cost_rub' not in _cost({'x': 1}, 100.0))
+check("cost_ignores_bad_price", 'cost_rub' not in _cost({'sent_seconds': 1800.0}, -5.0))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

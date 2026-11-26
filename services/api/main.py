@@ -57,6 +57,8 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
                     if settings.llm_provider in IMPLEMENTED_LLM and settings.llm_key else None,
         # Пусто — сервер открыт (режим разработки). Задан — без токена не пустим.
         'device_tokens': settings.device_tokens,
+        # Тариф для расчёта стоимости встречи. 0 — цена не считается и не выдумывается.
+        'asr_price_per_hour': settings.asr_price_per_hour,
     }
 
 
