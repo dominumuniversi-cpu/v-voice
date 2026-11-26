@@ -1,5 +1,5 @@
 {
-  "version": "1.6",
+  "version": "1.7",
   "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе. v1.2: бэкап аудио запрещён на уровне манифеста (152-ФЗ).",
   "android": {
     "files": [
@@ -11,7 +11,8 @@
       "android.permission.RECORD_AUDIO",
       "android.permission.FOREGROUND_SERVICE",
       "android.permission.FOREGROUND_SERVICE_MICROPHONE",
-      "android.permission.POST_NOTIFICATIONS"
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.WAKE_LOCK"
     ],
     "requiredSymbols": [
       "android:foregroundServiceType=\"microphone\"",
@@ -20,7 +21,9 @@
       "ForegroundServiceStartNotAllowedException",
       "stopWithTask=\"false\"",
       "emitSaved",
-      "type\" to \"saved"
+      "type\" to \"saved",
+      "acquireWakeLock()",
+      "releaseWakeLock()"
     ],
     "forbiddenSymbols": [
       "MediaRecorder.AudioSource.VOICE_CALL"

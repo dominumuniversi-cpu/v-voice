@@ -6,7 +6,9 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
+import android.content.Context
 import android.content.Intent
+import android.os.PowerManager
 import android.content.pm.ServiceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -28,6 +30,8 @@ import java.io.FileOutputStream
  *  - старт возможен только из видимого UI. Если система отказала (`ForegroundServiceStartNotAllowedException`),
  *    `RecordingChannel` возвращает ошибку в UI, а не падает молча.
  */
+private const val MAX_RECORDING_MS = 4L * 60 * 60 * 1000
+
 class RecordingService : Service() {
 
     private var recorder: AudioRecord? = null
@@ -51,6 +55,24 @@ class RecordingService : Service() {
     }
 
     /** Постоянное уведомление с кнопкой «стоп» — обязательный индикатор записи. */
+    // Частичный wake lock: не даёт системе усыпить сеть и диск, пока идёт запись.
+    // Для этого нужен именно PARTIAL — экран при этом остаётся погашенным, как и должен.
+    private var wakeLock: PowerManager.WakeLock? = null
+
+    private fun acquireWakeLock() {
+        if (wakeLock != null) return
+        val power = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "vvoice:recording").apply {
+            setReferenceCounted(false)
+            acquire(MAX_RECORDING_MS)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
+    }
+
     private fun startForegroundWithNotification() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channel = NotificationChannel(
@@ -86,6 +108,7 @@ class RecordingService : Service() {
     }
 
     private fun startRecording() {
+        acquireWakeLock()
         if (running) return
         val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val record = AudioRecord(
@@ -143,6 +166,7 @@ class RecordingService : Service() {
     }
 
     private fun stopRecording() {
+        releaseWakeLock()
         running = false
         worker?.join(1_000)
         recorder?.let {
@@ -164,6 +188,7 @@ class RecordingService : Service() {
 
     override fun onDestroy() {
         stopRecording()
+        releaseWakeLock()
         super.onDestroy()
     }
 
