@@ -84,6 +84,16 @@ class _ListenScreenState extends State<ListenScreen> {
           return;
         }
         _sessionId = id;
+        // Запись на сервере есть, но разбор сам не начнётся: просим явно.
+        // Ошибку запуска не глотаем — иначе экран покажет «ещё не готов» вместо настоящей причины.
+        final started = await api.startAnalysis(id);
+        if (!started && mounted) {
+          setState(() {
+            _uploading = false;
+            widget.controller.lastError = api.lastAnalysisProblem;
+          });
+          return;
+        }
       } catch (e) {
         if (mounted) {
           setState(() {

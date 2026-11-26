@@ -47,6 +47,32 @@ void main() {
     });
   });
 
+  group('запуск разбора', () {
+    test('успешный запуск не оставляет причины отказа', () async {
+      final api = ApiClient(transport: _Fake((200, '{"summary":[]}')), baseUrl: '');
+      expect(await api.startAnalysis('abc123def456'), isTrue);
+      expect(api.lastAnalysisProblem, isEmpty);
+    });
+
+    test('отказ сервера объясняет причину, а не молчит', () async {
+      final api = ApiClient(
+        transport: _Fake((503, '{"error":"pipeline_unavailable","message":"Сервер не настроен запускать разбор."}')),
+        baseUrl: '',
+      );
+      expect(await api.startAnalysis('abc123def456'), isFalse);
+      expect(api.lastAnalysisProblem, contains('не настроен'));
+    });
+
+    test('404 не считается успехом', () async {
+      final api = ApiClient(
+        transport: _Fake((404, '{"error":"session_not_found"}')),
+        baseUrl: '',
+      );
+      expect(await api.startAnalysis('abc123def456'), isFalse);
+      expect(api.lastAnalysisProblem, isNotEmpty);
+    });
+  });
+
   group('чтение записи с диска', () {
     test('пустой путь — ошибка, а не пустая отправка', () async {
       expect(() => readFileBytes(''), throwsA(isA<FormatException>()));

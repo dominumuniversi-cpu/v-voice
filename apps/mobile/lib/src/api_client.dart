@@ -18,6 +18,24 @@ abstract class HttpTransport {
 class ApiClient {
   ApiClient({required this.transport, required this.baseUrl});
 
+  /// Просит сервер разобрать загруженную запись.
+  ///
+  /// Почему отдельный шаг: разбор может идти минуты, и держать экран в ожидании одного запроса —
+  /// значит получить таймаут там, где всё работает. Здесь только запуск; результат читается отдельно.
+  Future<bool> startAnalysis(String sessionId) async {
+    lastAnalysisProblem = '';
+    final (code, body) = await transport.post('/api/v1/sessions/' + sessionId + '/analyze', {});
+    final data = _safeDecode(body);
+    // 200 — запущено; 503/404/502 — настоящая проблема, о ней говорим честно.
+    if (code == 200) return true;
+    final message = (data['message'] ?? '').toString();
+    lastAnalysisProblem = message.isNotEmpty ? message : 'Сервер ответил кодом ' + code.toString() + '.';
+    return false;
+  }
+
+  /// Почему разбор не удалось запустить. Пустая строка — всё хорошо или запуска не было.
+  String lastAnalysisProblem = '';
+
   /// Отправляет запись на сервер и возвращает идентификатор сессии (или null с причиной в lastUploadProblem).
   ///
   /// Почему base64: транспорт уже проверен на JSON-путях, и отдельный двоичный протокол
