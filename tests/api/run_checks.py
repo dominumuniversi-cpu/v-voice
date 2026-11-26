@@ -809,6 +809,14 @@ _doc_llm = set(_re.findall(r'VV_LLM_PROVIDER=([a-z0-9_]+)', _doc))
 from vvoice.config import ASR_PROVIDERS as _ASR_OK, LLM_PROVIDERS as _LLM_OK
 check("doc_providers_are_accepted", _doc_asr <= set(_ASR_OK) and _doc_llm <= set(_LLM_OK),
       ('asr', sorted(_doc_asr - set(_ASR_OK)), 'llm', sorted(_doc_llm - set(_LLM_OK))))
+# Напоминание «в 9:00» не должно превратиться в «в этот день» без единого слова.
+from vvoice.exporters import to_payload as _to_payload2
+_rem = _AI(id='r1', session_id='s1', kind='reminder', title='Позвонить маме', evidence_quote='напомни завтра в 9 утра',
+           start_s=1.0, end_s=2.0, due_at='2026-11-27T09:00:00+05:00', approved_by='владелец')
+_jira_req = _to_payload2(_rem, 'jira', 'https://x.atlassian.net')
+check("jira_reminder_time_is_kept", '09:00' in _jira_req.body['fields']['description'],
+      'время напоминания потерялось без предупреждения')
+check("jira_reminder_date_set", _jira_req.body['fields'].get('duedate') == '2026-11-27')
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

@@ -93,6 +93,11 @@ def _jira(item: ApprovedItem, base: str) -> ExportRequest:
     }
     if item.due_at:
         body["fields"]["duedate"] = item.due_at[:10]
+        # Jira хранит только дату. Если это напоминание «в 9:00», молча отдать «в этот день» —
+        # значит соврать человеку о том, когда его разбудят. Говорим о потере в описании.
+        if item.kind == "reminder" and len(item.due_at) > 10:
+            body["fields"]["description"] += (
+                "\nВнимание: Jira хранит только дату, время напоминания не сохранено: " + item.due_at)
     return ExportRequest(target="jira", method="POST", url=base.rstrip("/") + "/rest/api/3/issue", body=body,
                          headers={"Content-Type": "application/json"})
 
