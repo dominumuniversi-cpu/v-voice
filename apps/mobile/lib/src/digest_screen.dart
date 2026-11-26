@@ -26,6 +26,8 @@ class _DigestScreenState extends State<DigestScreen> {
   bool _sending = false;
   bool _transcriptBusy = false;
   String _sentMessage = '';
+  /// Сколько задач уже ушло. Повторная отправка удвоила бы их в задачнике.
+  int _sentCount = 0;
   /// Показывает расшифровку человеку: сначала выбор формата, потом сам текст.
   ///
   /// Форматы именно те, что пригодятся: txt — читать, srt — монтировать видео, md — вставить в заметки.
@@ -201,9 +203,13 @@ class _DigestScreenState extends State<DigestScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           FilledButton.icon(
-            onPressed: _sending ? null : () => _sendApproved(api, sessionId),
-            icon: const Icon(Icons.send),
-            label: Text(_sending ? 'Отправляю…' : 'Отправить в задачник'),
+            // Повторное нажатие после успеха создало бы дубли задач в чужой системе — отменить это
+            // из приложения нельзя. Отправляем ещё раз только если что-то НЕ дошло.
+            onPressed: (_sending || _sentCount > 0) ? null : () => _sendApproved(api, sessionId),
+            icon: Icon(_sentCount > 0 ? Icons.check : Icons.send),
+            label: Text(_sending
+                ? 'Отправляю…'
+                : (_sentCount > 0 ? 'Уже отправлено: ' + _sentCount.toString() : 'Отправить в задачник')),
           ),
           if (_sentMessage.isNotEmpty)
             Padding(
@@ -230,6 +236,8 @@ class _DigestScreenState extends State<DigestScreen> {
       _sending = false;
       // problem уже содержит правду о частичном провале (его формирует клиент), поэтому
       // второй источник того же текста здесь не нужен — только выбор, что показать.
+      // Счётчик сбрасывается при частичном провале: дослать недоехавшее — можно, дубли — нельзя.
+      _sentCount = failed > 0 ? 0 : sent;
       _sentMessage = problem.isNotEmpty
           ? problem
           : (sent > 0 ? 'Отправлено задач: ' + sent.toString() + '.' : 'Отправлять было нечего.');
