@@ -745,6 +745,18 @@ _extra = sorted(set(_req.body) - set(_schema['properties']))
 check("webhook_matches_schema", not _extra, _extra)
 _required_missing = [k for k in _schema['required'] if k not in _req.body]
 check("webhook_has_required_fields", not _required_missing, _required_missing)
+# Исходный баг #44: сервер не собирался, потому что точки запуска не было. Проверяем её наличие и поведение.
+_main_src = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'main.py').read_text(encoding='utf-8')
+check("main_has_entrypoint", "if __name__ == '__main__'" in _main_src)
+check("main_loads_env_file", 'load_env_file(env_file)' in _main_src, 'env не читается при запуске')
+check("main_builds_settings", 'load(' in _main_src or 'Settings(' in _main_src)
+check("main_warns_about_gap", 'describe_providers(' in _main_src,
+      'сервер не предупреждает, что настроенный провайдер не реализован')
+
+# Настройки из окружения доходят до значений, а не теряются по дороге.
+_s = _load({'VV_ASR_PROVIDER': 'fake', 'VV_LLM_PROVIDER': 'fake'})
+check("config_env_reaches_settings", _s.asr_provider == 'fake' and _s.llm_provider == 'fake',
+      (_s.asr_provider, _s.llm_provider))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

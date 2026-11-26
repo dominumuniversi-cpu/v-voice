@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from vvoice.config import Settings, load as load_settings
+from vvoice.config import Settings, load as load_settings, load_env_file
 from vvoice.digest_store import DigestStore
 from vvoice.http_api import handle
 from vvoice.live_sessions import LiveSessions
@@ -110,6 +110,14 @@ def make_server(host: str, port: int, settings: Settings, data_dir: str | Path) 
 def main() -> int:
     """Точка входа службы: настройки из окружения, данные рядом, порт из VV_PORT."""
     import os
+
+    # Человек заполняет .env, а не выставляет переменные руками: файл обязан применяться при запуске,
+    # иначе все его правки молча игнорируются. Окружение сильнее файла — это позволяет CI подменить значение.
+    env_file = os.environ.get('VV_ENV_FILE') or '.env'
+    if os.path.exists(env_file):
+        for key, value in load_env_file(env_file).items():
+            os.environ.setdefault(key, value)
+        print('v-voice: настройки прочитаны из %s' % env_file)
 
     settings = load_settings()
     data_dir = Path(os.environ.get('VV_DATA_DIR') or './data')
