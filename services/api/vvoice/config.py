@@ -70,8 +70,12 @@ class Settings:
         from .provider_factory import IMPLEMENTED_ASR, IMPLEMENTED_LLM
         asr_usable = self.asr_ready and self.asr_provider in IMPLEMENTED_ASR
         llm_usable = self.llm_ready and self.llm_provider in IMPLEMENTED_LLM
+        # Есть ли чем открыть соединение с сервисом распознавания. Настройки могут быть полными,
+        # а библиотеки — не быть; тогда это видно здесь, а не по пустой расшифровке.
+        from .provider_factory import _ws_available
         return {
             'asr': {'provider': self.asr_provider, 'ready': asr_usable,
+                    'ws_client': _ws_available(),
                     'configured': self.asr_ready, 'implemented': self.asr_provider in IMPLEMENTED_ASR,
                     'key_fingerprint': _fingerprint(self.asr_key)},
             'llm': {'provider': self.llm_provider, 'ready': llm_usable,
