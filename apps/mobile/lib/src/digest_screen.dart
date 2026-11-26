@@ -129,7 +129,8 @@ class _DigestScreenState extends State<DigestScreen> {
                 ],
               ),
             )
-          _section('Коротко', d.summary),
+          else
+            _section('Коротко', d.summary),
           if (d.rejected.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
