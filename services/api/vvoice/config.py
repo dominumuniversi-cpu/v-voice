@@ -43,6 +43,8 @@ class Settings:
     export_tokens: dict[str, str] = field(default_factory=dict)
     # Тариф распознавания в рублях за час аудио. 0 — тариф не задан, и тогда стоимость не выдумываем.
     asr_price_per_hour: float = 0.0
+    # Предел расходов на одну встречу, рубли. 0 — предел не задан, предупреждать не о чем.
+    budget_per_meeting: float = 0.0
 
     def token_for(self, target: str) -> str:
         """Токен именно для этой цели, иначе общий."""
@@ -176,6 +178,7 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
         llm_key=(source.get('VV_LLM_KEY') or '').strip(),
         # Тариф — настройка, а не константа: цены меняются, и вписанная в код цифра однажды станет ложью.
         asr_price_per_hour=_price(source.get('VV_ASR_PRICE_PER_HOUR')),
+        budget_per_meeting=_price(source.get('VV_BUDGET_PER_MEETING')),
         export_targets=targets,
         export_token=(source.get('VV_EXPORT_TOKEN') or '').strip(),
         # Свой токен на цель: VV_EXPORT_HELPER_TOKEN, VV_EXPORT_JIRA_TOKEN, VV_EXPORT_BITRIX_TOKEN.

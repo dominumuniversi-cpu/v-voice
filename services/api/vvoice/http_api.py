@@ -95,7 +95,7 @@ def _bad_request(reason: str) -> Response:
     return Response(400, {"error": "bad_request", "message": reason})
 
 
-def _with_cost(body: Any, price_per_hour: float) -> Any:
+def _with_cost(body: Any, price_per_hour: float, budget: float = 0.0) -> Any:
     """Добавляет стоимость к разбору — и только если тариф задан.
 
     Ноль означает «тариф неизвестен». Показывать «0 ₽» в этом случае — значит соврать человеку,
@@ -107,7 +107,13 @@ def _with_cost(body: Any, price_per_hour: float) -> Any:
     if not isinstance(seconds, (int, float)):
         return body
     body = dict(body)
-    body['cost_rub'] = round(seconds / 3600.0 * price_per_hour, 2)
+    cost = round(seconds / 3600.0 * price_per_hour, 2)
+    body['cost_rub'] = cost
+    # Предел задан и превышен — говорим прямо. Узнать о перерасходе из счёта в конце месяца
+    # поздно: встреча уже записана.
+    if budget > 0 and cost > budget:
+        body['budget_exceeded'] = True
+        body['budget_rub'] = budget
     return body
 
 
@@ -122,6 +128,7 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            export_targets: Any = None,
            auth_token: str | None = None,
            asr_price_per_hour: float = 0.0,
+           budget_per_meeting: float = 0.0,
            device_tokens: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
@@ -224,7 +231,7 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         outcome = analyze(param, store=store, digests=digests,
                           provider_factory=recognizer, call_llm=call_llm, gate=gate,
                           members_only=payload.get('members_only') is True)
-        return Response(outcome.status, _with_cost(outcome.body, asr_price_per_hour))
+        return Response(outcome.status, _with_cost(outcome.body, asr_price_per_hour, budget_per_meeting))
 
     if template == "/api/v1/sessions/{session_id}/stream":
         if recognizer is None:

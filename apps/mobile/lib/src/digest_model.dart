@@ -4,7 +4,7 @@
 /// отбрасывает элементы без непустой цитаты, а не показывает их без доказательства:
 /// человек, который не может проверить, откуда взялась задача, задачи не примет.
 class Digest {
-  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const [], this.costRub, this.sentSeconds});
+  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const [], this.costRub, this.sentSeconds, this.budgetRub});
 
   final List<String> summary;
   final List<String> decisions;
@@ -79,12 +79,18 @@ class Digest {
       rejected: rejectedFrom(json['rejected']),
       costRub: json['cost_rub'] is num ? (json['cost_rub'] as num).toDouble() : null,
       sentSeconds: json['sent_seconds'] is num ? (json['sent_seconds'] as num).toDouble() : null,
+      budgetRub: json['budget_exceeded'] == true && json['budget_rub'] is num
+          ? (json['budget_rub'] as num).toDouble()
+          : null,
     );
   }
 
   /// Стоимость встречи в рублях. null — сервер не знает тарифа, и тогда мы не показываем «0 ₽»:
   /// выдуманная цена хуже отсутствующей, потому что на неё начнут опираться.
   final double? costRub;
+
+  /// Предел на одну встречу, если он задан и превышен. null — всё в порядке или предела нет.
+  final double? budgetRub;
 
   /// Сколько секунд аудио ушло в распознавание. Нужно, чтобы человек видел объём даже без тарифа.
   final double? sentSeconds;

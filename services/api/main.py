@@ -60,6 +60,7 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         'device_tokens': settings.device_tokens,
         # Тариф для расчёта стоимости встречи. 0 — цена не считается и не выдумывается.
         'asr_price_per_hour': settings.asr_price_per_hour,
+        'budget_per_meeting': settings.budget_per_meeting,
     }
 
 

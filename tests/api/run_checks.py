@@ -1077,6 +1077,12 @@ _ans = _fake_llm('система', _prompt)
 check("fake_llm_makes_item", len(_ans['items']) >= 1, str(len(_ans['items'])))
 check("fake_llm_quotes_text", 'отправлю смету' in _ans['items'][0]['evidence']['quote'], str(_ans['items'][0])[:80])
 check("fake_llm_summary_is_points", isinstance(_ans.get('summary'), list) and bool(_ans['summary']), str(type(_ans.get('summary'))))
+# AC-9: при заданном пределе перерасход отмечается, а не остаётся незамеченным.
+_over = _cost({'sent_seconds': 3600.0}, 100.0, 50.0)
+check("budget_exceeded_flagged", _over.get('budget_exceeded') is True and _over.get('budget_rub') == 50.0, str(_over))
+_under = _cost({'sent_seconds': 600.0}, 100.0, 50.0)
+check("budget_not_flagged_when_within", 'budget_exceeded' not in _under, str(_under))
+check("budget_off_by_default", 'budget_exceeded' not in _cost({'sent_seconds': 3600.0}, 100.0, 0.0))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

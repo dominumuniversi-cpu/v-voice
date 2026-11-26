@@ -133,6 +133,15 @@ class _DigestScreenState extends State<DigestScreen> {
             )
           else
             _section('Коротко', d.summary),
+          if (d.budgetRub != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              // Перерасход — не мелочь в подвале: он должен бросаться в глаза до чтения выжимки.
+              child: Text(
+                'Встреча вышла дороже предела ' + d.budgetRub!.toStringAsFixed(2) + ' ₽ — запись продолжается, но стоит проверить, нужна ли такая длина.',
+                style: const TextStyle(fontSize: 13, height: 1.4, color: VVTheme.ink),
+              ),
+            ),
           if (_costLine(d) != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),

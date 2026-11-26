@@ -3,6 +3,16 @@ import 'package:v_voice/src/digest_model.dart';
 
 void main() {
   group('Digest.fromJson', () {
+    test('предел превышен — видно, сколько он составляет', () {
+      final digest = Digest.fromJson({'summary': ['x'], 'cost_rub': 80.0, 'budget_exceeded': true, 'budget_rub': 50.0});
+      expect(digest.budgetRub, 50.0);
+    });
+
+    test('в пределах предела — предупреждения нет', () {
+      final digest = Digest.fromJson({'summary': ['x'], 'cost_rub': 10.0});
+      expect(digest.budgetRub, isNull);
+    });
+
     test('стоимость встречи читается, когда сервер её прислал', () {
       final digest = Digest.fromJson({'summary': ['x'], 'cost_rub': 12.5, 'sent_seconds': 1800.0});
       expect(digest.costRub, 12.5);
