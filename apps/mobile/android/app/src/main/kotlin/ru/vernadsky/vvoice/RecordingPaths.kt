@@ -6,6 +6,18 @@ import java.io.RandomAccessFile
 
 /** Куда пишем аудио: внутренняя память приложения (не требует разрешений, доступна всегда). */
 object RecordingPaths {
+    /**
+     * Новый файл для новой записи: имя включает время старта.
+     *
+     * Почему не одно имя на всех: раньше каждая запись писалась в segment.wav, и вторая
+     * молча уничтожала первую. Человек узнавал об этом, когда пытался открыть вчерашнее совещание.
+     */
+    fun newRecordingFile(context: Context, startedAtMs: Long = System.currentTimeMillis()): File {
+        val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
+            .format(java.util.Date(startedAtMs))
+        return File(sessionDir(context), "rec-" + stamp + ".wav")
+    }
+
     fun sessionDir(context: Context): File {
         val dir = File(context.filesDir, "recordings")
         if (!dir.exists()) dir.mkdirs()
@@ -13,8 +25,13 @@ object RecordingPaths {
     }
 
     /** Заранее пишем пустой WAV-заголовок, чтобы после падения процесса файл уже был валидным. */
-    fun finalizeWav(dir: File, sampleRate: Int) {
-        val file = File(dir, "segment.wav")
+    /**
+     * Дописывает WAV-заголовок под фактическую длину файла.
+     *
+     * Файл передаётся аргументом: после перехода на имена по времени зашитое «segment.wav»
+     * чинило бы несуществующий файл, и запись оставалась бы битой.
+     */
+    fun finalizeWav(file: File, sampleRate: Int) {
         if (!file.exists()) return
         val dataLen = (file.length() - 44).coerceAtLeast(0).toInt()
         RandomAccessFile(file, "rw").use { raf ->

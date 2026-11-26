@@ -32,6 +32,8 @@ class RecordingService : Service() {
 
     private var recorder: AudioRecord? = null
     private var writer: FileOutputStream? = null
+    /// Файл текущей записи: финализация и событие saved должны говорить об этом же файле.
+    private var currentFile: File? = null
     private var worker: Thread? = null
     private var running = false
 
@@ -96,7 +98,9 @@ class RecordingService : Service() {
             return
         }
 
-        val file = File(RecordingPaths.sessionDir(this), "segment.wav")
+        // Имя по времени старта: вторая запись не должна затирать первую.
+        val file = RecordingPaths.newRecordingFile(this)
+        currentFile = file
         writer = FileOutputStream(file)
         writer?.write(WavHeader.empty(SAMPLE_RATE))
 
@@ -150,10 +154,10 @@ class RecordingService : Service() {
         writer = null
         // Финализируем WAV-заголовок, чтобы файл читался любым плеером/фоновым процессором.
         val dir = RecordingPaths.sessionDir(this)
-        RecordingPaths.finalizeWav(dir, SAMPLE_RATE)
+        val file = currentFile ?: File(dir, "rec-unknown.wav")
+        RecordingPaths.finalizeWav(file, SAMPLE_RATE)
         RecordingChannel.emitState("stopped")
         // Путь нужен наверху: без него экран разбора не знает, какую запись отправлять на сервер.
-        val file = File(dir, "segment.wav")
         val durationMs = if (file.exists()) (file.length() / 32L) else 0L
         RecordingChannel.emitSaved(file.absolutePath, durationMs)
     }
