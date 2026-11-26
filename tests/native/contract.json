@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.3",
   "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе. v1.2: бэкап аудио запрещён на уровне манифеста (152-ФЗ).",
   "android": {
     "files": [
@@ -49,7 +49,14 @@
       "AVAudioFile",
       "beginBackgroundTask"
     ],
-    "forbiddenSymbols": []
+    "forbiddenSymbols": [],
+    "requiredPlistKeys": [
+      "NSMicrophoneUsageDescription",
+      "NSLocalNetworkUsageDescription",
+      "UIBackgroundModes",
+      "CFBundleIdentifier",
+      "LSSupportsOpeningDocumentsInPlace"
+    ]
   },
   "mobile_ui": {
     "files": [

@@ -72,6 +72,26 @@ function checkPlatformFiles(root, contract, platform) {
   return problems;
 }
 
+// Ключи Info.plist — не украшение: без NSMicrophoneUsageDescription приложение падает при первом
+// обращении к микрофону, без описания локальной сети iOS молча блокирует наш же сервер.
+function checkPlistKeys(root, contract) {
+  const problems = [];
+  const keys = (contract.ios && contract.ios.requiredPlistKeys) || [];
+  if (!keys.length) return problems;
+  const plistPath = 'apps/mobile/ios/Runner/Info.plist';
+  if (!existsSync(join(root, plistPath))) {
+    problems.push({ platform: 'ios', missingFile: plistPath, why: 'не найден Info.plist' });
+    return problems;
+  }
+  const plist = readFileSync(join(root, plistPath), 'utf8');
+  for (const key of keys) {
+    if (!plist.includes('<key>' + key + '</key>')) {
+      problems.push({ platform: 'ios', missingPlistKey: key, why: 'в Info.plist нет обязательного ключа' });
+    }
+  }
+  return problems;
+}
+
 function main() {
   const contract = loadContract();
   const out = [];
@@ -79,6 +99,7 @@ function main() {
   for (const platform of platforms) {
     out.push(...checkPlatform(root, contract, platform));
     if (platform === 'android') out.push(...checkPlatformFiles(root, contract, platform));
+    if (platform === 'ios') out.push(...checkPlistKeys(root, contract));
   }
   const report = normalizeReport({ contractVersion: contract.version, problems: out });
   if (process.argv.includes('--json')) console.log(JSON.stringify(report, null, 2));
