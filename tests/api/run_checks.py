@@ -1045,6 +1045,13 @@ _st2 = _State()
 _prov2 = _CountingProvider()
 _run_live(_prov2, _st2, [_quiet] * 5)
 check("live_without_gate_passes_all", _prov2.calls == 5, 'кусков: ' + str(_prov2.calls))
+# Настройка «speechmatics» без ключа не должна превращаться в рабочий провайдер молча.
+from vvoice.provider_factory import make_asr_factory as _mk, describe as _desc
+_no_key = _from_settings({'VV_ASR_PROVIDER': 'speechmatics', 'VV_ASR_KEY': ''})
+check("speechmatics_needs_key", _mk(_no_key) is None)
+_with_key = _from_settings({'VV_ASR_PROVIDER': 'speechmatics', 'VV_ASR_KEY': 'k'})
+check("speechmatics_factory_ready", _mk(_with_key) is not None)
+check("speechmatics_listed", _desc(_no_key)['asr_implemented'] is True)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

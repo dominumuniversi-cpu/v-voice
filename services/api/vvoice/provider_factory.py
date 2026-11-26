@@ -17,7 +17,7 @@ from .providers.fake_asr import FakeAsr
 
 # Провайдеры, для которых есть настоящая реализация в коде. Остальные — настройка есть,
 # реализации нет: сюда добавлять только после того, как она написана и проверена.
-IMPLEMENTED_ASR = ('fake',)
+IMPLEMENTED_ASR = ('fake', 'speechmatics')
 
 
 def make_asr_factory(settings: Settings) -> Callable[[str], Any] | None:
@@ -33,10 +33,34 @@ def make_asr_factory(settings: Settings) -> Callable[[str], Any] | None:
         # Заглушка разрешена только явной настройкой VV_ASR_PROVIDER=fake: она нужна для
         # сквозных прогонов и не должна включаться от пустой строки.
         return lambda path: FakeAsr()
+    if provider == 'speechmatics':
+        key = (settings.asr_key or '').strip()
+        if not key:
+            # Без ключа не выдаём «почти работающий» объект: человек заполнил половину настроек,
+            # и /health честно скажет, что не хватает ключа.
+            return None
+        from .providers.speechmatics import SpeechmaticsAsr
+        from .providers.ws_connect import connect_websocket
+
+        def _make_speechmatics(path: str) -> Any:
+            client = SpeechmaticsAsr(connect=connect_websocket, api_key=key)
+            client.open()
+            return client
+
+        return _make_speechmatics
     return None
 
 
 IMPLEMENTED_LLM: tuple[str, ...] = ()
+
+
+def _ws_available() -> bool:
+    """Есть ли библиотека для WebSocket. Проверка импортом: не падает, если нет."""
+    try:
+        import websocket  # type: ignore[import-not-found]  # noqa: F401
+        return True
+    except ImportError:
+        return False
 
 
 def describe(settings: Settings) -> dict[str, Any]:
@@ -47,6 +71,9 @@ def describe(settings: Settings) -> dict[str, Any]:
         'asr_configured': provider,
         'asr_implemented': provider in IMPLEMENTED_ASR,
         'asr_usable': make_asr_factory(settings) is not None,
+        # Отдельно от «ключ есть»: человек заполнил настройки, но без библиотеки распознавание
+        # не поднимется, и лучше узнать это в /health, чем по пустой расшифровке.
+        'asr_ws_client': _ws_available(),
         'llm_configured': llm,
         'llm_implemented': llm in IMPLEMENTED_LLM,
         'llm_usable': llm in IMPLEMENTED_LLM,
