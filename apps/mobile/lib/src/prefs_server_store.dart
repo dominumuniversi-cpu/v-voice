@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'device_key_store.dart';
 import 'server_store.dart';
 
 /// Хранилище адреса поверх shared_preferences: переживает перезапуск приложения.
@@ -23,7 +24,7 @@ class PrefsServerStore implements ServerStore {
 }
 
 /// Хранилище токена устройства. Отдельный ключ, тот же принцип: тонкий адаптер.
-class PrefsTokenStore implements ServerStore {
+class PrefsTokenStore implements ServerStore, DeviceKeyStore {
   static const String key = 'device_token';
 
   @override

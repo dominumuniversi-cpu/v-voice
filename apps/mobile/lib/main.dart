@@ -426,6 +426,10 @@ class _ListenScreenState extends State<ListenScreen> {
                           api: scope.config.api,
                           initialServerUrl: scope.serverUrl,
                           store: PrefsServerStore(),
+                          // Ключ устройства уже хранился (PrefsTokenStore), но вписать его было негде:
+                          // сервер с замком отвечал 401, и человек видел только «не удалось подключиться».
+                          deviceKeyStore: PrefsTokenStore(),
+                          initialDeviceKey: scope.config.deviceToken,
                           // Без хранилища отзыв согласия жил бы до закрытия экрана — то есть не жил.
                           consentStore: consentStore,
                         ),

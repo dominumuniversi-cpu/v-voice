@@ -5,6 +5,7 @@ import 'consent_model.dart';
 import 'consent_store.dart';
 import 'providers_model.dart';
 import 'server_settings.dart';
+import 'device_key_store.dart';
 import 'server_store.dart';
 import 'server_scope.dart';
 import 'theme.dart';
@@ -18,7 +19,7 @@ import 'theme.dart';
 ///  - «Проверить» сначала прогоняет простые правила на телефоне (пустой ключ, пробел, обрезок)
 ///    и только потом идёт в сеть — так человек получает ответ мгновенно, без ожидания.
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.api, this.initialServerUrl = '', this.store, this.consentStore});
+  const SettingsScreen({super.key, this.api, this.initialServerUrl = '', this.store, this.consentStore, this.deviceKeyStore, this.initialDeviceKey = ''});
 
   /// Хранилище адреса. Если null — адрес живёт только до закрытия экрана.
   final ServerStore? store;
@@ -29,6 +30,12 @@ class SettingsScreen extends StatefulWidget {
 
   /// Хранилище согласия. null — отзыв не сохранится между запусками (экран в тестах).
   final ConsentStore? consentStore;
+
+  /// Хранилище ключа устройства. null — ключ живёт только до закрытия экрана.
+  final DeviceKeyStore? deviceKeyStore;
+
+  /// Ключ, уже сохранённый ранее: показываем, что замок настроен.
+  final String initialDeviceKey;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -46,9 +53,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final Map<String, TextEditingController> keys = {};
   final Map<String, Pair> results = {};
   late TextEditingController server = TextEditingController(text: widget.initialServerUrl);
+  /// Ключ устройства: сервер с замком без него отвечает 401.
+  late final TextEditingController deviceKey = TextEditingController(text: widget.initialDeviceKey);
   bool busy = false;
   String? serverProblem;
   String? savedNote;
+  String? deviceKeyProblemText;
+  late bool deviceKeySaved = widget.initialDeviceKey.trim().isNotEmpty;
 
   /// Keeper: одно правило на чтение и запись адреса — то же, что проверено тестами.
   ServerSettingsKeeper? get _keeper => widget.store == null
@@ -91,6 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       c.dispose();
     }
     server.dispose();
+    deviceKey.dispose();
     super.dispose();
   }
 
@@ -114,6 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (problem == null) {
       await ServerScope.maybeOf(context)?.onChanged(server.text.trim());
     }
+    await _saveDeviceKey();
   }
 
   TextEditingController _keyFor(String id) => keys.putIfAbsent(id, () => TextEditingController());
@@ -249,6 +262,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(savedNote!, style: const TextStyle(color: VVTheme.ok, fontSize: 12)),
+            ),
+          const SizedBox(height: 12),
+          // Ключ устройства. Без него сервер с замком отвечает 401, и человек видел лишь
+          // «не удалось подключиться» — ввести ключ было негде.
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: deviceKey,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Ключ устройства (если сервер с замком)',
+                    hintText: 'можно оставить пустым',
+                    isDense: true,
+                    errorText: deviceKeyProblemText,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(onPressed: () { _saveDeviceKey(); }, child: const Text('Сохранить')),
+            ],
+          ),
+          if (deviceKeySaved)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text('Ключ сохранён.', style: TextStyle(color: VVTheme.ok, fontSize: 12)),
             ),
           const SizedBox(height: 24),
           const Text('Что разбирать', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
