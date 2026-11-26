@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе.",
+  "android": {
+    "files": [
+      "apps/mobile/android/app/src/main/AndroidManifest.xml",
+      "apps/mobile/android/app/src/main/kotlin/ru/vernadsky/vvoice/RecordingService.kt",
+      "apps/mobile/android/app/src/main/kotlin/ru/vernadsky/vvoice/RecordingChannel.kt"
+    ],
+    "requiredPermissions": [
+      "android.permission.RECORD_AUDIO",
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      "android.permission.POST_NOTIFICATIONS"
+    ],
+    "requiredSymbols": [
+      "android:foregroundServiceType=\"microphone\"",
+      "FOREGROUND_SERVICE_TYPE_MICROPHONE",
+      "AudioRecord",
+      "ForegroundServiceStartNotAllowedException",
+      "stopWithTask=\"false\""
+    ],
+    "forbiddenSymbols": [
+      "MediaRecorder.AudioSource.VOICE_CALL"
+    ]
+  },
+  "ios": {
+    "files": [
+      "apps/mobile/ios/Runner/Info.plist",
+      "apps/mobile/ios/Runner/RecordingEngine.swift",
+      "apps/mobile/ios/Runner/RecordingChannel.swift"
+    ],
+    "requiredPermissions": [
+      "NSMicrophoneUsageDescription"
+    ],
+    "requiredSymbols": [
+      "UIBackgroundModes",
+      "audio",
+      "AVAudioSession",
+      "AVAudioEngine",
+      "AVAudioFile",
+      "beginBackgroundTask"
+    ],
+    "forbiddenSymbols": []
+  }
+}

@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**", "docs/**"]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 1) Синтаксис Python-модулей — быстро, без установки зависимостей.
+      - name: python syntax
+        run: node scripts/syntax-check.mjs
+
+      # 2) Контракт нативных мостов: записи на Android/iOS не разошлись.
+      - name: native contract
+        run: node tests/native/native-drift-check.mjs
+
+      # 3) Сквозные кейсы конвейера и контракта.
+      - name: node tests
+        run: node --test "tests/native/*.test.mjs" "tests/api/*.mjs"
+
+      # 4) Валидатор цитат под настоящим Python (правило «нет цитаты — нет задачи»).
+      - name: evidence validator
+        run: |
+          pip install pytest
+          python tests/api/run_checks.py
+          python -m pytest tests/api -q

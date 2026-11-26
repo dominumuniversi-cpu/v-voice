@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Умный диктофон</string>
+    <string name="recording_channel">Запись</string>
+    <string name="recording_title">Идёт запись</string>
+    <string name="recording_text">Приложение слушает и расшифровывает. Нажмите «Стоп», чтобы закончить.</string>
+    <string name="stop">Стоп</string>
+</resources>
