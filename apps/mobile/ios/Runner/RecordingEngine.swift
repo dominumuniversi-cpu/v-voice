@@ -38,7 +38,14 @@ final class RecordingEngine {
         }
 
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
-            do { try self?.file?.write(from: buffer) } catch { RecordingChannel.emitError(code: "write_failed") }
+            do {
+                try self?.file?.write(from: buffer)
+            } catch {
+                // Место кончилось или файл недоступен: честно останавливаемся, иначе экран врёт.
+                RecordingChannel.emitError(code: "disk_full")
+                DispatchQueue.main.async { self?.stop() }
+                return
+            }
             RecordingChannel.emitLevel(RecordingEngine.rms(buffer))
         }
 

@@ -141,8 +141,16 @@ class RecordingService : Service() {
             while (running) {
                 val read = record.read(buf, 0, buf.size)
                 if (read > 0) {
-                    writer?.write(buf, 0, read)
-                    writer?.flush()
+                    // Сбой записи на диск (кончилось место) не должен тихо убивать поток:
+                    // иначе экран показывает «идёт запись», а файла больше нет.
+                    try {
+                        writer?.write(buf, 0, read)
+                        writer?.flush()
+                    } catch (e: java.io.IOException) {
+                        RecordingChannel.emitError("disk_full")
+                        stopRecording()
+                        break
+                    }
                     // Уровень считаем здесь, где данные уже в руках: отдельный опрос не нужен,
                     // а AudioRecord (в отличие от MediaRecorder) сам амплитуду не отдаёт.
                     sinceLevel += read
