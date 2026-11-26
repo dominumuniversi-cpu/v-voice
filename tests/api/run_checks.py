@@ -831,6 +831,13 @@ check("auth_sets_challenge", _code_no_token.headers.get('WWW-Authenticate') == '
 load_cfg = _load
 _s = load_cfg({'VV_DEVICE_TOKENS': 'a, b ,'})
 check("auth_tokens_from_env", _s.device_tokens == ('a', 'b'), _s.device_tokens)
+# В подсказке .env.example должны быть перечислены все допустимые провайдеры:
+# человек не обязан читать код, чтобы узнать, что можно вписать.
+_env = (Path(__file__).resolve().parents[2] / 'services' / 'api' / '.env.example').read_text(encoding='utf-8')
+_missing_asr = [p for p in _ASR_OK if p not in _env]
+_missing_llm = [p for p in _LLM_OK if p not in _env]
+check("env_example_lists_providers", not _missing_asr and not _missing_llm,
+      ('asr', _missing_asr, 'llm', _missing_llm))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
