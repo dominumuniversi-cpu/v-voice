@@ -43,6 +43,9 @@ jobs:
       - name: dart implements complete
         run: node tests/native/dart-implements.mjs
       # Подписи про готовность моделей не обещают проверку ключа, которой сервер не делал.
+      # Схема в промпте совпадает с тем, что читает валидатор: иначе разбор пуст по вине не модели.
+      - name: prompt schema
+        run: node tests/native/prompt-schema-check.mjs
       - name: settings claims
         run: node tests/native/settings-claims-check.mjs
 
