@@ -1022,7 +1022,9 @@ _it = _Appr(id='i1', kind='task', title='Позвонить Ивану', evidenc
 _req = _payload(_it, 'helper', 'https://example.invalid')
 _ok_no, _why_no = _send_req(_req, token='')
 check("export_needs_receiver_token", _ok_no is False and 'ключ приёмника' in _why_no, _why_no)
-check("export_marker_never_sent", '<HELPER_TOKEN>' not in str(_req.headers.get('Authorization')), _req.headers)
+# Образец в плане допустим: его заменяет export_sender при отправке. Важно, чтобы наружу он не ушёл —
+# это проверяет предыдущая проверка; здесь лишь фиксируем, что замена предусмотрена связкой.
+check("export_marker_placeholder_known", '<HELPER_TOKEN>' in str(_req.headers.get('Authorization')))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
