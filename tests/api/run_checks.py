@@ -288,6 +288,34 @@ check("caller_returns_dict", answer["summary"] == ["ок"])
 check("caller_sent_once", len(calls) == 1)
 check("caller_model_passed", calls[0]["body"]["model"] == "deepseek-chat")
 
+
+# ---------- HTTP-слой: коды и объяснения без фреймворка ----------
+from vvoice.http_api import handle  # noqa: E402
+
+check("http_health", handle("GET", "/api/v1/health").status == 200)
+check("http_unknown_path_404", handle("GET", "/api/v1/nope").status == 404)
+check("http_unknown_path_explains", "Нет такого пути" in handle("GET", "/api/v1/nope").body["message"])
+r405 = handle("POST", "/api/v1/health")
+check("http_wrong_method_405", r405.status == 405)
+check("http_allow_header", r405.headers.get("Allow") == "GET", str(r405.headers))
+check("http_bad_json_400", handle("POST", "/api/v1/probe", "{не json").status == 400)
+check("http_json_array_400", handle("POST", "/api/v1/probe", "[1,2]").status == 400)
+check("http_probe_requires_provider", handle("POST", "/api/v1/probe", "{}").status == 400)
+rprobe = handle("POST", "/api/v1/probe", json.dumps({"provider": "deepgram", "api_key": ""}))
+check("http_probe_empty_key_rejected", rprobe.body.get("verdict") == "rejected", str(rprobe.body))
+rpresets = handle("GET", "/api/v1/presets")
+check("http_presets_three", len(rpresets.body["presets"]) == 3)
+
+good_item = {"kind": "task", "title": "Отправить смету", "evidence": {"quote": "я отправлю смету завтра утром", "start_s": 12, "end_s": 14}}
+transcript = "привет, я отправлю смету завтра утром, хорошо"
+rok = handle("POST", "/api/v1/items/validate", json.dumps({"item": good_item, "transcript": transcript}))
+check("http_item_ok", rok.status == 200, str(rok.body))
+bad_item = {"kind": "task", "title": "Отправить смету", "evidence": {"quote": "этого не говорили никогда", "start_s": 12, "end_s": 14}}
+rbad = handle("POST", "/api/v1/items/validate", json.dumps({"item": bad_item, "transcript": transcript}))
+check("http_item_unproven_422", rbad.status == 422, str(rbad.body))
+check("http_item_unproven_reason", "цитаты нет" in rbad.body.get("reason", ""), str(rbad.body))
+check("http_validate_needs_transcript", handle("POST", "/api/v1/items/validate", json.dumps({"item": good_item})).status == 400)
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
