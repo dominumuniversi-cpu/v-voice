@@ -53,13 +53,25 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         'export_targets': settings.export_targets,
         # Понимание разговора: без модели задачи из встречи не появятся. Раньше сюда ничего
         # не передавалось, и «осмысленный разбор» не мог работать даже с заполненным ключом.
-        'call_llm': make_call_llm(settings.llm_provider, '', settings.llm_key)
-                    if settings.llm_provider in IMPLEMENTED_LLM and settings.llm_key else None,
+        # Заглушка включается только явным VV_LLM_PROVIDER=fake и не требует ключа: иначе демо
+        # без ключей невозможно, и человек видит «сервер не настроен» вместо работы пути.
+        'call_llm': _make_understanding(settings),
         # Пусто — сервер открыт (режим разработки). Задан — без токена не пустим.
         'device_tokens': settings.device_tokens,
         # Тариф для расчёта стоимости встречи. 0 — цена не считается и не выдумывается.
         'asr_price_per_hour': settings.asr_price_per_hour,
     }
+
+
+def _make_understanding(settings: Any) -> Any:
+    """Что зовёт разбор: настоящая модель или явно включённая заглушка."""
+    provider = (settings.llm_provider or '').strip().lower()
+    if provider == 'fake':
+        from vvoice.providers.fake_llm import make_fake_llm
+        return make_fake_llm()
+    if provider in IMPLEMENTED_LLM and settings.llm_key:
+        return make_call_llm(provider, '', settings.llm_key)
+    return None
 
 
 def _safe_path(path: str) -> str:

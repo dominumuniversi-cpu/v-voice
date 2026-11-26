@@ -1070,6 +1070,13 @@ check("cost_computed", _c1.get('cost_rub') == 50.0, str(_c1.get('cost_rub')))
 check("cost_hidden_without_price", 'cost_rub' not in _cost({'sent_seconds': 1800.0}, 0.0))
 check("cost_skipped_without_seconds", 'cost_rub' not in _cost({'x': 1}, 100.0))
 check("cost_ignores_bad_price", 'cost_rub' not in _cost({'sent_seconds': 1800.0}, -5.0))
+# Демо без ключей: заглушка понимания обязана цитировать сам текст, иначе валидатор всё отбросит.
+from vvoice.providers.fake_llm import fake_understanding as _fake_llm
+_prompt = 'РАСШИФРОВКА:\nя отправлю смету завтра утром. а ещё позже обсудим сроки.'
+_ans = _fake_llm('система', _prompt)
+check("fake_llm_makes_item", len(_ans['items']) >= 1, str(len(_ans['items'])))
+check("fake_llm_quotes_text", 'отправлю смету' in _ans['items'][0]['evidence']['quote'], str(_ans['items'][0])[:80])
+check("fake_llm_summary_is_points", isinstance(_ans.get('summary'), list) and bool(_ans['summary']), str(type(_ans.get('summary'))))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

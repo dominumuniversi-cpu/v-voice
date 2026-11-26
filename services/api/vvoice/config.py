@@ -62,7 +62,13 @@ class Settings:
 
     @property
     def llm_ready(self) -> bool:
-        """Готов ли осмысленный разбор: без модели задачи не появятся."""
+        """Готов ли осмысленный разбор: без модели задачи не появятся.
+
+        Заглушка ключа не требует: она не ходит в сеть, и требовать с неё ключ — значит
+        показывать «не готово» там, где разбор на самом деле работает.
+        """
+        if (self.llm_provider or '').strip().lower() == 'fake':
+            return True
         return bool(self.llm_provider and self.llm_key)
 
     def public_health(self) -> dict[str, object]:

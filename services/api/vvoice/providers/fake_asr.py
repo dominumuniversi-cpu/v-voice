@@ -23,6 +23,10 @@ class Segment:
     is_noise: bool = False
 
 
+# Фраза для демо: в ней есть и задача («отправлю»), и решение — чтобы разбор не был пустым.
+DEMO_SEGMENT = Segment(start_s=0.0, end_s=3.0, text='я отправлю смету завтра утром, созвонимся в четверг')
+
+
 @dataclass
 class FakeAsr:
     """Сегменты отдаются по одному за вызов stream(); при fail_on переданных байтах — исключение."""
@@ -38,5 +42,11 @@ class FakeAsr:
         return [dict(s) if not isinstance(s, Segment) else s for s in self.script]  # type: ignore[misc]
 
     def transcribe_file(self, path: str) -> list[Segment]:
-        """Финальный проход по всему файлу — у настоящих провайдеров точнее стрима."""
+        """Финальный проход по всему файлу — у настоящих провайдеров точнее стрима.
+
+        Пустой script раньше давал пустую расшифровку и пустой разбор: демо без ключей
+        выглядело сломанным. Теперь заглушка говорит заданной фразой, и весь путь виден.
+        """
+        if not self.script:
+            return [DEMO_SEGMENT]
         return [s for s in self.script if not s.volatile]
