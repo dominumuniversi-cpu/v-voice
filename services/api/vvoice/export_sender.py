@@ -28,6 +28,13 @@ def send_request(request: ExportRequest, *, token: str = '', timeout_s: int = TI
     headers.setdefault('Content-Type', 'application/json; charset=utf-8')
     if token:
         headers['Authorization'] = 'Bearer ' + token
+    # Заголовки в HTTP — только latin-1. Русский токен/адрес иначе падал бы невнятным UnicodeEncodeError,
+    # и человек не понял бы, что не так с ключом.
+    for name, value in list(headers.items()):
+        try:
+            str(value).encode('latin-1')
+        except UnicodeEncodeError:
+            return False, 'заголовок %s содержит недопустимые символы (нужна латиница)' % name
     req = urllib.request.Request(request.url, data=body, headers=headers, method=request.method)
     try:
         with urllib.request.urlopen(req, timeout=timeout_s) as resp:

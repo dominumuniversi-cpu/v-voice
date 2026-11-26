@@ -898,9 +898,11 @@ _srv = _HS(('127.0.0.1', 0), _Sink)
 _th.Thread(target=_srv.serve_forever, daemon=True).start()
 _port = _srv.server_address[1]
 from vvoice.exporters import ExportRequest as _ER
-_ok, _detail = _send(_ER(target='webhook', method='POST', url='http://127.0.0.1:%d/ok' % _port, body={'title': 'Смета'}, headers={}), token='ключ')
+_ok, _detail = _send(_ER(target='webhook', method='POST', url='http://127.0.0.1:%d/ok' % _port, body={'title': 'Смета'}, headers={}), token='secret-token')
 check("sender_posts_json", _ok, _detail)
-check("sender_sends_bearer", _got.get('auth') == 'Bearer ключ', _got.get('auth'))
+check("sender_sends_bearer", _got.get('auth') == 'Bearer secret-token', _got.get('auth'))
+_cyr_ok, _cyr_detail = _send(_ER(target='webhook', method='POST', url='http://127.0.0.1:%d/ok' % _port, body={}, headers={}), token='ключ')
+check("sender_explains_bad_token", _cyr_ok is False and 'латиница' in _cyr_detail, _cyr_detail)
 check("sender_body_is_json", '"title"' in (_got.get('body') or ''), _got.get('body'))
 _bad_ok, _bad_detail = _send(_ER(target='webhook', method='POST', url='http://127.0.0.1:%d/bad' % _port, body={}, headers={}))
 check("sender_reports_refusal", _bad_ok is False and '500' in _bad_detail, _bad_detail)
