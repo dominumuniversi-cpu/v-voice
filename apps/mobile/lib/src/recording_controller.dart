@@ -78,6 +78,10 @@ class RecordingController {
   int lastDurationMs = 0;
   String liveText = '';
 
+  /// Честное предупреждение о проблеме, из-за которой текст может быть неполным.
+  /// Отдельно от liveText: человек должен видеть и сам текст, и оговорку к нему.
+  String liveWarning = '';
+
   final StreamController<String> _changes = StreamController<String>.broadcast();
   Stream<String> get changes => _changes.stream;
   StreamSubscription<Map<String, dynamic>>? _sub;

@@ -22,6 +22,30 @@ class FakeTransport implements HttpTransport {
 }
 
 void main() {
+  group('потерянные куски звука', () {
+    test('успешная отправка не считает потерь', () async {
+      final c = ApiClient(transport: FakeTransport({
+        '/api/v1/sessions/s1/stream': (200, '{"text":"привет"}'),
+      }), baseUrl: '');
+      final text = await c.sendLiveChunk('s1', [1, 2, 3]);
+      expect(text, 'привет');
+      expect(c.chunksLost, 0);
+    });
+
+    test('отказ сервера объясняется и не выдаёт себя за текст', () async {
+      final c = ApiClient(transport: FakeTransport({}), baseUrl: '');
+      final text = await c.sendLiveChunk('s1', [1, 2, 3]);
+      expect(text, isNull);
+      expect(c.lastLiveProblem, contains('404'));
+    });
+
+    test('пустой кусок не отправляется вовсе', () async {
+      final c = ApiClient(transport: FakeTransport({}), baseUrl: '');
+      await c.sendLiveChunk('s1', const []);
+      expect(c.chunksLost, 0);
+    });
+  });
+
   group('проверка ключа', () {
     test('200 отдаёт вердикт и сообщение', () async {
       final c = ApiClient(transport: FakeTransport({'/api/v1/probe': (200, '{"verdict":"working","message":"Ключ рабочий"}')}), baseUrl: '');

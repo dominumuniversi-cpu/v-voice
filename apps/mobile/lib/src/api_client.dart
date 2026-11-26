@@ -77,6 +77,10 @@ class ApiClient {
   ///
   /// Молчаливый отказ при обрыве: живой текст вспомогательный, и падение одного куска
   /// не должно стирать то, что уже показано человеку.
+  /// Сколько кусков звука не дошло до сервера. Показывается человеку — тишина в тексте
+  /// не должна выглядеть как «там ничего не говорили».
+  int chunksLost = 0;
+
   Future<String?> sendLiveChunk(String sessionId, List<int> pcm) async {
     if (pcm.isEmpty) return null;
     final (code, body) = await transport.post(

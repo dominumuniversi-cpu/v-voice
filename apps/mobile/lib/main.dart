@@ -87,10 +87,19 @@ class _ListenScreenState extends State<ListenScreen> {
       _liveSessionId ??= await api.openSession();
       final id = _liveSessionId;
       if (id == null) return;
-      final text = await api.sendLiveChunk(id, chunk);
+      var text = await api.sendLiveChunk(id, chunk);
+      if (text == null) {
+        // Одна повторная попытка: чаще всего это моргнувшая сеть, а не отказ сервера.
+        // Терять сказанное молча нельзя — «умный диктофон», который пропускает слова, хуже диктофона.
+        text = await api.sendLiveChunk(id, chunk);
+        if (text == null) api.chunksLost += 1;
+      }
       if (!mounted) return;
       if (text != null && text.isNotEmpty) {
         setState(() => widget.controller.liveText = text);
+      } else if (api.chunksLost > 0) {
+        setState(() => widget.controller.liveWarning =
+            'Часть звука не дошла до сервера (' + api.chunksLost.toString() + '). Текст может быть неполным.');
       }
     } finally {
       _sendingChunk = false;
@@ -294,6 +303,12 @@ class _ListenScreenState extends State<ListenScreen> {
                   ),
                 ),
               ),
+              if (c.liveWarning.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(c.liveWarning,
+                      style: const TextStyle(fontSize: 13, color: Color(0xFFE0A030))),
+                ),
               if (c.lastError.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
