@@ -1,5 +1,10 @@
 # Дорожная карта VoiceTranscribator
 
+> **Состояние на 26.11.2026:** код мостов записи (Android/iOS) и конвейера разбора написан и покрыт
+> проверками (14 тестов). Не сделано: сборка под Flutter и живой прогон на телефонах — нужен SDK и устройство.
+> См. [STATUS](../SPECS/STATUS.md) и [отчёт M1](../REPORTS/M1_REPORT.md).
+
+
 Дата: 26.11.2026 · Статус: **исходная версия на согласование** · Задачи — в GitHub Issues
 репозитория [dominumuniversi-cpu/v-voice](https://github.com/dominumuniversi-cpu/v-voice),
 вехи — GitHub Milestones.
