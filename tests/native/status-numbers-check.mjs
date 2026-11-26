@@ -34,6 +34,15 @@ if (statedGuards && Math.abs(Number(statedGuards[1]) - guards) > 2) {
   problems.push('в STATUS.md ' + statedGuards[1] + ' гайдов, файлов в tests/native: ' + guards);
 }
 
+// 3. Каждая «известная дыра» обязана ссылаться на задачу: дыра без задачи перестаёт быть работой.
+const gaps = status.split('## Известные дыры')[1] || '';
+if (!gaps) {
+  problems.push('в STATUS.md нет раздела «Известные дыры» — дыры должны быть видны, а не забыты');
+} else {
+  const refs = [...gaps.matchAll(/#(\d+)/g)].map((m) => Number(m[1]));
+  if (refs.length === 0) problems.push('в разделе «Известные дыры» нет ссылок на задачи');
+}
+
 if (problems.length) {
   console.error('❌ числа в STATUS.md отстали от факта:');
   for (const p of problems) console.error('  ' + p);
