@@ -20,9 +20,8 @@ class ServerSettings {
   static String? problem(String raw) {
     final text = raw.trim();
     if (text.isEmpty) return 'Адрес сервера не заполнен.';
-    if (!text.startsWith('http://') && !text.startsWith('https://')) {
-      return 'Адрес должен начинаться с http:// или https://';
-    }
+    // Схема не обязательна: человек пишет «192.168.8.49:8000», и это не ошибка. Дополняет normalize().
+    // Отказ здесь заставлял бы знать про http и https — а знать это ему незачем.
     final uri = Uri.tryParse(text);
     if (uri == null || uri.host.isEmpty) return 'Похоже, в адресе ошибка: не удалось разобрать домен.';
     if (uri.hasQuery || uri.hasFragment) return 'Уберите знак «?» и «#» из адреса сервера.';
@@ -45,6 +44,11 @@ class ServerSettings {
   /// Нормализованный адрес без завершающего слэша — для склейки с путями API.
   static String normalize(String raw) {
     var text = raw.trim();
+    // Без схемы считаем https: разговор не должен идти открытым текстом. Человек увидит адрес
+    // на экране и поправит на http://, если его сервер живёт по-старому.
+    if (text.isNotEmpty && !text.startsWith('http://') && !text.startsWith('https://')) {
+      text = 'https://' + text;
+    }
     while (text.endsWith('/')) {
       text = text.substring(0, text.length - 1);
     }

@@ -9,6 +9,20 @@ ServerSettingsKeeper keeper(ServerStore store) => ServerSettingsKeeper(
     );
 
 void main() {
+  group('адрес без схемы не заставляет человека знать про http', () {
+    test('«192.168.8.49:8000» без схемы получает https', () {
+      expect(ServerSettings.normalize('192.168.8.49:8000'), 'https://192.168.8.49:8000');
+    });
+
+    test('явный http не переписывается', () {
+      expect(ServerSettings.normalize('http://127.0.0.1:8000'), 'http://127.0.0.1:8000');
+    });
+
+    test('пустой адрес остаётся пустым, а не превращается в «https://»', () {
+      expect(ServerSettings.normalize('   '), '');
+    });
+  });
+
   test('хороший адрес сохраняется нормализованным', () async {
     final store = MemoryServerStore();
     final reason = await keeper(store).save('https://v.ru/');
