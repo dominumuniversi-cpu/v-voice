@@ -571,6 +571,15 @@ _ls2 = _LS(limit=4)
 _open_id = _oo.body["session_id"]
 _sc, _sb = _push(_ls2, _open_id, b'\x00' * 3200, provider_factory=lambda sid: _FakeAsr())
 check("open_then_stream_works", _sc == 200 and "text" in _sb)
+# Восстановление оборванной записи: заголовок обещает больше, чем пришло.
+_full = _wav(1500)
+_broken = _full[:len(_full) - 8000]  # обрыв: данных меньше, чем заявлено в заголовке
+_bc, _bb, _ba = _create_session({"audio_base64": _b64.b64encode(_broken).decode()})
+check("broken_wav_recovers", _bc == 200 and _bb.get("duration_ms", 0) > 900, (_bc, _bb.get("duration_ms")))
+check("broken_wav_gives_audio", _ba is not None and len(_ba) == len(_broken))
+_tiny = _full[:120]
+_tc, _tb, _ = _create_session({"audio_base64": _b64.b64encode(_tiny).decode()})
+check("tiny_broken_rejected", _tc == 400 and _tb.get("error") == "audio_too_short")
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

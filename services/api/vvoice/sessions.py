@@ -19,6 +19,8 @@ import binascii
 import hashlib
 import re
 from dataclasses import dataclass
+
+from .recovery import inspect as recovery_inspect, recover as recovery_recover
 from typing import Any
 
 # Границы по реальному использованию: 0.2 с короче любой осмысленной фразы,
@@ -62,6 +64,23 @@ def _read_wav_header(data: bytes) -> tuple[int, int, int] | None:
     return channels, rate, bits
 
 
+def _length_matches(data: bytes) -> bool:
+    """Сходится ли заявленная длина данных с тем, что реально пришло."""
+    offset = 12
+    while offset + 8 <= len(data):
+        chunk_id = data[offset:offset + 4]
+        chunk_size = int.from_bytes(data[offset + 4:offset + 8], "little")
+        if chunk_id == b"data":
+            declared = chunk_size
+            actual = len(data) - (offset + 8)
+            # Заголовки WAV иногда пишут 0 или огромное число: тогда доверяем факту.
+            if declared == 0 or declared > len(data):
+                return True
+            return abs(actual - declared) <= 2
+        offset += 8 + chunk_size + (chunk_size % 2)
+    return True
+
+
 def create_session(raw: dict[str, Any]) -> tuple[int, dict[str, Any], bytes | None]:
     """Принимает тело запроса и возвращает (код, ответ, аудио).
 
@@ -84,6 +103,13 @@ def create_session(raw: dict[str, Any]) -> tuple[int, dict[str, Any], bytes | No
                      "message": "Запись слишком большая."}, None
 
     header = _read_wav_header(data)
+    if header is not None and not _length_matches(data):
+        # Запись оборвалась на середине (телефон убил процесс, кончилась память).
+        # Такой файл ещё можно спасти: заголовок пересоберётся по фактической длине.
+        viable = recovery_inspect(len(data))
+        if viable.usable:
+            data, _result = recovery_recover(data)
+            header = _read_wav_header(data)
     if header is None:
         return 415, {"error": "not_wav", "message": "Нужен файл WAV: заголовок не распознан."}, None
     channels, rate, bits = header
