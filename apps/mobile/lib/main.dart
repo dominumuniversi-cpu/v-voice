@@ -380,6 +380,17 @@ class _ListenScreenState extends State<ListenScreen> {
                     style: TextStyle(color: VVTheme.warn, fontSize: 12),
                   ),
                 ),
+              if (recording && (ServerScope.maybeOf(context)?.config.api.lastLiveProblem.isNotEmpty ?? false))
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    // Молчать нельзя: «пока тихо» и «сервер не принимает звук» — разные причины,
+                    // и человек должен знать, какая из них.
+                    'Живая расшифровка не идёт: ' +
+                        (ServerScope.maybeOf(context)?.config.api.lastLiveProblem ?? ''),
+                    style: const TextStyle(fontSize: 13, color: Color(0xFFE0A030)),
+                  ),
+                ),
               if (c.liveWarning.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),

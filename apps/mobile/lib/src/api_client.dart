@@ -123,7 +123,10 @@ class ApiClient {
     );
     if (code != 200) {
       lastLiveProblem = 'Сервер не принял кусок звука (код ' + code.toString() + ').';
-      return null;
+      // Сервер при сбое распознавания отдаёт уже услышанное. Выбросить тело — значит стереть
+      // с экрана весь текст разговора из-за одного неудачного куска.
+      final kept = (_safeDecode(body)['text'] ?? '').toString();
+      return kept.isEmpty ? null : kept;
     }
     final data = _safeDecode(body);
     final text = (data['text'] ?? '').toString();

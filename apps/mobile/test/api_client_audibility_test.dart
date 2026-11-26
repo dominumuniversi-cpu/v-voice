@@ -53,6 +53,25 @@ void main() {
       expect(transport.lastBody?['members_only'], true);
     });
   });
+
+  group('сбой живой расшифровки не стирает услышанное', () {
+    test('при ошибке сервера сохраняется уже распознанный текст', () async {
+      final transport = _Failing();
+      final api = ApiClient(transport);
+      final text = await api.sendLiveChunk('s1', [1, 2, 3, 4]);
+      expect(text, 'Анна: По бюджету до пятницы');
+      expect(api.lastLiveProblem.isNotEmpty, isTrue); // причина всё равно названа
+    });
+  });
+}
+
+class _Failing implements HttpTransport {
+  @override
+  Future<(int, String)> get(String path, {Map<String, String>? headers}) async => (200, '{}');
+
+  @override
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers}) async =>
+      (502, '{"error":"stream_failed","message":"провайдер упал","text":"Анна: По бюджету до пятницы"}');
 }
 
 class _Recorder implements HttpTransport {
