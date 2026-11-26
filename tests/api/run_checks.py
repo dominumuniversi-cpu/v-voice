@@ -690,6 +690,16 @@ _gate = _VadGate(config=VadConfig())
 _kept = _gate.push(_silence)
 # Тишина не должна выдаваться за речь: иначе шум уходит в распознавание.
 check("gate_drops_silence", not _kept, _kept)
+# Каждая настройка из кода описана в .env.example: иначе она есть, но о ней не узнать.
+import re as _re
+_example_path = Path(__file__).resolve().parents[2] / 'services' / 'api' / '.env.example'
+_example_text = _example_path.read_text(encoding='utf-8')
+_code_names = set()
+for _mod in (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice' / 'config.py',
+             Path(__file__).resolve().parents[2] / 'services' / 'api' / 'main.py'):
+    _code_names |= set(_re.findall(r'VV_[A-Z_]+', _mod.read_text(encoding='utf-8')))
+_undocumented = sorted(n for n in _code_names if n not in _example_text)
+check("env_example_is_complete", not _undocumented, _undocumented)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
