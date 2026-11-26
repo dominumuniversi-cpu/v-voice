@@ -20,4 +20,12 @@ if (!ok) {
   console.log('FAIL: после загрузки живой встречи не запускается разбор');
   process.exit(1);
 }
+// Вторая стража: запись с телефона стирается только после показанного разбора.
+const delIdx = main.indexOf('deleteRecording(');
+const delLine = delIdx >= 0 ? main.slice(Math.max(0, delIdx - 300), delIdx) : '';
+if (delIdx >= 0 && !delLine.includes('digestReady == true')) {
+  console.log('FAIL: запись стирается без подтверждения, что разбор показан');
+  process.exit(1);
+}
 console.log('OK: живая встреча после загрузки сама уходит в разбор');
+console.log('OK: запись стирается только после показанного разбора');

@@ -80,7 +80,21 @@ class _DigestLoaderState extends State<DigestLoader> {
     }
     final digest = _digest;
     if (digest != null) {
-      return DigestScreen(digest: digest, onApprove: widget.onApprove, api: widget.api, sessionId: widget.sessionId);
+      // Разбор показан — при закрытии сообщаем об этом вызывающему: только тогда запись на телефоне
+      // можно стирать. Без этого признака удаление шло бы и после ошибки сервера.
+      return PopScope(
+        canPop: false,
+        // Экран закрывают «назад» или кнопкой: любой уход означает «разбор был показан».
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) Navigator.of(context).pop(true);
+        },
+        child: DigestScreen(
+          digest: digest,
+          onApprove: widget.onApprove,
+          api: widget.api,
+          sessionId: widget.sessionId,
+        ),
+      );
     }
     final text = _problem.isEmpty ? 'Разбор не получен.' : _problem;
     return Scaffold(

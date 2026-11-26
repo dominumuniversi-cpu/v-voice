@@ -188,12 +188,13 @@ class _ListenScreenState extends State<ListenScreen> {
     }
     if (!mounted) return;
     final sessionId = _sessionId;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => DigestLoader(api: api, sessionId: sessionId)),
+    // Экран вернёт true только если разбор ДЕЙСТВИТЕЛЬНО получен с сервера.
+    final digestReady = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => DigestLoader(api: api, sessionId: sessionId)),
     );
-    // Разбор открыт и закрыт — сервер запись получил. Только теперь её можно убрать с телефона.
-    // Раньше — нет: иначе человек с кончившимся местом потеряет разговор ради двух мегабайт.
-    if (sessionId != null && path.isNotEmpty) {
+    // Файл стираем лишь после показанного разбора. Ошибка на сервере не повод удалять с телефона
+    // единственную копию разговора: человек увидел бы «не удалось» и потерял запись навсегда.
+    if (digestReady == true && sessionId != null && path.isNotEmpty) {
       await deleteRecording(path);
     }
   }
