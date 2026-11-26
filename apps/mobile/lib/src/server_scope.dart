@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'first_run_screen.dart';
 import 'theme.dart';
 
 import 'app_config.dart';
@@ -100,6 +101,11 @@ class _ServerScopeLoaderState extends State<ServerScopeLoader> {
     final url = _url;
     if (url == null) {
       return const ColoredBox(color: VVTheme.bg);
+    }
+    // Адреса ещё нет — приложение не должно молча ходить в выдуманный домен и показывать
+    // «сервер не ответил». Первый шаг человека — выбрать адрес, и он делается сразу.
+    if (url.isEmpty) {
+      return FirstRunScreen(onSaved: (raw) => _change(raw));
     }
     return ServerScope(
       serverUrl: url,

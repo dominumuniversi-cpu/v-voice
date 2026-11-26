@@ -11,7 +11,7 @@ class AppConfig {
       : _transport = transport ?? RealHttpTransport(baseUrl: ServerSettings.normalize(serverUrl));
 
   /// Адрес по умолчанию: прод-сервер проекта. Меняется на экране настроек.
-  static const String defaultServer = 'https://v-voice.vernadsky-npc.ru';
+  static const String defaultServer = '';
 
   final String serverUrl;
   /// Токен устройства из настроек: сервер без него не пустит, если он не открыт.

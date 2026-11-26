@@ -42,6 +42,8 @@ void main() {
   });
 
   test('адрес по умолчанию — https', () {
-    expect(AppConfig.defaultServer.startsWith('https://'), isTrue);
+    // Постоянного адреса нет намеренно: приложение обязано спросить адрес, а не стучаться
+    // в выдуманный домен и показывать «сервер не ответил».
+    expect(AppConfig.defaultServer, isEmpty);
   });
 }

@@ -45,7 +45,9 @@ void main() {
     expect(seen, 'https://my.example');
   });
 
-  testWidgets('без сохранения действует адрес по умолчанию', (tester) async {
+  testWidgets('без сохранения спрашивают адрес, а не гадают его', (tester) async {
+    // Раньше приложение молча брало выдуманный домен и показывало «сервер не ответил».
+    // Теперь первый шаг человека — выбрать адрес, и экран выбора это и есть.
     String? seen;
     await tester.pumpWidget(MaterialApp(
       home: ServerScopeLoader(
@@ -54,7 +56,9 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
-    expect(seen, AppConfig.defaultServer);
+    expect(seen, isNull, reason: 'до выбора адреса экраны приложения не строятся');
+    expect(find.text('Умный диктофон'), findsOneWidget);
+    expect(find.text('Готовые адреса'), findsOneWidget);
   });
 
   testWidgets('смена адреса применяется и перерисовывает экраны', (tester) async {
