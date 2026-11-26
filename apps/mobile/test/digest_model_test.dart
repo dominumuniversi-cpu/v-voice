@@ -214,4 +214,20 @@ void main() {
       expect(withDue('завтра утром').dueHuman, 'завтра утром');
     });
   });
+
+  group('встреча без времени', () {
+    Item meeting(String due) => Item(
+        id: 'm1', kind: 'meeting', title: 'Созвон с клиентом', owner: '', due: due,
+        quote: 'созвонимся в четверг', startS: 1, endS: 3, approved: false);
+
+    test('встреча без срока говорит об этом', () {
+      expect(meeting('').missingTime, isTrue);
+      expect(meeting('').missingTimeNote, 'без времени');
+    });
+
+    test('встреча со сроком молчит', () {
+      expect(meeting('2026-12-04T15:00:00+05:00').missingTime, isFalse);
+      expect(meeting('2026-12-04T15:00:00+05:00').missingTimeNote, isEmpty);
+    });
+  });
 }

@@ -340,7 +340,7 @@ class _ItemCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(item.kindLabel, style: const TextStyle(color: VVTheme.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text([item.kindLabel, item.missingTimeNote].where((s) => s.isNotEmpty).join(' · '), style: const TextStyle(color: VVTheme.accent, fontSize: 12, fontWeight: FontWeight.w600)),
               const Spacer(),
               Text(item.timecode, style: const TextStyle(color: VVTheme.inkMuted, fontSize: 12)),
             ],

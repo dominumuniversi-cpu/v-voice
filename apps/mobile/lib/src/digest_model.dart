@@ -199,6 +199,14 @@ class Item {
     return day + ' ' + _months[parsed.month - 1] + (hasTime ? ', ' + hh + ':' + mm : '');
   }
 
+  /// У встречи и напоминания время — не украшение: напоминание без срока не напомнит никогда,
+  /// встреча без времени не встанет в календарь. Молча рисовать их наравне с датированными —
+  /// значит обещать то, чего приложение не сделает.
+  bool get missingTime => due.trim().isEmpty && (kind == 'meeting' || kind == 'reminder');
+
+  /// Что показать вместо срока, если его нет. Пусто — если срок есть или он не обязателен.
+  String get missingTimeNote => missingTime ? 'без времени' : '';
+
   String get kindLabel {
     switch (kind) {
       case 'meeting':
