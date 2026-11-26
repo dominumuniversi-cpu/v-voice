@@ -79,15 +79,18 @@ def main() -> int:
     steps.append(('разбор прошёл', job.status == 200, 'статус %d' % job.status))
     saved = digests.load('scenario-session') or {}
     steps.append(('разбор сохранён на диск', bool(saved), str(list(saved)[:4])))
-    steps.append(('разбор содержит выжимку', 'summary' in saved.get('digest', {}), ''))
+    # Разбор хранится самим собой. Раньше сюда попадала обёртка конвейера, и /digest отдавал объект
+    # без summary — экран показывал пустоту. Страховка: если старая обёртка всё же пришла, берём вложенное.
+    digest = saved.get('digest') if 'summary' not in saved and isinstance(saved.get('digest'), dict) else saved
+    steps.append(('разбор содержит выжимку', 'summary' in digest, ''))
     steps.append(('разбор содержит реплики', len(saved.get('utterances', [])) >= 0,
                   'реплик: %d' % len(saved.get('utterances', []))))
 
     code, file_body, headers = transcript_file(saved, 'srt')
     steps.append(('расшифровка отдаётся файлом', code == 200 and '-->' in file_body, headers.get('Content-Type', '')))
 
-    kept_items = saved['digest'].get('items') or []
-    rejected = saved['digest'].get('rejected') or saved.get('rejected') or []
+    kept_items = digest.get('items') or []
+    rejected = digest.get('rejected') or saved.get('rejected') or []
     if not kept_items:
         # Молчаливый IndexError ничего не объясняет: говорим, какой пункт отброшен и почему.
         print('FAIL разбор не оставил ни одного пункта')

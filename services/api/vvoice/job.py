@@ -60,5 +60,15 @@ def analyze(
     # Сохраняем и отдаём САМ разбор, а не обёртку конвейера. Раньше сюда попадал весь result
     # (с live_text, transcript, digest внутри), и /digest возвращал объект, у которого нет summary:
     # экран разбора показывал пустоту при полностью успешном разборе.
-    digests.save(session_id, result.get("digest", result))
+    # Разбор кладём наверх, а реплики и текст держим рядом: /transcript берёт из этого же файла
+    # (без utterances скачивание расшифровки нечем наполнить), а /digest отдаёт разбор без обёртки.
+    digest = result.get("digest", result)
+    if isinstance(digest, dict):
+        saved = dict(digest)
+        for key in ("transcript", "utterances", "speakers"):
+            if key in result:
+                saved.setdefault(key, result[key])
+        digests.save(session_id, saved)
+    else:
+        digests.save(session_id, digest)
     return JobResult(200, result)
