@@ -23,8 +23,16 @@ class SessionState:
     errors: list[str] = field(default_factory=list)
 
 
-def run_live(provider, state: SessionState, chunks: list[bytes]) -> LiveBuffer:
-    """Прогон стрима. Обрыв провайдера не теряет уже полученное — это важнее полноты."""
+def run_live(provider, state: SessionState, chunks: list[bytes], *, gate: VadGate | None = None) -> LiveBuffer:
+    """Прогон стрима. Обрыв провайдера не теряет уже полученное — это важнее полноты.
+
+    gate — тот же VAD, что и на записи: без него шум и тишина живой встречи уходили в облако
+    целиком, и «глушить шум» было обещанием, которого не выполняли.
+    """
+    if gate is not None:
+        chunks, dropped = gate_chunks(chunks, gate)
+        if dropped:
+            state.errors.append("noise_dropped: " + str(dropped))
     for chunk in chunks:
         try:
             state.live.push(provider.stream(chunk))

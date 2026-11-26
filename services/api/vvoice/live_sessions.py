@@ -61,6 +61,7 @@ def push_chunk(
     pcm: bytes,
     *,
     provider_factory: Callable[[str], Any],
+    gate: Any = None,
 ) -> tuple[int, dict[str, Any]]:
     """Отправляет кусок в распознавание и возвращает (код, ответ с накопленным текстом)."""
     if not is_session_id(session_id):
@@ -69,7 +70,7 @@ def push_chunk(
         return 400, {"error": "bad_request", "message": "Пустой кусок звука."}
     state = sessions.state_for(session_id)
     try:
-        run_live(provider_factory(session_id), state, [pcm])
+        run_live(provider_factory(session_id), state, [pcm], gate=gate)
     except Exception as exc:  # обрыв провайдера не должен стирать уже услышанное
         return 502, {"error": "stream_failed", "message": str(exc),
                      "text": state.live.display_text()}

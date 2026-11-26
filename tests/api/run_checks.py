@@ -1025,6 +1025,25 @@ check("export_needs_receiver_token", _ok_no is False and 'ключ приёмн�
 # Образец в плане допустим: его заменяет export_sender при отправке. Важно, чтобы наружу он не ушёл —
 # это проверяет предыдущая проверка; здесь лишь фиксируем, что замена предусмотрена связкой.
 check("export_marker_placeholder_known", '<HELPER_TOKEN>' in str(_req.headers.get('Authorization')))
+# Живая встреча: тишина не должна уходить в распознавание так же, как и на записи.
+from vvoice.pipeline import run_live as _run_live, SessionState as _State
+from vvoice.vad import VadGate as _VadGate, VadConfig as _VadCfg
+
+class _CountingProvider:
+    def __init__(self):
+        self.calls = 0
+    def stream(self, chunk):
+        self.calls += 1
+        return []
+
+_quiet = b'\x00' * 3200
+_prov = _CountingProvider()
+_st = _State()
+_run_live(_prov, _st, [_quiet] * 10, gate=_VadGate(config=_VadCfg()))
+check("live_noise_is_gated", _prov.calls < 10, 'провайдеру ушло кусков: ' + str(_prov.calls))
+_st2 = _State()
+_run_live(_prov, _st2, [_quiet] * 2)
+check("live_without_gate_passes_all", _prov.calls == 12, 'кусков: ' + str(_prov.calls))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

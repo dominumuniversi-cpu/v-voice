@@ -223,7 +223,7 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         if live_sessions is None:
             return Response(503, {"error": "pipeline_unavailable",
                                   "message": "Сервер не хранит состояние живого потока."})
-        code, body = push_chunk(live_sessions, param, pcm, provider_factory=recognizer)
+        code, body = push_chunk(live_sessions, param, pcm, provider_factory=recognizer, gate=gate)
         return Response(code, body)
 
     if template == "/api/v1/sessions/{session_id}/export":
