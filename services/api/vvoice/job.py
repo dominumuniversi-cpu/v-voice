@@ -16,9 +16,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from .errors import explain_digest_failure
+from .errors import explain_digest_failure, scrub
 from .digest_store import DigestStore
-from .pipeline import run_session
+from .pipeline import AsrFailure, run_session
 from .storage import AudioStore
 
 
@@ -50,9 +50,21 @@ def analyze(
     if ready is not None:
         # Повторный разбор стоит денег: уже посчитанное отдаём как есть.
         return JobResult(200, dict(ready, cached=True))
+    # Распознавание речи и понимание разговора ломаются по-разному и чинятся в разных местах:
+    # ключ ASR, ключ модели, лимит. Раньше оба случая давали одно сообщение «не удалось связаться
+    # с моделью или сервисом распознавания», и человек не знал, какой из двух ключей проверять.
     try:
         provider = provider_factory(stored.path)
+    except Exception as exc:
+        return JobResult(502, dict({"error": "asr_failed"}, **explain_digest_failure(exc)))
+    try:
         result = run_session(provider, [], call_llm, gate=gate, members_only=members_only)
+    except AsrFailure as exc:
+        # Речь не распознали — это не «непонятый разговор», а отсутствие текста вообще.
+        return JobResult(502, dict({"error": "asr_failed", "kind": "asr",
+                                    "message": "Не удалось распознать речь: сервис распознавания не ответил "
+                                               "или отказал. Запись сохранена — звук на месте, разбор можно повторить.",
+                                    "detail": scrub(str(exc))[:300]}))
     except Exception as exc:  # разбор не должен ронять сервер и не должен сохраняться частично
         # str(exc) не годится для экрана: там бывает URL с ключом и текст из чужой библиотеки.
         # Наружу — фраза человека и вид сбоя, техническая подробность — вычищенной.

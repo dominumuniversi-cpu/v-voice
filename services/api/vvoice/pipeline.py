@@ -17,6 +17,14 @@ from .providers.fake_asr import Segment
 from .vad import FRAME_MS, VadGate
 
 
+class AsrFailure(RuntimeError):
+    """Распознавание речи не состоялось: звук есть, текста нет.
+
+    Отдельный тип нужен, чтобы экран не путал «не услышали» и «не поняли»: первое — про ключ
+    распознавания или связь с ним, второе — про модель, которая читает готовый текст.
+    """
+
+
 @dataclass
 class SessionState:
     live: LiveBuffer = field(default_factory=LiveBuffer)
@@ -56,7 +64,10 @@ def run_session(
     state = SessionState()
     sent, dropped_frames = (chunks, 0) if gate is None else gate_chunks(chunks, gate)
     run_live(provider, state, sent)
-    final_segments: list[Segment] = provider.transcribe_file("segment.wav")
+    try:
+        final_segments: list[Segment] = provider.transcribe_file("segment.wav")
+    except Exception as exc:  # провайдер речи упал: у нас нет ни одной реплики
+        raise AsrFailure(str(exc)) from exc
     transcript: Transcript = assemble(final_segments)
     digest = make_digest(transcript, call_llm, members_only=members_only)
     return {

@@ -524,7 +524,9 @@ def _boom(path):
     raise RuntimeError('провайдер недоступен')
 _dig3 = _DS2(_tempfile.mkdtemp(prefix='vvoice-an2-'))
 _r4 = _analyze(_sid, store=_store, digests=_dig3, provider_factory=_boom, call_llm=lambda a, b: {})
-check("analyze_failure_reported", _r4.status == 502 and _r4.body.get("error") == "digest_failed")
+# Создание провайдера упало — распознавания не было вовсе. Это отдельный случай от «не поняли
+# разговор», и код у него свой: иначе человек ищет причину в модели, а дело в ключе речи.
+check("analyze_failure_reported", _r4.status == 502 and _r4.body.get("error") == "asr_failed", _r4.body.get("error"))
 _ready = _handle("POST", "/api/v1/sessions/" + _sid + "/analyze", store=_store, digests=_dig2)
 check("analyze_route_needs_pipeline", _ready.status == 503 and _ready.body.get("error") == "pipeline_unavailable")
 # Маршрут analyze должен принимать POST без тела: клиент шлёт пустой запрос, и это нормально.
@@ -727,6 +729,27 @@ try:
           _drop_foreign_only(['Дмитрий сказал про смету'], [('S1', 'сказал про смету')], {'S3'}) == ['Дмитрий сказал про смету'])
 except ImportError as _exc:
     check("foreign_voice_out_of_summary", False, str(_exc))
+
+# Сбой распознавания речи — не то же самое, что сбой понимания: чинятся в разных местах.
+try:
+    from vvoice.pipeline import AsrFailure
+
+    class _DeadProvider:
+        def transcribe_file(self, path):
+            raise ConnectionError('connect to https://api.example.com?key=sk-secret123456 failed')
+
+        def stream(self, chunk):
+            return ''
+
+    # Чистый каталог: пустой разбор в хранилище значит «ещё не посчитан».
+    _dig3 = _DS2(_tempfile.mkdtemp(prefix='vvoice-asr-'))
+    _asr = _analyze(_sid, store=_store, digests=_dig3,
+                    provider_factory=lambda p: _DeadProvider(), call_llm=lambda s, u: {})
+    check("asr_failure_is_distinct", _asr.body.get('error') == 'asr_failed', _asr.body.get('error'))
+    check("asr_failure_says_recognition", 'распознать речь' in _asr.body.get('message', ''), _asr.body.get('message'))
+    check("asr_failure_hides_key", 'sk-secret123456' not in str(_asr.body), str(_asr.body)[:120])
+except Exception as _exc:  # noqa: BLE001 — проверка важнее изящества
+    check("asr_failure_is_distinct", False, repr(_exc))
 
 check("prompt_has_one_schema", _prompt_text.count("## Формат ответа") == 1)
 _tmp_empty = Path(_tempfile.mkdtemp()) / "empty.md"
