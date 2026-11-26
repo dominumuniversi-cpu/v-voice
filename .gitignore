@@ -10,6 +10,8 @@ logs/
 secrets/
 .env
 .env.*
+# Пример настроек — часть документации, секретов в нём нет.
+!.env.example
 *.key
 data/
 *.db
