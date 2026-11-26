@@ -4,7 +4,7 @@
 /// отбрасывает элементы без непустой цитаты, а не показывает их без доказательства:
 /// человек, который не может проверить, откуда взялась задача, задачи не примет.
 class Digest {
-  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const [], this.costRub, this.sentSeconds, this.budgetRub, this.droppedNoise = 0, this.droppedInvented = 0, this.errors = const []});
+  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const [], this.costRub, this.sentSeconds, this.budgetRub, this.droppedNoise = 0, this.droppedInvented = 0, this.droppedByVad = 0, this.errors = const []});
 
   final List<String> summary;
   final List<String> decisions;
@@ -84,6 +84,7 @@ class Digest {
           : null,
       droppedNoise: json['dropped_noise'] is num ? (json['dropped_noise'] as num).toInt() : 0,
       droppedInvented: json['dropped_invented'] is num ? (json['dropped_invented'] as num).toInt() : 0,
+      droppedByVad: json['dropped_by_vad'] is num ? (json['dropped_by_vad'] as num).toInt() : 0,
       errors: list(json['errors']),
     );
   }
@@ -101,6 +102,10 @@ class Digest {
 
   /// Сколько строк распознавание придумало в тишине. Показывает, насколько шумная запись.
   final int droppedInvented;
+
+  /// Сколько кадров (20 мс) не ушло в распознавание, потому что это была тишина.
+  /// Это главное число про экономию: именно эти кадры не оплачены провайдеру.
+  final int droppedByVad;
 
   /// Ошибки частичного разбора. Пусто — разбор прошёл целиком.
   final List<String> errors;

@@ -389,8 +389,11 @@ String? _costLine(Digest d) {
 /// Кадр у нас 20 мс, поэтому число кадров переводим в секунды: «24000 кадров» человеку ничего не говорит.
 String? _noiseLine(Digest d) {
   final seconds = (d.droppedNoise * 20 / 1000).round();
+  // Тишина, не ушедшая в распознавание: именно эти секунды не оплачены провайдеру.
+  final silence = (d.droppedByVad * 20 / 1000).round();
   final parts = <String>[];
-  if (seconds >= 1) parts.add('Отсечено как шум: ~' + seconds.toString() + ' с');
+  if (silence >= 1) parts.add('Тишины не отправлено: ~' + silence.toString() + ' с');
+  if (seconds >= 1) parts.add('отсечено как шум: ~' + seconds.toString() + ' с');
   if (d.droppedInvented > 0) parts.add('в тишине отброшено ' + d.droppedInvented.toString() + ' выдуманных строк');
   if (parts.isEmpty) return null;
   return parts.join(' · ') + '.';

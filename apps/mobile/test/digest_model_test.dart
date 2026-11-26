@@ -15,6 +15,11 @@ void main() {
       expect(digest.errors.length, 1);
     });
 
+    test('тишина, не ушедшая в распознавание, читается', () {
+      final digest = Digest.fromJson({'summary': ['x'], 'dropped_by_vad': 3000});
+      expect(digest.droppedByVad, 3000);
+    });
+
     test('без шума и ошибок поля пустые, а не выдуманные', () {
       final digest = Digest.fromJson({'summary': ['x']});
       expect(digest.droppedNoise, 0);
