@@ -27,6 +27,8 @@ jobs:
       - name: dart list syntax
         run: node tests/native/dart-list.mjs $(find apps/mobile/lib -name '*.dart')
 
+      - name: theme colours
+        run: node tests/native/dart-theme-colors.mjs
       - name: address rule consistency
         run: node tests/native/dart-url-rule.mjs
       - name: dart named arguments

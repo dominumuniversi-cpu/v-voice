@@ -9,6 +9,9 @@ class VVTheme {
   static const Color live = Color(0xFFFF4D6D);
   static const Color ok = Color(0xFF35D07F);
   static const Color warn = Color(0xFFFFB020);
+
+  /// Мягкое предупреждение: важное, но не блокирующее (например, «живая расшифровка не идёт»).
+  static const Color warnSoft = Color(0xFFE0A030);
   static const Color ink = Color(0xFFEDF1F7);
   static const Color inkMuted = Color(0xFF8C97A8);
 

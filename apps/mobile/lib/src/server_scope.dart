@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'theme.dart';
+
 import 'app_config.dart';
 import 'server_settings.dart';
 import 'server_store.dart';
@@ -97,7 +99,7 @@ class _ServerScopeLoaderState extends State<ServerScopeLoader> {
   Widget build(BuildContext context) {
     final url = _url;
     if (url == null) {
-      return const ColoredBox(color: Color(0xFF0B0F14));
+      return const ColoredBox(color: VVTheme.bg);
     }
     return ServerScope(
       serverUrl: url,

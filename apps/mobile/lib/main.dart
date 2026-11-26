@@ -388,14 +388,14 @@ class _ListenScreenState extends State<ListenScreen> {
                     // и человек должен знать, какая из них.
                     'Живая расшифровка не идёт: ' +
                         (ServerScope.maybeOf(context)?.config.api.lastLiveProblem ?? ''),
-                    style: const TextStyle(fontSize: 13, color: Color(0xFFE0A030)),
+                    style: const TextStyle(fontSize: 13, color: VVTheme.warnSoft),
                   ),
                 ),
               if (c.liveWarning.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(c.liveWarning,
-                      style: const TextStyle(fontSize: 13, color: Color(0xFFE0A030))),
+                      style: const TextStyle(fontSize: 13, color: VVTheme.warnSoft)),
                 ),
               if (c.lastError.isNotEmpty)
                 Padding(
