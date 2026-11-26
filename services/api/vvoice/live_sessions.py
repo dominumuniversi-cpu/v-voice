@@ -31,6 +31,10 @@ class LiveSessions:
         self._states: OrderedDict[str, SessionState] = OrderedDict()
         self._limit = limit
 
+    def peek(self, session_id: str) -> SessionState | None:
+        """Смотрит состояние, НЕ создавая его: проверка не должна плодить пустые сессии."""
+        return self._states.get(session_id)
+
     def state_for(self, session_id: str) -> SessionState:
         """Выдаёт состояние сессии, поднимая её в очередь свежих."""
         state = self._states.get(session_id)

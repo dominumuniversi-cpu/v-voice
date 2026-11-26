@@ -174,10 +174,10 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             return Response(503, {"error": "storage_unavailable",
                                   "message": "Сервер не настроен хранить записи."})
         try:
-            # Сессия, открытая заранее под живой текст, ещё не имеет записи: файл, присланный
-            # после «Стоп», — это и есть её звук. Без этого разбор живой встречи не запускался.
-            already = store.find(body["session_id"]) is not None
-            store.save(body["session_id"], audio, replace=already)
+            # Заменить запись можно ТОЛЬКО у сессии, открытой заранее под живой текст: её звук
+            # приходит после «Стоп». Для обычной записи защита «второй файл не затирает первый» сильна.
+            opened_live = live_sessions is not None and (live_sessions.peek(body["session_id"]) is not None and live_sessions.peek(body["session_id"]).size() > 0)
+            store.save(body["session_id"], audio, replace=opened_live)
         except FileExistsError:
             return Response(409, {"error": "already_exists",
                                   "message": "Такая запись уже загружена."})
