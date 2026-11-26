@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'api_client.dart';
 
 import 'digest_model.dart';
@@ -70,7 +71,21 @@ class _DigestScreenState extends State<DigestScreen> {
           width: double.maxFinite,
           child: SingleChildScrollView(child: SelectableText(text)),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Закрыть'))],
+        actions: [
+          // Диалог без копирования — витрина: текст видно, а унести нельзя. Человек пришёл сюда
+          // именно за текстом, поэтому первая кнопка — «скопировать».
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(const SnackBar(content: Text('Расшифровка скопирована.')));
+            },
+            child: const Text('Скопировать'),
+          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Закрыть')),
+        ],
       ),
     );
   }
