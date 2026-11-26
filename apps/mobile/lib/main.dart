@@ -195,7 +195,14 @@ class _ListenScreenState extends State<ListenScreen> {
     // Файл стираем лишь после показанного разбора. Ошибка на сервере не повод удалять с телефона
     // единственную копию разговора: человек увидел бы «не удалось» и потерял запись навсегда.
     if (digestReady == true && sessionId != null && path.isNotEmpty) {
-      await deleteRecording(path);
+      // Неудачное удаление — не повод пугать, но и не повод молчать: место на телефоне
+      // кончится ровно тогда, когда его будет жалко. Одна спокойная строка.
+      final removed = await deleteRecording(path);
+      if (!removed && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Разбор получен, но запись с телефона удалить не удалось — она останется в памяти приложения.'),
+        ));
+      }
     }
   }
 
