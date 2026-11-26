@@ -706,7 +706,7 @@ _prompt_text = _load_prompt()
 check("prompt_file_is_used", len(_prompt_text) > 500, len(_prompt_text))
 check("prompt_matches_code", _sys_prompt == _prompt_text)
 check("prompt_has_schema", "evidence_quote" in _prompt_text and "summary" in _prompt_text)
-_tmp_empty = Path(tempfile.mkdtemp()) / "empty.md"
+_tmp_empty = Path(_tempfile.mkdtemp()) / "empty.md"
 _tmp_empty.write_text("", encoding="utf-8")
 _raised = False
 try:

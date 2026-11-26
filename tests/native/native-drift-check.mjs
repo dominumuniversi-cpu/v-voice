@@ -92,6 +92,48 @@ function checkPlistKeys(root, contract) {
   return problems;
 }
 
+/// Манифест обязан быть валидным XML: битый тег иначе всплывает только на сборке APK,
+/// через несколько минут и с невнятным сообщением Gradle.
+function checkManifestXml(root) {
+  const problems = [];
+  const file = 'apps/mobile/android/app/src/main/AndroidManifest.xml';
+  const full = join(root, file);
+  if (!existsSync(full)) return problems;
+  const text = readFileSync(full, 'utf8');
+  // Строковый сканер, а не регулярка: регулярка проглатывает соседний тег и «не замечает»
+  // именно ту поломку, ради которой написана. Здесь каждый тег читается посимвольно.
+  const stack = [];
+  let i = 0;
+  while (i < text.length) {
+    const lt = text.indexOf('<', i);
+    if (lt === -1) break;
+    const gt = text.indexOf('>', lt);
+    if (gt === -1) { problems.push({ file, problem: 'manifest_unclosed_tag', at: lt }); break; }
+    // Пролог и комментарии — не теги: без этой строки валидатор ругается на исправный манифест.
+    if (text.startsWith('<!--', lt)) {
+      const close = text.indexOf('-->', lt);
+      if (close === -1) { problems.push({ file, problem: 'manifest_comment_unclosed', at: lt }); break; }
+      i = close + 3;
+      continue;
+    }
+    if (text.startsWith('<?', lt)) { i = gt + 1; continue; }
+    const inner = text.slice(lt + 1, gt);
+    // Внутри тега не может быть ещё одного '<': это признак незакрытого предыдущего.
+    if (inner.includes('<')) problems.push({ file, problem: 'manifest_nested', at: lt });
+    if (inner.startsWith('/')) {
+      const name = inner.slice(1).trim();
+      const top = stack.pop();
+      if (top !== name) problems.push({ file, problem: 'manifest_unbalanced', expected: top, found: name });
+    } else if (!inner.trim().endsWith('/')) {
+      const name = inner.split(/\s/)[0];
+      if (name) stack.push(name);
+    }
+    i = gt + 1;
+  }
+  if (stack.length) problems.push({ file, problem: 'manifest_unclosed', open: stack });
+  return problems;
+}
+
 function main() {
   const contract = loadContract();
   const out = [];
@@ -101,6 +143,8 @@ function main() {
     if (platform === 'android') out.push(...checkPlatformFiles(root, contract, platform));
     if (platform === 'ios') out.push(...checkPlistKeys(root, contract));
   }
+  out.push(...checkManifestXml(root));
+
   const report = normalizeReport({ contractVersion: contract.version, problems: out });
   if (process.argv.includes('--json')) console.log(JSON.stringify(report, null, 2));
   else {
