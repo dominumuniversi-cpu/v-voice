@@ -1083,6 +1083,20 @@ check("budget_exceeded_flagged", _over.get('budget_exceeded') is True and _over.
 _under = _cost({'sent_seconds': 600.0}, 100.0, 50.0)
 check("budget_not_flagged_when_within", 'budget_exceeded' not in _under, str(_under))
 check("budget_off_by_default", 'budget_exceeded' not in _cost({'sent_seconds': 3600.0}, 100.0, 0.0))
+# Ошибка разбора: понятная фраза, вид сбоя и никаких секретов в тексте.
+from vvoice.errors import explain_digest_failure, scrub
+_e1 = explain_digest_failure(RuntimeError("GET https://api.example.com/v2?key=SECRET123456 failed"))
+check("digest_failure_hides_key", "SECRET123456" not in str(_e1), str(_e1))
+_e2 = explain_digest_failure(RuntimeError("Authorization: Bearer sk-abcdef123456"))
+check("digest_failure_hides_bearer", "sk-abcdef123456" not in str(_e2), str(_e2))
+_e3 = explain_digest_failure(TimeoutError("timed out"))
+check("digest_failure_network_kind", _e3["kind"] == "network" and "интернет" in _e3["message"], str(_e3))
+_e4 = explain_digest_failure(RuntimeError("401 Unauthorized"))
+check("digest_failure_provider_kind", _e4["kind"] == "provider", str(_e4))
+_e5 = explain_digest_failure(KeyError("boom"))
+check("digest_failure_internal_kind", _e5["kind"] == "internal" and "сохранена" in _e5["message"], str(_e5))
+check("digest_failure_empty_scrub", scrub("") == "")
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

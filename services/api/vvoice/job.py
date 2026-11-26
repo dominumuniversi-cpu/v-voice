@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from .errors import explain_digest_failure
 from .digest_store import DigestStore
 from .pipeline import run_session
 from .storage import AudioStore
@@ -53,6 +54,8 @@ def analyze(
         provider = provider_factory(stored.path)
         result = run_session(provider, [], call_llm, gate=gate, members_only=members_only)
     except Exception as exc:  # разбор не должен ронять сервер и не должен сохраняться частично
-        return JobResult(502, {"error": "digest_failed", "message": str(exc)})
+        # str(exc) не годится для экрана: там бывает URL с ключом и текст из чужой библиотеки.
+        # Наружу — фраза человека и вид сбоя, техническая подробность — вычищенной.
+        return JobResult(502, dict({"error": "digest_failed"}, **explain_digest_failure(exc)))
     digests.save(session_id, result)
     return JobResult(200, result)
