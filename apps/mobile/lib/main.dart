@@ -489,7 +489,12 @@ class _ListenScreenState extends State<ListenScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   child: Text(
-                    c.liveText.isEmpty ? 'Пока тихо. Нажмите «Слушаю» — я начну расшифровывать.' : c.liveText,
+                    c.liveText.isNotEmpty
+                        ? c.liveText
+                        : (c.state == RecordingState.paused
+                            // На паузе текст пуст не потому, что «тихо» и не потому, что не начали.
+                            ? 'Запись на паузе: всё, что скажут сейчас, не попадёт ни в файл, ни в задачи.'
+                            : 'Пока тихо. Нажмите «Слушаю» — я начну расшифровывать.'),
                     style: TextStyle(fontSize: 16, height: 1.5, color: c.liveText.isEmpty ? VVTheme.inkMuted : VVTheme.ink),
                   ),
                 ),
