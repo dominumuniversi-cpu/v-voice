@@ -26,11 +26,34 @@ class ServerSettings {
     final uri = Uri.tryParse(normalize(text));
     if (uri == null || uri.host.isEmpty) return 'Похоже, в адресе ошибка: не удалось разобрать домен.';
     if (uri.hasQuery || uri.hasFragment) return 'Уберите знак «?» и «#» из адреса сервера.';
+    if (!_looksLikeHost(uri.host)) return 'Похоже, в адресе ошибка: не удалось разобрать домен.';
     // Завершающий слэш — не ошибка: normalize() его уберёт. Отказывать здесь значит
     // требовать от человека ручной правки того, что машина правит сама.
     return null;
   }
 
+  /// Похоже ли это на адрес сервера: имя с точкой, localhost или IP.
+  /// Проверка узкая: она отсекает случайные слова, но не мешает ни домену, ни адресу
+  /// в локальной сети, который человек набирает руками.
+  static bool _looksLikeHost(String host) {
+    if (host.isEmpty || host.contains(' ')) return false;
+    if (host == 'localhost') return true;
+    final isIp = host.split('.').every((p) => p.isNotEmpty && int.tryParse(p) != null);
+    if (isIp) return true;
+    // Адрес в локальной сети или домен: части из латиницы, цифр и дефиса, минимум две.
+    final parts = host.split('.');
+    if (parts.length < 2) return false;
+    for (final part in parts) {
+      if (part.isEmpty) return false;
+      for (final rune in part.runes) {
+        final c = String.fromCharCode(rune);
+        final ok = (rune >= 48 && rune <= 57) || (rune >= 97 && rune <= 122) || (rune >= 65 && rune <= 90) || c == '-';
+        if (!ok) return false;
+      }
+    }
+    // Последняя часть — не число: «1.2.3.4» уже прошло как IP, а «site.123» — не домен.
+    return int.tryParse(parts.last) == null;
+  }
   /// Не ошибка, а предупреждение: по HTTP разговор идёт открытым текстом, и всё сказанное
   /// в кафе или офисе может читать посторонний. Запрещать не надо — на своей машине http://localhost
   /// законен и удобен. Но и молчать нельзя: человек иначе не узнает, чем платит за простоту.
