@@ -5,8 +5,8 @@ import 'digest_model.dart';
 /// Транспорт HTTP: подменяется в тестах, поэтому логика клиента проверяется без сети.
 abstract class HttpTransport {
   /// Возвращает (код ответа, тело).
-  Future<(int, String)> post(String path, Map<String, dynamic> body);
-  Future<(int, String)> get(String path);
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers});
+  Future<(int, String)> get(String path, {Map<String, String>? headers});
 }
 
 /// Клиент нашего сервера (API v1).

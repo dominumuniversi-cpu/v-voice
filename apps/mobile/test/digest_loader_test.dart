@@ -8,10 +8,10 @@ class _Fake implements HttpTransport {
   final (int, String) reply;
 
   @override
-  Future<(int, String)> get(String path) async => reply;
+  Future<(int, String)> get(String path, {Map<String, String>? headers}) async => reply;
 
   @override
-  Future<(int, String)> post(String path, Map<String, dynamic> body) async => reply;
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers}) async => reply;
 }
 
 void main() {

@@ -32,6 +32,9 @@ jobs:
       - name: test members exist
         run: node tests/native/test-members.mjs
 
+      - name: transport contract
+        run: node tests/native/transport-contract.mjs
+
       - name: node tests
         run: node --test "tests/native/*.test.mjs" "tests/api/*.mjs"
 
