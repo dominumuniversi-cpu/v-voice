@@ -59,6 +59,44 @@ class _ListenScreenState extends State<ListenScreen> {
   /// Идентификатор сессии на сервере для последней успешной отправки.
   String? _sessionId;
 
+  /// Уже отправленных кусков: контроллер хранит только последний, поэтому сравниваем счётчик.
+  int _sentChunks = 0;
+
+  /// Отправка идёт: не плодим параллельные запросы, иначе куски придут вразнобой.
+  bool _sendingChunk = false;
+
+  /// Идентификатор сессии для живого текста (открывается заранее, без записи).
+  String? _liveSessionId;
+
+  /// Забирает новый кусок звука у контроллера и отправляет на сервер.
+  ///
+  /// Почему по счётчику, а не по событию: контроллер уведомляет о любом изменении (уровень,
+  /// состояние), и без защиты каждый тик отправлял бы один и тот же кусок заново.
+  Future<void> _pumpLiveAudio() async {
+    if (_sendingChunk) return;
+    final received = widget.controller.audioChunksReceived;
+    if (received <= _sentChunks) return;
+    final chunk = widget.controller.lastAudioChunk;
+    if (chunk == null || chunk.isEmpty) return;
+    final scope = ServerScope.maybeOf(context);
+    if (scope == null) return;
+    final api = scope.config.api;
+    _sendingChunk = true;
+    _sentChunks = received;
+    try {
+      _liveSessionId ??= await api.openSession();
+      final id = _liveSessionId;
+      if (id == null) return;
+      final text = await api.sendLiveChunk(id, chunk);
+      if (!mounted) return;
+      if (text != null && text.isNotEmpty) {
+        setState(() => widget.controller.liveText = text);
+      }
+    } finally {
+      _sendingChunk = false;
+    }
+  }
+
   /// Открывает разбор: сначала убеждается, что запись отправлена, иначе разбирать нечего.
   Future<void> _openDigest(ApiClient api) async {
     final path = widget.controller.lastSavedPath;
@@ -168,6 +206,7 @@ class _ListenScreenState extends State<ListenScreen> {
     });
     widget.controller.changes.listen((_) {
       if (mounted) setState(() {});
+      _pumpLiveAudio();
     });
   }
 
