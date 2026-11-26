@@ -878,6 +878,34 @@ _dg_topic = _make_digest(_tr_short2, lambda s, u: {'topic': 'Бюджет и с�
 check("topic_reaches_result", _dg_topic.get('topic') == 'Бюджет и сроки', _dg_topic.get('topic'))
 _dg_notopic = _make_digest(_tr_short2, lambda s, u: {'summary': ['Смета'], 'items': [], 'participants': []})
 check("topic_empty_when_model_silent", _dg_notopic.get('topic') == '', _dg_notopic.get('topic'))
+# Отправитель — единственное место, где задача покидает сервер. Проверяем на живом локальном приёмнике.
+import threading as _th
+from http.server import BaseHTTPRequestHandler as _BH, HTTPServer as _HS
+from vvoice.export_sender import send_request as _send
+
+_got = {}
+class _Sink(_BH):
+    def do_POST(self):
+        _got['path'] = self.path
+        _got['auth'] = self.headers.get('Authorization')
+        _got['body'] = self.rfile.read(int(self.headers.get('Content-Length') or 0)).decode('utf-8')
+        code = 201 if self.path == '/ok' else 500
+        self.send_response(code); self.end_headers(); self.wfile.write(b'{}')
+    def log_message(self, *a):
+        pass
+
+_srv = _HS(('127.0.0.1', 0), _Sink)
+_th.Thread(target=_srv.serve_forever, daemon=True).start()
+_port = _srv.server_address[1]
+from vvoice.exporters import ExportRequest as _ER
+_ok, _detail = _send(_ER(target='webhook', method='POST', url='http://127.0.0.1:%d/ok' % _port, body={'title': 'Смета'}, headers={}), token='ключ')
+check("sender_posts_json", _ok, _detail)
+check("sender_sends_bearer", _got.get('auth') == 'Bearer ключ', _got.get('auth'))
+check("sender_body_is_json", '"title"' in (_got.get('body') or ''), _got.get('body'))
+_bad_ok, _bad_detail = _send(_ER(target='webhook', method='POST', url='http://127.0.0.1:%d/bad' % _port, body={}, headers={}))
+check("sender_reports_refusal", _bad_ok is False and '500' in _bad_detail, _bad_detail)
+_srv.shutdown()
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

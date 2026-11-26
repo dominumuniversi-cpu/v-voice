@@ -21,6 +21,7 @@ from vvoice.config import Settings, load as load_settings, load_env_file
 from vvoice.digest_store import DigestStore
 from vvoice.http_api import handle
 from vvoice.live_sessions import LiveSessions
+from vvoice.export_sender import send_request
 from vvoice.provider_factory import describe as describe_providers, make_asr_factory
 from vvoice.storage import AudioStore
 from vvoice.vad import VadConfig, VadGate
@@ -42,9 +43,9 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         # Отсечение шума: без этого шум шёл в распознавание целиком, и код vad.py существовал,
         # но ни один запрос через него не проходил. None — только если человек сам выключил.
         'gate': VadGate(config=VadConfig()) if settings.noise_gate else None,
-        # Отправка задач наружу появится, когда будут ключи интеграций; пока None —
-        # маршрут отвечает 503 и говорит правду, вместо того чтобы делать вид.
-        'exporter': None,
+        # Отправка задач наружу. Без ключей интеграций маршрут честно отвечает 503:
+        # настроек нет — значит и цели нет. С ключом задача уходит тем же отправителем.
+        'exporter': (lambda request: send_request(request, token=settings.export_token)) if settings.export_targets else None,
         # Адреса целей — из настроек: телефон не должен знать, где живёт задачник.
         'export_targets': settings.export_targets,
         # Пусто — сервер открыт (режим разработки). Задан — без токена не пустим.
