@@ -31,7 +31,7 @@ def check(name, cond, detail=""):
     checks.append((name, bool(cond), detail))
 
 
-check("normalize", normalize("  Я   ОТПРАВЛЮ\\nсмету ") == "я отправлю смету")
+check("normalize", normalize("  Я   ОТПРАВЛЮ\nсмету ") == "я отправлю смету")
 check("quote_present", quote_is_present("я отправлю  смету завтра", TRANSCRIPT))
 check("valid_task", validate_item(TASK, TRANSCRIPT, speakers=SPEAKERS)[0])
 broken = {k: v for k, v in TASK.items() if k != "evidence"}
