@@ -92,6 +92,10 @@ typo = Settings.from_env({"ASR_PROVIDER": "speechmatic"})
 check("typo_reported", any("ASR_PROVIDER" in p for p in validate(typo)))
 check("describe_mentions_keys", "SPEECHMATICS_API_KEY" in describe())
 
+for name, passed, detail in checks:
+    if not passed:
+        sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
+
 failed2 = [c for c in checks if not c[1]]
-print("total=%d passed=%d failed=%d" % (len(checks), len(checks) - len(failed2), len(failed2)))
+sys.stderr.write("total=%d passed=%d failed=%d\n" % (len(checks), len(checks) - len(failed2), len(failed2)))
 sys.exit(1 if failed2 else 0)
