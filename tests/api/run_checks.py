@@ -68,8 +68,30 @@ for kind in ("task", "meeting", "reminder", "decision", "question"):
 ok, reason = validate_item(dict(TASK, kind="note"), TRANSCRIPT)
 check("unknown_kind", not ok and "неизвестный тип" in reason, reason)
 
-failed = [c for c in checks if not c[1]]
-for name, passed, detail in checks:
-    print(("PASS " if passed else "FAIL ") + name + ((" :: " + detail) if detail and not passed else ""))
-print("total=%d passed=%d failed=%d" % (len(checks), len(checks) - len(failed), len(failed)))
-sys.exit(1 if failed else 0)
+# ---------- настройки: понятные сообщения, безопасные значения по умолчанию ----------
+from vvoice.settings import Settings, describe, validate  # noqa: E402
+
+defaults = Settings.from_env({})
+check("defaults_valid", validate(defaults) == [], str(validate(defaults)))
+check("defaults_asr_fake", defaults.ASR_PROVIDER == "fake")
+check("bool_parsing_yes", Settings.from_env({"MEMBERS_ONLY": "да"}).MEMBERS_ONLY is True)
+check("bool_parsing_off", Settings.from_env({"MEMBERS_ONLY": "false"}).MEMBERS_ONLY is False)
+try:
+    Settings.from_env({"DATA_RETENTION_DAYS": "много"})
+    check("int_rejects_words", False)
+except ValueError:
+    check("int_rejects_words", True)
+
+cloud = Settings.from_env({"ASR_PROVIDER": "speechmatics"})
+check("missing_key_reported", any("SPEECHMATICS_API_KEY" in p for p in validate(cloud)), str(validate(cloud)))
+llm = Settings.from_env({"LLM_PROVIDER": "anthropic"})
+check("missing_llm_key_reported", any("LLM_API_KEY" in p for p in validate(llm)), str(validate(llm)))
+bad = Settings.from_env({"API_PORT": "8000"})
+check("port_8000_rejected", any("8000" in p for p in validate(bad)))
+typo = Settings.from_env({"ASR_PROVIDER": "speechmatic"})
+check("typo_reported", any("ASR_PROVIDER" in p for p in validate(typo)))
+check("describe_mentions_keys", "SPEECHMATICS_API_KEY" in describe())
+
+failed2 = [c for c in checks if not c[1]]
+print("total=%d passed=%d failed=%d" % (len(checks), len(checks) - len(failed2), len(failed2)))
+sys.exit(1 if failed2 else 0)
