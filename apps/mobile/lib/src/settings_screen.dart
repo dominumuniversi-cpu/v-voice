@@ -212,6 +212,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               obscureText: true,
               decoration: const InputDecoration(hintText: 'Ключ доступа', isDense: true),
             ),
+            const SizedBox(height: 4),
+            // Человек проверяет ключ и должен понимать, что дальше: иначе он думает,
+            // что приложение запомнит ключ, и удивляется, почему запись молчит.
+            const Text(
+              'На телефоне не хранится: «Проверить» отправляет ключ на сервер и ничего не запоминает.',
+              style: TextStyle(color: VVTheme.inkMuted, fontSize: 12, height: 1.3),
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
