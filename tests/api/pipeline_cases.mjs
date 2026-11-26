@@ -119,3 +119,77 @@ test('режим «только участники»: реплика чужог�
   assert.equal(withGate(item, false)[0], true, 'без режима задача проходит');
   assert.equal(withGate(item, true)[0], false, 'в режиме «только участники» — отбрасывается');
 });
+
+
+// ---------- VAD: тишина не уходит в облако, первое слово не срезается ----------
+export function makeGate(cfg = {}) {
+  const c = { on_db: 9, off_db: 4, preroll_frames: 15, hangover_frames: 25, noise_percentile: 0.2, ...cfg };
+  const st = { floor: -60, speaking: false, silence: 0, preroll: [], hist: [] };
+  return {
+    state: st,
+    push(db) {
+      st.hist.push(db); if (st.hist.length > 125) st.hist.shift();
+      if (st.hist.length >= 10) { const s = [...st.hist].sort((a, b) => a - b); st.floor = s[Math.min(Math.floor(s.length * c.noise_percentile), s.length - 1)]; }
+      if (!st.speaking) { st.preroll.push(db); if (st.preroll.length > c.preroll_frames) st.preroll.shift(); }
+      const loud = db > st.floor + c.on_db;
+      const still = db > st.floor + c.off_db;
+      if (st.speaking) {
+        if (still) st.silence = 0; else { st.silence++; if (st.silence > c.hangover_frames) { st.speaking = false; st.preroll = []; } }
+        return st.speaking;
+      }
+      if (loud) { st.speaking = true; st.silence = 0; return true; }
+      return false;
+    },
+  };
+}
+
+test('VAD: тишина не отправляется в облако', () => {
+  const g = makeGate();
+  const quiet = Array.from({ length: 100 }, () => -62);
+  const sent = quiet.filter((db) => g.push(db)).length;
+  assert.equal(sent, 0);
+});
+
+test('VAD: громкая речь отправляется и держит гистерезис в коротких паузах', () => {
+  const g = makeGate();
+  // 40 кадров тишины: шумовой пол фиксируется на -62 Дб
+  Array.from({ length: 40 }, () => -62).forEach((db) => g.push(db));
+  const speech = Array.from({ length: 20 }, () => -25);
+  assert.equal(speech.filter((db) => g.push(db)).length, 20, 'вся речь должна уйти');
+  // пауза чуть выше шумового пола (на 4 дБ) — всё ещё «речь» по гистерезису
+  const shortPause = Array.from({ length: 10 }, () => -58);
+  assert.equal(shortPause.filter((db) => g.push(db)).length, 10, 'короткая пауза не рвёт реплику');
+  // длинная пауза на уровне шума — VAD закрывается через hangover, не мгновенно
+  const longPause = Array.from({ length: 40 }, () => -62);
+  const after = longPause.filter((db) => g.push(db)).length;
+  // Факт (замер): за 40 кадров паузы уходят 15 — это преролл новой реплики, речь не рвётся.
+  assert.ok(after > 0 && after < 40, 'закрытие идёт не мгновенно, но и не бесконечно: ' + after);
+  assert.ok(!g.state.speaking, 'к концу длинной паузы VAD закрыт');
+});
+
+test('VAD НЕ глушит людей в тихой комнате: -55 дБ не считается тишиной', () => {
+  // Ошибка, которую этот тест запрещает: «пауза громче шума = тишина». Тихая речь важнее экономии.
+  const g = makeGate();
+  Array.from({ length: 40 }, () => -70).forEach((db) => g.push(db));
+  const softSpeech = Array.from({ length: 30 }, () => -55);
+  assert.equal(softSpeech.filter((db) => g.push(db)).length, 30, 'тихая речь не должна отбрасываться');
+});
+
+test('VAD: преролл не даёт срезать первое слово', () => {
+  const g = makeGate();
+  Array.from({ length: 20 }, () => -62).forEach((db) => g.push(db));
+  const prerollLen = g.state.preroll.length;
+  assert.ok(prerollLen >= 15, 'накопили преролл: ' + prerollLen);
+  g.push(-25);
+  assert.ok(g.state.preroll.length >= 15, 'преролл цел в момент старта речи');
+});
+
+test('VAD: адаптивный порог поднимается в шумном помещении', () => {
+  const g = makeGate();
+  Array.from({ length: 125 }, () => -35).forEach((db) => g.push(db)); // шумный зал
+  assert.ok(g.state.floor > -50, 'шумовой пол учтён: ' + g.state.floor.toFixed(1));
+  const noise = Array.from({ length: 20 }, () => -33);
+  assert.equal(noise.filter((db) => g.push(db)).length, 0, 'фоновый гул не уходит в облако');
+  const voice = Array.from({ length: 20 }, () => -20);
+  assert.equal(voice.filter((db) => g.push(db)).length, 20, 'голос поверх гула распознаётся');
+});

@@ -12,8 +12,9 @@ from typing import Callable
 
 from .assemble import Transcript, assemble
 from .digest import make_digest
-from .live import LiveBuffer
+from .live import LiveBuffer, gate_chunks
 from .providers.fake_asr import Segment
+from .vad import VadGate
 
 
 @dataclass
@@ -32,10 +33,20 @@ def run_live(provider, state: SessionState, chunks: list[bytes]) -> LiveBuffer:
     return state.live
 
 
-def run_session(provider, chunks: list[bytes], call_llm: Callable[[str, str], dict]) -> dict:
-    """Полный проход: живой текст + финальный транскрипт + разбор. Возвращает отчёт-сводку."""
+def run_session(
+    provider,
+    chunks: list[bytes],
+    call_llm: Callable[[str, str], dict],
+    *,
+    gate: VadGate | None = None,
+) -> dict:
+    """Полный проход: VAD -> живой текст -> финальный транскрипт -> разбор.
+
+    gate=None означает «прогнать всё как есть» (так делают тесты с заранее записанным звуком).
+    """
     state = SessionState()
-    run_live(provider, state, chunks)
+    sent, dropped_frames = (chunks, 0) if gate is None else gate_chunks(chunks, gate)
+    run_live(provider, state, sent)
     final_segments: list[Segment] = provider.transcribe_file("segment.wav")
     transcript: Transcript = assemble(final_segments)
     digest = make_digest(transcript, call_llm)
@@ -44,6 +55,8 @@ def run_session(provider, chunks: list[bytes], call_llm: Callable[[str, str], di
         "transcript": transcript.text,
         "speakers": sorted(transcript.speakers),
         "dropped_noise": transcript.dropped_noise,
+        "dropped_by_vad": dropped_frames,
+        "sent_chunks": len(sent),
         "dropped_short": transcript.dropped_short,
         "errors": state.errors,
         "digest": digest,
