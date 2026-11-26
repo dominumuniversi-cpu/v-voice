@@ -27,6 +27,8 @@ jobs:
       - name: dart list syntax
         run: node tests/native/dart-list.mjs $(find apps/mobile/lib -name '*.dart')
 
+      - name: address rule consistency
+        run: node tests/native/dart-url-rule.mjs
       - name: dart named arguments
         run: node tests/native/dart-named-args.mjs $(find apps/mobile -name '*.dart')
 
