@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'src/app_config.dart';
 import 'src/method_channel_bridge.dart';
 import 'src/recording_controller.dart';
 import 'src/session_model.dart';
@@ -85,7 +86,12 @@ class _ListenScreenState extends State<ListenScreen> {
                     tooltip: 'Подключение моделей',
                     icon: const Icon(Icons.tune, size: 20, color: VVTheme.inkMuted),
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                      MaterialPageRoute<void>(
+                        builder: (_) => SettingsScreen(
+                          api: AppConfig(serverUrl: AppConfig.defaultServer).api,
+                          initialServerUrl: AppConfig.defaultServer,
+                        ),
+                      ),
                     ),
                   ),
                 ],

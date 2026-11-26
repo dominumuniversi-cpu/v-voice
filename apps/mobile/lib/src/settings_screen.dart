@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'api_client.dart';
 import 'providers_model.dart';
+import 'server_settings.dart';
 import 'theme.dart';
 
 /// Экран «Подключение моделей» (FR-24..FR-26).
@@ -12,10 +14,11 @@ import 'theme.dart';
 ///  - «Проверить» сначала прогоняет простые правила на телефоне (пустой ключ, пробел, обрезок)
 ///    и только потом идёт в сеть — так человек получает ответ мгновенно, без ожидания.
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.onProbe});
+  const SettingsScreen({super.key, this.api, this.initialServerUrl = ''});
 
-  /// Проверка ключа на сервере. Возвращает пару (вердикт, сообщение).
-  final Future<Pair> Function(String provider, String key)? onProbe;
+  /// Клиент сервера. Если null — проверка ключа недоступна (экран работает автономно).
+  final ApiClient? api;
+  final String initialServerUrl;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -32,14 +35,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? activePreset;
   final Map<String, TextEditingController> keys = {};
   final Map<String, Pair> results = {};
+  late TextEditingController server = TextEditingController(text: widget.initialServerUrl);
   bool busy = false;
+  String? serverProblem;
 
   @override
   void dispose() {
     for (final c in keys.values) {
       c.dispose();
     }
+    server.dispose();
     super.dispose();
+  }
+
+  /// Сохранение адреса: сначала проверяем на опечатки, потом принимаем.
+  void _saveServer() {
+    final problem = ServerSettings.problem(server.text);
+    setState(() => serverProblem = problem);
+    if (problem == null) {
+      // Адрес нормализован, чтобы склейка с /api/v1/... не давала двойных слэшей
+      server.text = ServerSettings.normalize(server.text);
+    }
   }
 
   TextEditingController _keyFor(String id) => keys.putIfAbsent(id, () => TextEditingController());
@@ -51,14 +67,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => results[info.id] = Pair('rejected', local));
       return;
     }
-    if (widget.onProbe == null) {
-      setState(() => results[info.id] = const Pair('unknown', 'Проверка доступна после входа в аккаунт.'));
+    if (widget.api == null) {
+      setState(() => results[info.id] = const Pair('unknown', 'Сначала укажите адрес сервера выше.'));
       return;
     }
     setState(() => busy = true);
     try {
-      final pair = await widget.onProbe!(info.id, key);
-      setState(() => results[info.id] = pair);
+      final (verdict, message) = await widget.api!.probe(info.id, key);
+      setState(() => results[info.id] = Pair(verdict, message));
     } catch (e) {
       setState(() => results[info.id] = Pair('rejected', 'Не удалось соединиться: ' + e.toString()));
     } finally {
@@ -75,6 +91,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          const Text('Сервер', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: server,
+                  keyboardType: TextInputType.url,
+                  decoration: InputDecoration(
+                    hintText: 'https://…',
+                    isDense: true,
+                    errorText: serverProblem,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(onPressed: _saveServer, child: const Text('Сохранить')),
+            ],
+          ),
+          if (serverProblem == null && server.text.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text('Адрес принят.', style: TextStyle(color: VVTheme.ok, fontSize: 12)),
+            ),
+          const SizedBox(height: 24),
           const Text('Готовые наборы настроек', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           Wrap(
