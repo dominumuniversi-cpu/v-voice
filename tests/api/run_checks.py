@@ -920,6 +920,11 @@ check("request_can_switch_members_only", 'members_only=payload.get' in _api_src)
 _prov = (Path(__file__).resolve().parents[2] / 'docs' / 'ARCHITECTURE' / 'AI-PROVIDERS.md').read_text(encoding='utf-8')
 check("providers_quote_prices", '$0,29' in _prov and '$0,24' in _prov, 'цены за час речи')
 check("providers_dated", 'сверено' in _prov, 'цены датированы и со ссылкой')
+# Запятая от модели не должна убивать настоящую задачу; переставленные слова — должны.
+check("quote_ignores_punctuation", quote_is_present('да, согласен бюджет', 'Анна: да согласен бюджет до пятницы'))
+check("quote_ignores_quotes", quote_is_present('сказал \"завтра\"', 'он сказал завтра всем'))
+check("quote_still_needs_words", not quote_is_present('бюджет до среды', 'Анна: да согласен бюджет до пятницы'))
+check("quote_needs_words_in_order", not quote_is_present('пятницы до бюджет', 'Анна: да согласен бюджет до пятницы'))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

@@ -13,11 +13,17 @@ from dataclasses import dataclass
 
 MIN_QUOTE_LEN = 12
 _WS = re.compile(r"\s+")
+# Пунктуация не несёт смысла для поиска цитаты. Модель ставит запятую там, где распознавание её не
+# услышало, — и настоящая задача исчезала только из-за этого. Знак препинания считаем пробелом:
+# слова не сливаются, а «да, согласен» находит «да согласен».
+# Сделано таблицей замен, а не регуляркой: в класс символов не нужно загонять кавычки и скобки.
+_PUNCT = {ord(c): " " for c in ".,!?;:()[]…—–-«»\"'"}
 
 
 def normalize(text: str) -> str:
     """Приводим текст к виду, в котором цитату можно искать: нижний регистр, один пробел, ё→е."""
-    return _WS.sub(" ", (text or "").lower().replace("ё", "е")).strip()
+    lowered = (text or "").lower().replace("ё", "е")
+    return _WS.sub(" ", lowered.translate(_PUNCT)).strip()
 
 
 def quote_is_present(quote: str, transcript: str) -> bool:
