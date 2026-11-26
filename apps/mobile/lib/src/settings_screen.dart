@@ -62,12 +62,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       keeper.load(widget.initialServerUrl).then((url) {
         if (!mounted) return;
         setState(() => server.text = url);
-        // Загрузка моделей — после адреса: иначе запрос уйдёт на пустой сервер.
-        _loadServerModels();
       });
-    } else {
-      _loadServerModels();
     }
+    // Загрузка моделей сюда НЕ ставится: _client читает ServerScope (InheritedWidget),
+    // а обращаться к нему из initState нельзя — Flutter просто выбрасывает исключение.
+    // Место для этого — didChangeDependencies, который вызывается сразу после initState.
+  }
+
+  /// Первый вход и любая смена адреса сервера: здесь уже можно читать ServerScope.
+  bool _modelsRequested = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_modelsRequested) return;
+    _modelsRequested = true;
+    _loadServerModels();
   }
 
   @override
@@ -112,12 +122,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _modelsLoading = true;
 
   Future<void> _loadServerModels() async {
-    final client = _client;
-    if (client == null) {
-      setState(() => _modelsLoading = false);
-      return;
+    // Любая ошибка сети — это «состояние неизвестно», а не падение экрана: настройки должны
+    // открываться и без сервера, иначе человек останется без возможности исправить адрес.
+    Map<String, dynamic>? health;
+    try {
+      health = await _client?.fetchHealth();
+    } catch (_) {
+      health = null;
     }
-    final health = await client.fetchHealth();
     if (!mounted) return;
     setState(() {
       _serverModels = health;
