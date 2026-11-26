@@ -86,4 +86,26 @@ void main() {
     expect(a!.id, b!.id);
     expect(a.id, isNot(''));
   });
+
+  test('участники читаются вместе с вердиктом', () {
+    // Вердикт — это ответ на «чей голос»: без него экран не отличит своего от чужого.
+    final d = Digest.fromJson(<String, dynamic>{
+      'summary': <String>[],
+      'decisions': <String>[],
+      'open_questions': <String>[],
+      'items': <dynamic>[],
+      'participants': <dynamic>[
+        <String, dynamic>{'speaker': 'S1', 'name': 'Анна', 'verdict': 'owner'},
+        <String, dynamic>{'speaker': 'S2', 'name': 'Курьер', 'verdict': 'foreign'},
+      ],
+    });
+    expect(d.participants.length, 2);
+    expect(d.participants[0][0], 'Анна');
+    expect(d.participants[1][1], 'foreign');
+  });
+
+  test('без участников список пуст, а не падает', () {
+    final d = Digest.fromJson(<String, dynamic>{'summary': <String>[], 'items': <dynamic>[]});
+    expect(d.participants, isEmpty);
+  });
 }

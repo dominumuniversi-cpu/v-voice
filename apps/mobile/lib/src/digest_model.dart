@@ -4,12 +4,16 @@
 /// отбрасывает элементы без непустой цитаты, а не показывает их без доказательства:
 /// человек, который не может проверить, откуда взялась задача, задачи не примет.
 class Digest {
-  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.model});
+  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model});
 
   final List<String> summary;
   final List<String> decisions;
   final List<String> openQuestions;
   final List<Item> items;
+
+  /// Кто участвовал: [имя, вердикт]. Вердикт — это и есть проверка «свой голос или чужой»:
+  /// без него человек не поймёт, почему часть сказанного не попала в задачи.
+  final List<List<String>> participants;
   final String model;
 
   static Digest fromJson(Map<String, dynamic> json) {
@@ -23,7 +27,19 @@ class Digest {
         if (item != null) items.add(item);
       }
     }
+    final rawParticipants = json['participants'];
+    final participants = <List<String>>[];
+    if (rawParticipants is List) {
+      for (final raw in rawParticipants) {
+        if (raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
+        final name = (m['name'] ?? m['speaker'] ?? '').toString();
+        final verdict = (m['verdict'] ?? 'member').toString();
+        if (name.isNotEmpty) participants.add(<String>[name, verdict]);
+      }
+    }
     return Digest(
+      participants: participants,
       summary: list(json['summary']),
       decisions: list(json['decisions']),
       openQuestions: list(json['open_questions'] ?? json['openQuestions']),

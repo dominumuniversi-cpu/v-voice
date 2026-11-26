@@ -38,6 +38,7 @@ class _DigestScreenState extends State<DigestScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           _section('Коротко', d.summary),
+          _participants(d.participants),
           _section('Решили', d.decisions),
           _section('Осталось неясным', d.openQuestions),
           const SizedBox(height: 8),
@@ -114,6 +115,32 @@ class _DigestScreenState extends State<DigestScreen> {
           ? problem
           : (sent > 0 ? 'Отправлено задач: ' + sent.toString() + '.' : 'Отправлять было нечего.');
     });
+  }
+
+  /// Кто участвовал и чей это голос. Без этого не видно, откуда взялись задачи и почему
+  /// часть речи не попала в разбор — а именно это человек и покупает: «понимать, что происходит».
+  Widget _participants(List<List<String>> people) {
+    if (people.isEmpty) return const SizedBox.shrink();
+    String label(String verdict) {
+      if (verdict == 'owner') return ' — свой';
+      if (verdict == 'foreign') return ' — чужой голос, в задачи не идёт';
+      return ' — участник';
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Кто говорил', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          ...people.map((p) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text('• ' + p[0] + label(p.length > 1 ? p[1] : 'member'),
+                    style: const TextStyle(color: VVTheme.inkMuted)),
+              )),
+        ],
+      ),
+    );
   }
 
   Widget _section(String title, List<String> lines) {
