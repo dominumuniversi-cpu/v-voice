@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
@@ -59,13 +60,23 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
         var state: String = "idle"
             private set
 
-        private var eventSink: MethodChannel.EventSink? = null
+        private var eventSink: EventChannel.EventSink? = null
+        private var eventsChannel: EventChannel? = null
 
         fun attach(messenger: BinaryMessenger) {
-            MethodChannel(messenger, CHANNEL + "/events").setMethodCallHandler { call, result ->
-                if (call.method == "listen") { eventSink = call.arguments as MethodChannel.EventSink?; result.success(null) }
-                else result.notImplemented()
-            }
+            // ВАЖНО: это EventChannel, а не MethodChannel. Flutter при подписке присылает метод
+            // listen/onListen и ждёт onListen-событие — на MethodChannel события не придут никогда.
+            eventsChannel = EventChannel(messenger, CHANNEL + "/events")
+            eventsChannel?.setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    eventSink = events
+                    events?.success(mapOf("type" to "state", "value" to state))
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    eventSink = null
+                }
+            })
         }
 
         fun emitState(newState: String) { state = newState; eventSink?.success(mapOf("type" to "state", "value" to newState)) }

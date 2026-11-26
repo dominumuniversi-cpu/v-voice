@@ -26,6 +26,9 @@ export function checkSource(contract, source, platform) {
   const forbid = (s, why) => { if (source.includes(s)) problems.push({ platform, forbidden: s, why }); };
   for (const sym of contract[platform].requiredSymbols) need(sym, 'обязательный символ моста записи');
   for (const perm of contract[platform].requiredPermissions || []) need(perm, 'обязательное разрешение платформы');
+  // События в Flutter приходят только через EventChannel. Если на Android объявить событийный канал
+  // как MethodChannel, Dart-подписка молча не сработает: приложение «работает», а текста нет.
+  if (platform === 'android') need('EventChannel', 'событийный канал должен быть EventChannel, а не MethodChannel');
   for (const s of contract[platform].forbiddenSymbols || []) forbid(s, 'запрещено правилами платформы/проекта');
   return problems;
 }

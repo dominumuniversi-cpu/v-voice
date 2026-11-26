@@ -67,3 +67,10 @@ test('UI: обязательные символы экрана на месте',
   const real = read('apps/mobile/lib/main.dart') + read('apps/mobile/lib/src/recording_controller.dart');
   assert.deepEqual(checkSource(contract, real, 'mobile_ui'), []);
 });
+
+
+test('Android: событийный канал объявлен как EventChannel', () => {
+  const src = read('apps/mobile/android/app/src/main/kotlin/ru/vernadsky/vvoice/RecordingChannel.kt');
+  assert.ok(src.includes('EventChannel.StreamHandler'), 'ожидался EventChannel.StreamHandler');
+  assert.ok(!/MethodChannel\(messenger, CHANNEL \+ \"\/events\"\)/.test(src), 'событийный канал не должен быть MethodChannel');
+});
