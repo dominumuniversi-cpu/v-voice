@@ -39,6 +39,7 @@ def run_session(
     call_llm: Callable[[str, str], dict],
     *,
     gate: VadGate | None = None,
+    members_only: bool = False,
 ) -> dict:
     """Полный проход: VAD -> живой текст -> финальный транскрипт -> разбор.
 
@@ -49,7 +50,7 @@ def run_session(
     run_live(provider, state, sent)
     final_segments: list[Segment] = provider.transcribe_file("segment.wav")
     transcript: Transcript = assemble(final_segments)
-    digest = make_digest(transcript, call_llm)
+    digest = make_digest(transcript, call_llm, members_only=members_only)
     return {
         "live_text": state.live.display_text(),
         "transcript": transcript.text,

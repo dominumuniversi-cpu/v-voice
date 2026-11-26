@@ -138,9 +138,17 @@ class ApiClient {
   ///
   /// Почему отдельный шаг: разбор может идти минуты, и держать экран в ожидании одного запроса —
   /// значит получить таймаут там, где всё работает. Здесь только запуск; результат читается отдельно.
+  /// «Разбирать только участников»: чужие голоса остаются в расшифровке, но не превращаются в задачи.
+  /// По умолчанию выключено — на командной встрече иначе коллегам не досталось бы задач.
+  bool membersOnly = false;
+
   Future<bool> startAnalysis(String sessionId) async {
     lastAnalysisProblem = '';
-    final (code, body) = await transport.post('/api/v1/sessions/' + sessionId + '/analyze', {}, headers: _headers);
+    final (code, body) = await transport.post(
+      '/api/v1/sessions/' + sessionId + '/analyze',
+      membersOnly ? {'members_only': true} : {},
+      headers: _headers,
+    );
     final data = _safeDecode(body);
     // 200 — запущено; 503/404/502 — настоящая проблема, о ней говорим честно.
     if (code == 200) return true;

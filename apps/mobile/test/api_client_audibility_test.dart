@@ -37,6 +37,35 @@ void main() {
       expect(ApiClient.rmsOf(pcm(0.5, 100)), closeTo(0.5, 0.02));
     });
   });
+
+  group('режим «только участники» уходит на сервер', () {
+    test('по умолчанию флаг не отправляется', () async {
+      final transport = _Recorder();
+      final api = ApiClient(transport);
+      await api.startAnalysis('s1');
+      expect(transport.lastBody, isEmpty);
+    });
+
+    test('включённый режим отправляет members_only: true', () async {
+      final transport = _Recorder();
+      final api = ApiClient(transport)..membersOnly = true;
+      await api.startAnalysis('s1');
+      expect(transport.lastBody?['members_only'], true);
+    });
+  });
+}
+
+class _Recorder implements HttpTransport {
+  Map<String, dynamic>? lastBody;
+
+  @override
+  Future<(int, String)> get(String path, {Map<String, String>? headers}) async => (200, '{}');
+
+  @override
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers}) async {
+    lastBody = body;
+    return (200, '{}');
+  }
 }
 
 class _NeverCalled implements HttpTransport {

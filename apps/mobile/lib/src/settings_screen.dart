@@ -246,6 +246,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Text(savedNote!, style: const TextStyle(color: VVTheme.ok, fontSize: 12)),
             ),
           const SizedBox(height: 24),
+          const Text('Что разбирать', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          // Человек сам решает, чьи слова становятся задачами. По умолчанию — все голоса:
+          // на командной встрече иначе коллегам не досталось бы ни одной задачи, и это было бы молча.
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: widget.api?.membersOnly ?? false,
+            onChanged: (v) {
+              final api = widget.api;
+              if (api == null) return;
+              setState(() => api.membersOnly = v);
+            },
+            title: const Text('Разбирать только участников'),
+            subtitle: const Text('Чужие голоса останутся в расшифровке, но задач из них не будет.'),
+          ),
           const Text('Готовые наборы настроек', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           Wrap(

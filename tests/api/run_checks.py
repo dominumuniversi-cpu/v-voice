@@ -292,6 +292,7 @@ check("caller_model_passed", calls[0]["body"]["model"] == "deepseek-chat")
 
 # ---------- HTTP-слой: коды и объяснения без фреймворка ----------
 from vvoice.http_api import handle  # noqa: E402
+from vvoice.job import analyze as _analyze_job  # noqa: E402
 
 check("http_health", handle("GET", "/api/v1/health").status == 200)
 check("http_unknown_path_404", handle("GET", "/api/v1/nope").status == 404)
@@ -908,6 +909,13 @@ _bad_ok, _bad_detail = _send(_ER(target='webhook', method='POST', url='http://12
 check("sender_reports_refusal", _bad_ok is False and '500' in _bad_detail, _bad_detail)
 _srv.shutdown()
 
+# Режим «только участники» был описан в ТЗ, но включить его человек не мог: флаг не доходил до разбора.
+check("members_only_reaches_pipeline", 'members_only' in _inspect.signature(_run_session).parameters)
+check("members_only_reaches_job", 'members_only' in _inspect.signature(_analyze_job).parameters)
+from vvoice.digest import make_digest as _mk2
+check("members_only_reaches_digest", 'members_only' in _inspect.signature(_mk2).parameters)
+_api_src = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice' / 'http_api.py').read_text(encoding='utf-8')
+check("request_can_switch_members_only", 'members_only=payload.get' in _api_src)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

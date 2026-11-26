@@ -190,8 +190,11 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         if recognizer is None or call_llm is None:
             return Response(503, {"error": "pipeline_unavailable",
                                   "message": "Сервер не настроен запускать разбор."})
+        # «Разбирать только участников» — выбор человека, а не догадка модели. По умолчанию
+        # выключено: на командной встрече иначе чужие голоса остались бы без задач.
         outcome = analyze(param, store=store, digests=digests,
-                          provider_factory=recognizer, call_llm=call_llm, gate=gate)
+                          provider_factory=recognizer, call_llm=call_llm, gate=gate,
+                          members_only=payload.get('members_only') is True)
         return Response(outcome.status, outcome.body)
 
     if template == "/api/v1/sessions/{session_id}/stream":

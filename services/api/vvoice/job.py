@@ -35,6 +35,7 @@ def analyze(
     provider_factory: Callable[[Path], Any],
     call_llm: Callable[[str, str], dict],
     gate: Any = None,
+    members_only: bool = False,
 ) -> JobResult:
     """Полный разбор записи: запись -> конвейер -> сохранённый разбор."""
     if store is None or digests is None:
@@ -50,7 +51,7 @@ def analyze(
         return JobResult(200, dict(ready, cached=True))
     try:
         provider = provider_factory(stored.path)
-        result = run_session(provider, [], call_llm, gate=gate)
+        result = run_session(provider, [], call_llm, gate=gate, members_only=members_only)
     except Exception as exc:  # разбор не должен ронять сервер и не должен сохраняться частично
         return JobResult(502, {"error": "digest_failed", "message": str(exc)})
     digests.save(session_id, result)
