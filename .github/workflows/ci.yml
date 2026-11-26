@@ -41,7 +41,16 @@ jobs:
         working-directory: apps/mobile
         run: flutter test
 
-      # 5) Валидатор цитат под настоящим Python (правило «нет цитаты — нет задачи»).
+      # 5) Сборка мобильного приложения. analyze и test НЕ собирают Kotlin и Swift:
+      # ошибка в нативном коде видна только здесь, и лучше здесь, чем на телефоне.
+      - name: flutter build apk
+        working-directory: apps/mobile
+        run: flutter build apk --debug
+      - name: flutter build ios
+        working-directory: apps/mobile
+        run: flutter build ios --debug --no-codesign
+
+      # 6) Валидатор цитат под настоящим Python (правило «нет цитаты — нет задачи»).
       - name: evidence validator
         run: |
           pip install pytest
