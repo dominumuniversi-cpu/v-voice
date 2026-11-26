@@ -129,6 +129,21 @@ class _ListenScreenState extends State<ListenScreen> {
       );
       return;
     }
+    // Живой режим: сессия открыта, но звук на сервере не сохранён (живой текст шёл кусками).
+    // Файл записи — единственный путь к точному разбору, поэтому грузим его под тем же id.
+    if (_sessionId != null && path.isNotEmpty) {
+      setState(() => _uploading = true);
+      try {
+        final bytes = await readFileBytes(path);
+        final id = await api.uploadSession(bytes, sessionId: _sessionId);
+        if (!mounted) return;
+        setState(() => _uploading = false);
+        if (id == null) widget.controller.lastError = api.lastUploadProblem;
+      } catch (e) {
+        if (mounted) setState(() => _uploading = false);
+        widget.controller.lastError = 'Не удалось прочитать запись: ' + e.toString();
+      }
+    }
     if (_sessionId == null) {
       setState(() => _uploading = true);
       try {

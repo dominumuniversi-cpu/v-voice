@@ -174,7 +174,10 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             return Response(503, {"error": "storage_unavailable",
                                   "message": "Сервер не настроен хранить записи."})
         try:
-            store.save(body["session_id"], audio)
+            # Сессия, открытая заранее под живой текст, ещё не имеет записи: файл, присланный
+            # после «Стоп», — это и есть её звук. Без этого разбор живой встречи не запускался.
+            already = store.find(body["session_id"]) is not None
+            store.save(body["session_id"], audio, replace=already)
         except FileExistsError:
             return Response(409, {"error": "already_exists",
                                   "message": "Такая запись уже загружена."})

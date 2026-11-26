@@ -36,10 +36,14 @@ class AudioStore:
             raise ValueError("Неверный идентификатор сессии")
         return self.root / (session_id + ".wav")
 
-    def save(self, session_id: str, audio: bytes) -> Stored:
-        """Сохраняет запись целиком или ничего: частичный файл не должен появиться."""
+    def save(self, session_id: str, audio: bytes, *, replace: bool = False) -> Stored:
+        """Сохраняет запись целиком или ничего: частичный файл не должен появиться.
+
+        replace=True разрешён для сессии, открытой ДО записи: живой текст шёл, а звук тогда
+        никто не сохранял, и без дозаписи разбор по такой встрече не запустился бы никогда.
+        """
         target = self._path(session_id)
-        if target.exists():
+        if target.exists() and not replace:
             raise FileExistsError("Такая сессия уже есть: " + session_id)
         self.root.mkdir(parents=True, exist_ok=True)
         temp = target.with_suffix(".part")

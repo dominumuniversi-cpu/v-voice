@@ -121,8 +121,13 @@ def create_session(raw: dict[str, Any]) -> tuple[int, dict[str, Any], bytes | No
                      "message": "Нужен 1 или 2 канала, а пришло " + str(channels) + "."}, None
 
     digest = hashlib.sha256(data).hexdigest()
+    # Звонящий может назвать сессию сам — это случай живой записи, открытой заранее: звук идёт
+    # под тем же именем, что и живой текст. Имя проверяется теми же правилами, что и везде.
+    asked = raw.get("session_id")
+    if isinstance(asked, str) and asked.strip() and not is_session_id(asked.strip()):
+        return 400, {"error": "bad_request", "message": "Неверный идентификатор сессии."}, None
     session = Session(
-        session_id=digest[:16],
+        session_id=(asked.strip() if isinstance(asked, str) and asked.strip() else digest[:16]),
         duration_ms=(len(data) - 44) // (BYTES_PER_MS * channels),
         audio_bytes=len(data),
         sha256=digest,

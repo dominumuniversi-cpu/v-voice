@@ -168,14 +168,18 @@ class ApiClient {
   /// Почему base64: транспорт уже проверен на JSON-путях, и отдельный двоичный протокол
   /// означал бы ещё один непроверенный кусок. Цена — примерно треть лишнего объёма, которую
   /// платим только в момент загрузки.
-  Future<String?> uploadSession(List<int> audioBytes) async {
+  Future<String?> uploadSession(List<int> audioBytes, {String? sessionId}) async {
+    // sessionId задан — дозаписываем звук в сессию, открытую под живой текст. Без этого
+    // у живой встречи не было файла, и разбор отвечал «записи нет».
     lastUploadProblem = '';
     if (audioBytes.isEmpty) {
       lastUploadProblem = 'Запись пустая — отправлять нечего.';
       return null;
     }
     final encoded = base64Encode(audioBytes);
-    final (code, body) = await transport.post('/api/v1/sessions', {'audio_base64': encoded}, headers: _headers);
+    final payload = <String, dynamic>{'audio_base64': encoded};
+    if (sessionId != null && sessionId.isNotEmpty) payload['session_id'] = sessionId;
+    final (code, body) = await transport.post('/api/v1/sessions', payload, headers: _headers);
     final data = _safeDecode(body);
     if (code != 200) {
       final message = (data['message'] ?? '').toString();

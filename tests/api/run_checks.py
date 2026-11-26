@@ -951,6 +951,20 @@ check("token_per_target", _s1.token_for('helper') == 'prokhor', _s1.token_for('h
 check("token_falls_back_to_common", _s1.token_for('jira') == 'common', _s1.token_for('jira'))
 _s2 = _from_settings({'VV_ASR_PROVIDER': 'fake', 'VV_LLM_PROVIDER': 'fake'})
 check("token_empty_when_unset", _s2.token_for('helper') == '', _s2.token_for('helper'))
+# Живая сессия: файл приходит под уже открытым id (звук пришёл после записи).
+from vvoice.storage import AudioStore as _AudioStore
+import tempfile as _tempfile
+_td = _tempfile.mkdtemp()
+_st = _AudioStore(_td)
+_wav2 = _wav(1500)
+_sid = 'abc123def4567890'
+_st.save(_sid, _wav2, replace=True)  # дозапись под открытым id — не конфликт
+check("late_audio_saved_under_open_id", _st.find(_sid) is not None and _st.read(_sid) == _wav2)
+try:
+    _st.save(_sid, _wav2)
+    check("second_upload_without_replace_refused", False)
+except FileExistsError:
+    check("second_upload_without_replace_refused", True)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
