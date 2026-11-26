@@ -48,6 +48,9 @@ jobs:
       # Числа в документе состояния не отстают от кода.
       - name: status numbers
         run: node tests/native/status-numbers-check.mjs
+      # Документ о моделях не обещает провайдеров, которых нет в коде.
+      - name: provider claims
+        run: node tests/native/provider-claims-check.mjs
       - name: export contract
         run: node tests/native/export-contract-check.mjs
       - name: prompt schema
