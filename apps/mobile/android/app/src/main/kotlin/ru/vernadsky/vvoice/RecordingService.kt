@@ -148,6 +148,7 @@ class RecordingService : Service() {
         worker = Thread {
             val buf = ByteArray(minBuf)
             var sinceLevel = 0
+            var headerTick = 0
             // Куски меньше 100 мс отправлять бессмысленно: событий будет больше, чем пользы,
             // а распознаватель всё равно ждёт окно. Копим и отдаём пачкой.
             val pendingAudio = java.io.ByteArrayOutputStream()
@@ -166,6 +167,14 @@ class RecordingService : Service() {
                     }
                     // Уровень считаем здесь, где данные уже в руках: отдельный опрос не нужен,
                     // а AudioRecord (в отличие от MediaRecorder) сам амплитуду не отдаёт.
+                    // Заголовок WAV обновляем на лету (раз в ~2 с). Без этого убийство процесса
+                    // системой (Xiaomi/Huawei и «экономия батареи») оставляло файл с длиной 0:
+                    // звук на диске есть, а прочитать его нельзя. Терять 2 секунды лучше, чем всю встречу.
+                    headerTick += read
+                    if (headerTick >= HEADER_REFRESH_BYTES) {
+                        headerTick = 0
+                        currentFile?.let { RecordingPaths.finalizeWav(it, SAMPLE_RATE) }
+                    }
                     sinceLevel += read
                     if (sinceLevel >= LEVEL_WINDOW_BYTES) {
                         sinceLevel = 0
@@ -283,6 +292,8 @@ class RecordingService : Service() {
         // 100 мс при 16 кГц, 16 бит, моно.
         private const val AUDIO_CHUNK_BYTES = 3200
         private const val LEVEL_WINDOW_BYTES = 6400
+        /** ~2 с при 16 кГц моно 16 бит: как часто переписываем длину в заголовке WAV. */
+        private const val HEADER_REFRESH_BYTES = 64000
         // Человеку важно знать, что микрофон отобрали: иначе он уверен, что собеседник записан.
         const val LOST_TEXT = "Микрофон занят звонком или другим приложением — звук может не записываться."
         const val RUNNING_TEXT = "Идёт запись"
