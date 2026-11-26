@@ -698,7 +698,7 @@ _example_text = _example_path.read_text(encoding='utf-8')
 _code_names = set()
 for _mod in (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice' / 'config.py',
              Path(__file__).resolve().parents[2] / 'services' / 'api' / 'main.py'):
-    _code_names |= set(_re.findall(r'VV_[A-Z_]+', _mod.read_text(encoding='utf-8')))
+    _code_names |= set(re.findall(r'VV_[A-Z_]+', _mod.read_text(encoding='utf-8')))
 _undocumented = sorted(n for n in _code_names if n not in _example_text)
 check("env_example_is_complete", not _undocumented, _undocumented)
 # Промпт берётся из файла, который правит человек, а не из строки в коде.
@@ -803,8 +803,8 @@ _h_fake = _load({'VV_ASR_PROVIDER': 'fake', 'VV_ASR_KEY': 'k'}).public_health()
 check("health_ready_for_implemented", _h_fake['asr']['ready'] is True, _h_fake['asr'])
 # Документ советует конкретные имена провайдеров. Если человек скопирует их, настройки не должны молча пустеть.
 _doc = (Path(__file__).resolve().parents[2] / 'docs' / 'ARCHITECTURE' / 'AI-PROVIDERS.md').read_text(encoding='utf-8')
-_doc_asr = set(_re.findall(r'VV_ASR_PROVIDER=([a-z0-9_]+)', _doc))
-_doc_llm = set(_re.findall(r'VV_LLM_PROVIDER=([a-z0-9_]+)', _doc))
+_doc_asr = set(re.findall(r'VV_ASR_PROVIDER=([a-z0-9_]+)', _doc))
+_doc_llm = set(re.findall(r'VV_LLM_PROVIDER=([a-z0-9_]+)', _doc))
 from vvoice.config import ASR_PROVIDERS as _ASR_OK, LLM_PROVIDERS as _LLM_OK
 check("doc_providers_are_accepted", _doc_asr <= set(_ASR_OK) and _doc_llm <= set(_LLM_OK),
       ('asr', sorted(_doc_asr - set(_ASR_OK)), 'llm', sorted(_doc_llm - set(_LLM_OK))))
