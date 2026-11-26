@@ -700,6 +700,20 @@ for _mod in (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice'
     _code_names |= set(_re.findall(r'VV_[A-Z_]+', _mod.read_text(encoding='utf-8')))
 _undocumented = sorted(n for n in _code_names if n not in _example_text)
 check("env_example_is_complete", not _undocumented, _undocumented)
+# Промпт берётся из файла, который правит человек, а не из строки в коде.
+from vvoice.digest import load_system_prompt as _load_prompt, SYSTEM_PROMPT as _sys_prompt
+_prompt_text = _load_prompt()
+check("prompt_file_is_used", len(_prompt_text) > 500, len(_prompt_text))
+check("prompt_matches_code", _sys_prompt == _prompt_text)
+check("prompt_has_schema", "evidence_quote" in _prompt_text and "summary" in _prompt_text)
+_tmp_empty = Path(tempfile.mkdtemp()) / "empty.md"
+_tmp_empty.write_text("", encoding="utf-8")
+_raised = False
+try:
+    _load_prompt(_tmp_empty)
+except ValueError:
+    _raised = True
+check("prompt_empty_raises", _raised)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

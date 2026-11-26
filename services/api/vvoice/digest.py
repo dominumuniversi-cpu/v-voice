@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Callable
 
 from .assemble import Transcript
@@ -13,17 +14,22 @@ from .evidence import validate_digest
 
 MAX_TRANSCRIPT_CHARS = 90_000
 
-SYSTEM_PROMPT = (
-    "Ты разбираешь расшифровку делового разговора на русском языке. "
-    "Верни СТРОГО JSON без пояснений по схеме: "
-    '{"summary": [строка], "participants": [{"speaker": "S1", "name": "Анна", "verdict": "owner|member|foreign"}], '
-    '"items": [{"kind": "task|meeting|reminder|decision|question", "title": строка, '
-    '"owner": строка|null, "due_at": ISO8601|null, "priority": "low|medium|high", '
-    '"evidence": {"start_s": число, "end_s": число, "quote": строка}}], "open_questions": [строка]}. '
-    "Правила: не придумывай факты; для каждого элемента items evidence.quote обязан дословно "
-    "присутствовать в расшифровке и быть не короче 12 символов; сроки бери только из речи; "
-    "если сказано «подумать», это не задача, а открытый вопрос."
-)
+# Промпт живёт в prompts/digest_ru.md, потому что его читают и правят люди, а не только модель.
+# Встроенная копия — только запас: если файла нет (упаковка), разбор не должен падать молча.
+PROMPT_PATH = Path(__file__).parent / 'prompts' / 'digest_ru.md'
+
+
+def load_system_prompt(path: Path | None = None) -> str:
+    """Читает промпт с диска. Пустой или отсутствующий файл — это ошибка, а не повод молчать."""
+    target = path or PROMPT_PATH
+    text = target.read_text(encoding='utf-8').strip()
+    if not text:
+        raise ValueError('prompt_empty: ' + str(target))
+    return text
+
+
+SYSTEM_PROMPT = load_system_prompt()
+
 
 
 def build_prompt(transcript: Transcript, *, previous_summary: list[str] | None = None) -> str:
