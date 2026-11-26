@@ -36,6 +36,16 @@ if (src.includes("'Не удалось соединиться")) {
   problems.push('сетевая ошибка помечена как отказ ключа: это разные вещи и разные действия человека');
 }
 
+// 5) Экран загрузки не обещает того, чего нет: вернуться к сохранённому разбору можно только
+// через путь «открыть разбор», экрана истории разборов пока нет.
+const loader = path.join(process.cwd(), 'apps', 'mobile', 'lib', 'src', 'digest_loader.dart');
+if (fs.existsSync(loader)) {
+  const src = fs.readFileSync(loader, 'utf8');
+  if (/откроется позже|найдёте в истории|вернётесь к разбору/.test(src)) {
+    problems.push('digest_loader.dart обещает вернуться к разбору, хотя экрана истории разборов нет');
+  }
+}
+
 if (problems.length) {
   console.error('❌ подписи о готовности моделей вводят в заблуждение:');
   for (const p of problems) console.error('  ' + p);

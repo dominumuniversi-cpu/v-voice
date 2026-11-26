@@ -73,9 +73,29 @@ class _DigestLoaderState extends State<DigestLoader> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
+      // Голый спиннер не отличает «сервер думает» от «всё зависло». Пишем, что происходит,
+      // и что можно сделать, если это надолго: уйти, ничего не потеряв.
       return const Scaffold(
         backgroundColor: VVTheme.bg,
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Разбираю разговор: расшифровка, задачи, выжимка.',
+                    textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
+                SizedBox(height: 8),
+                Text('Обычно это занимает до минуты. Если дольше — можно выйти: запись и звук сохранены '
+                    'на сервере, ничего не пропадёт.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: VVTheme.inkMuted, height: 1.4)),
+              ],
+            ),
+          ),
+        ),
       );
     }
     final digest = _digest;
