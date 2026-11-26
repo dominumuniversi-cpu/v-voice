@@ -51,13 +51,20 @@ class Settings:
     VAD_ADAPTIVE: bool = True
     DATA_RETENTION_DAYS: int = 90
     API_PORT: int = 8900
+    # служебное: какие переменные реально приходили из окружения (для понятных проверок ниже)
+    provided: set[str] = field(default_factory=set, compare=False)
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> "Settings":
         env = env if env is not None else dict(os.environ)  # type: ignore[arg-type]
         values: dict[str, object] = {}
+        provided: set[str] = set()
         for f in fields(cls):
+            if f.name == "provided":
+                continue
             raw = env.get(f.name)
+            if raw:
+                provided.add(f.name)
             if raw is None or raw == "":
                 continue
             default = f.default
@@ -70,7 +77,7 @@ class Settings:
                     raise ValueError("Переменная " + f.name + " должна быть числом, а получено: " + raw)
             else:
                 values[f.name] = raw.strip()
-        return cls(**values)  # type: ignore[arg-type]
+        return cls(provided=provided, **values)  # type: ignore[arg-type]
 
 
 # какие ключи обязательны для выбранного внешнего провайдера
@@ -102,7 +109,10 @@ def validate(settings: Settings) -> list[str]:
     if settings.LLM_PROVIDER not in allowed_llm:
         problems.append("LLM_PROVIDER = " + settings.LLM_PROVIDER + "; допустимо: " + ", ".join(sorted(allowed_llm)))
     llm_key = KEY_OF_LLM.get(settings.LLM_PROVIDER, "")
-    if llm_key and not settings.LLM_API_KEY:
+    # Проверяем ключ LLM только если человек ЯВНО выбрал провайдера.
+    # Дефолтная конфигурация обязана стартовать без единой настройки (asr=fake, llm выключен).
+    llm_explicit = bool({"LLM_PROVIDER", "LLM_API_KEY"} & getattr(settings, "provided", set()))
+    if llm_key and llm_explicit and not settings.LLM_API_KEY:
         problems.append("Выбран LLM-провайдер " + settings.LLM_PROVIDER + ", но не задан LLM_API_KEY")
 
     if settings.API_PORT == 8000:

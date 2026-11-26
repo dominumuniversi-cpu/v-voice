@@ -84,6 +84,7 @@ except ValueError:
 
 cloud = Settings.from_env({"ASR_PROVIDER": "speechmatics"})
 check("missing_key_reported", any("SPEECHMATICS_API_KEY" in p for p in validate(cloud)), str(validate(cloud)))
+check("zero_config_starts", validate(Settings.from_env({})) == [], "дефолт должен работать без настроек")
 llm = Settings.from_env({"LLM_PROVIDER": "anthropic"})
 check("missing_llm_key_reported", any("LLM_API_KEY" in p for p in validate(llm)), str(validate(llm)))
 bad = Settings.from_env({"API_PORT": "8000"})
