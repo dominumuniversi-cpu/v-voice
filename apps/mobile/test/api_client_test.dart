@@ -9,19 +9,35 @@ class FakeTransport implements HttpTransport {
   final List<String> calls = [];
 
   @override
-  Future<(int, String)> post(String path, Map<String, dynamic> body) async {
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers}) async {
     calls.add('POST ' + path);
     return responses[path] ?? (404, '{}');
   }
 
   @override
-  Future<(int, String)> get(String path) async {
+  Future<(int, String)> get(String path, {Map<String, String>? headers}) async {
     calls.add('GET ' + path);
     return responses[path] ?? (404, '{}');
   }
 }
 
 void main() {
+  group('токен устройства', () {
+    test('уходит заголовком Authorization', () async {
+      final tr = RecordingTransport();
+      final c = ApiClient(transport: tr, baseUrl: '', deviceToken: 'secret-1');
+      await c.fetchHealth();
+      expect(tr.lastHeaders?['Authorization'], 'Bearer secret-1');
+    });
+
+    test('без токена заголовка нет — открытый сервер остаётся открытым', () async {
+      final tr = RecordingTransport();
+      final c = ApiClient(transport: tr, baseUrl: '');
+      await c.fetchHealth();
+      expect(tr.lastHeaders, isNull);
+    });
+  });
+
   group('потерянные куски звука', () {
     test('успешная отправка не считает потерь', () async {
       final c = ApiClient(transport: FakeTransport({
@@ -143,4 +159,22 @@ void main() {
     });
   });
 
+}
+
+
+/// Транспорт, который запоминает заголовки: так проверяется, что токен действительно уходит.
+class RecordingTransport implements HttpTransport {
+  Map<String, String>? lastHeaders;
+
+  @override
+  Future<(int, String)> get(String path, {Map<String, String>? headers}) async {
+    lastHeaders = headers;
+    return (200, '{}');
+  }
+
+  @override
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers}) async {
+    lastHeaders = headers;
+    return (200, '{}');
+  }
 }

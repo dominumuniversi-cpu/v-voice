@@ -10,10 +10,10 @@ class _Fake implements HttpTransport {
   Map<String, dynamic>? lastBody;
 
   @override
-  Future<(int, String)> get(String path) async => reply;
+  Future<(int, String)> get(String path, {Map<String, String>? headers}) async => reply;
 
   @override
-  Future<(int, String)> post(String path, Map<String, dynamic> body) async {
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers}) async {
     lastBody = body;
     return reply;
   }

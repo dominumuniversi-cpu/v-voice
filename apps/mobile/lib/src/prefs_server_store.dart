@@ -21,3 +21,20 @@ class PrefsServerStore implements ServerStore {
     await prefs.setString(key, url);
   }
 }
+
+/// Хранилище токена устройства. Отдельный ключ, тот же принцип: тонкий адаптер.
+class PrefsTokenStore implements ServerStore {
+  static const String key = 'device_token';
+
+  @override
+  Future<String?> read() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  }
+
+  @override
+  Future<void> write(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, token);
+  }
+}

@@ -36,6 +36,10 @@ class Settings:
     # Отсечение шума и тишины. Человек может выключить, но по умолчанию — включено:
     # в записанном разговоре шум мешает модели сильнее, чем редкая потерянная пауза.
     noise_gate: bool = True
+    # Список разрешённых токенов устройств через запятую. Пусто — сервер никого не проверяет
+    # (режим разработки); на боевом сервере это должно быть заполнено, иначе разговор
+    # может прочитать любой, кто знает адрес.
+    device_tokens: tuple[str, ...] = ()
 
     @property
     def asr_ready(self) -> bool:
@@ -125,11 +129,16 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
         if value:
             targets[name] = value
 
+    # Токены устройств: через запятую. Пробелы и пустые куски отбрасываем, чтобы
+    # «токен1, токен2» не превращался в токен с пробелом внутри и не переставал подходить.
+    device_tokens = tuple(t.strip() for t in (source.get('VV_DEVICE_TOKENS') or '').split(',') if t.strip())
+
     return Settings(
         asr_provider=picked('VV_ASR_PROVIDER', ASR_PROVIDERS),
         llm_provider=picked('VV_LLM_PROVIDER', LLM_PROVIDERS),
         asr_key=(source.get('VV_ASR_KEY') or '').strip(),
         llm_key=(source.get('VV_LLM_KEY') or '').strip(),
         export_targets=targets,
+        device_tokens=device_tokens,
         noise_gate=(source.get('VV_NOISE_GATE') or 'on').strip().lower() not in ('off', '0', 'false', 'нет'),
     )

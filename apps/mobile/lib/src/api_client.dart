@@ -16,14 +16,22 @@ abstract class HttpTransport {
 ///  2. Тело читается как UTF-8: русский текст в ответах не должен превращаться в кракозябры.
 ///  3. Проверяемый ключ отправляется и НЕ сохраняется на телефоне: держим только в памяти экрана.
 class ApiClient {
-  ApiClient({required this.transport, required this.baseUrl});
+  ApiClient({required this.transport, required this.baseUrl, this.deviceToken = ''});
+
+  /// Токен устройства: сервер пускает только своих. Пустой — сервер открыт (режим разработки).
+  final String deviceToken;
+
+  /// Заголовки доступа. Единственное место, где рождается токен, — иначе он появится
+  /// в нескольких местах и в одном из них забудется.
+  Map<String, String>? get _headers =>
+      deviceToken.isEmpty ? null : {'Authorization': 'Bearer ' + deviceToken};
 
   /// Что сервер знает о моделях: готов ли разбор речи и понимание.
   ///
   /// Зачем это на телефоне: ключи живут на сервере, и человек должен видеть там ли их подключили,
   /// иначе он будет искать поле для ключа, которого больше нет.
   Future<Map<String, dynamic>?> fetchHealth() async {
-    final (code, body) = await transport.get('/api/v1/health');
+    final (code, body) = await transport.get('/api/v1/health', headers: _headers);
     if (code != 200) return null;
     final data = _safeDecode(body);
     final settings = data['settings'];
@@ -47,6 +55,7 @@ class ApiClient {
         'targets': targets,
         'items': approved.map((i) => i.toJson()).toList(),
       },
+      headers: _headers,
     );
     final data = _safeDecode(body);
     if (code != 200) {
@@ -63,7 +72,7 @@ class ApiClient {
   /// Зачем: живому тексту нужен идентификатор, а он раньше появлялся только при загрузке
   /// готового файла — то есть живой текст не мог начаться никогда.
   Future<String?> openSession() async {
-    final (code, body) = await transport.post('/api/v1/sessions/open', {});
+    final (code, body) = await transport.post('/api/v1/sessions/open', {}, headers: _headers);
     final data = _safeDecode(body);
     if (code != 200) {
       lastLiveProblem = 'Сервер не открыл сессию (код ' + code.toString() + ').';
@@ -86,6 +95,7 @@ class ApiClient {
     final (code, body) = await transport.post(
       '/api/v1/sessions/' + sessionId + '/stream',
       {'pcm_base64': base64Encode(pcm)},
+      headers: _headers,
     );
     if (code != 200) {
       lastLiveProblem = 'Сервер не принял кусок звука (код ' + code.toString() + ').';
@@ -106,7 +116,7 @@ class ApiClient {
   /// значит получить таймаут там, где всё работает. Здесь только запуск; результат читается отдельно.
   Future<bool> startAnalysis(String sessionId) async {
     lastAnalysisProblem = '';
-    final (code, body) = await transport.post('/api/v1/sessions/' + sessionId + '/analyze', {});
+    final (code, body) = await transport.post('/api/v1/sessions/' + sessionId + '/analyze', {}, headers: _headers);
     final data = _safeDecode(body);
     // 200 — запущено; 503/404/502 — настоящая проблема, о ней говорим честно.
     if (code == 200) return true;
@@ -130,7 +140,7 @@ class ApiClient {
       return null;
     }
     final encoded = base64Encode(audioBytes);
-    final (code, body) = await transport.post('/api/v1/sessions', {'audio_base64': encoded});
+    final (code, body) = await transport.post('/api/v1/sessions', {'audio_base64': encoded}, headers: _headers);
     final data = _safeDecode(body);
     if (code != 200) {
       final message = (data['message'] ?? '').toString();
@@ -158,7 +168,7 @@ class ApiClient {
 
   /// Проверка ключа провайдера (FR-24).
   Future<(String verdict, String message)> probe(String provider, String apiKey) async {
-    final (code, body) = await transport.post('/api/v1/probe', {'provider': provider, 'api_key': apiKey});
+    final (code, body) = await transport.post('/api/v1/probe', {'provider': provider, 'api_key': apiKey}, headers: _headers);
     if (code == 200) {
       final data = jsonDecode(body) as Map<String, dynamic>;
       return ((data['verdict'] ?? 'unknown').toString(), (data['message'] ?? '').toString());
@@ -172,7 +182,7 @@ class ApiClient {
 
   /// Проверка элемента разбора против расшифровки — тем же правилом, что на сервере.
   Future<(bool ok, String reason)> validateItem(Map<String, dynamic> item, String transcript) async {
-    final (code, body) = await transport.post('/api/v1/items/validate', {'item': item, 'transcript': transcript});
+    final (code, body) = await transport.post('/api/v1/items/validate', {'item': item, 'transcript': transcript}, headers: _headers);
     if (code == 200) return (true, '');
     final data = _safeDecode(body);
     if (code == 422) return (false, (data['reason'] ?? 'цитаты нет в расшифровке').toString());
@@ -196,7 +206,7 @@ class ApiClient {
   }
 
   Future<Digest?> fetchDigest(String sessionId) async {
-    final (code, body) = await transport.get('/api/v1/sessions/' + sessionId + '/digest');
+    final (code, body) = await transport.get('/api/v1/sessions/' + sessionId + '/digest', headers: _headers);
     if (code != 200) {
       // Не молчим: пустой экран без причины человек читает как «приложение не поняло».
       final failed = _safeDecode(body);

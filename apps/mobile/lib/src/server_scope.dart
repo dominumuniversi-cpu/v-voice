@@ -12,6 +12,7 @@ class ServerScope extends InheritedWidget {
   const ServerScope({
     super.key,
     required this.serverUrl,
+    this.deviceToken = '',
     required this.onChanged,
     required super.child,
   });
@@ -19,16 +20,20 @@ class ServerScope extends InheritedWidget {
   /// Действующий адрес (уже нормализован).
   final String serverUrl;
 
+  /// Токен устройства. Пустой — сервер открыт (режим разработки).
+  final String deviceToken;
+
   /// Смена адреса: сохраняет и перерисовывает всех, кто читает адрес.
   final Future<void> Function(String) onChanged;
 
   static ServerScope? maybeOf(BuildContext context) => context.dependOnInheritedWidgetOfExactType<ServerScope>();
 
   /// Клиент API с действующим адресом. Тесты подменяют транспорт внутри AppConfig.
-  AppConfig get config => AppConfig(serverUrl: serverUrl);
+  AppConfig get config => AppConfig(serverUrl: serverUrl, deviceToken: deviceToken);
 
   @override
-  bool updateShouldNotify(ServerScope oldWidget) => oldWidget.serverUrl != serverUrl;
+  bool updateShouldNotify(ServerScope oldWidget) =>
+      oldWidget.serverUrl != serverUrl || oldWidget.deviceToken != deviceToken;
 }
 
 /// Загрузка сохранённого адреса при старте: первое, что делает приложение.
@@ -39,10 +44,14 @@ class ServerScopeLoader extends StatefulWidget {
   const ServerScopeLoader({
     super.key,
     required this.store,
+    this.tokenStore,
     required this.child,
   });
 
   final ServerStore store;
+
+  /// Где лежит токен устройства. Не задан — токена нет (так работают тесты).
+  final ServerStore? tokenStore;
   final Widget Function(BuildContext context) child;
 
   @override
@@ -51,6 +60,7 @@ class ServerScopeLoader extends StatefulWidget {
 
 class _ServerScopeLoaderState extends State<ServerScopeLoader> {
   String? _url;
+  String _token = '';
 
   /// Та же связка правил, что и на экране настроек: одно место проверки адреса.
   ServerSettingsKeeper get _keeper => ServerSettingsKeeper(
@@ -68,7 +78,13 @@ class _ServerScopeLoaderState extends State<ServerScopeLoader> {
   Future<void> _load() async {
     final keeper = _keeper;
     final url = await keeper.load(AppConfig.defaultServer);
-    if (mounted) setState(() => _url = url);
+    final token = (await widget.tokenStore?.read()) ?? '';
+    if (mounted) {
+      setState(() {
+        _url = url;
+        _token = token;
+      });
+    }
   }
 
   Future<void> _change(String next) async {
@@ -85,6 +101,7 @@ class _ServerScopeLoaderState extends State<ServerScopeLoader> {
     }
     return ServerScope(
       serverUrl: url,
+      deviceToken: _token,
       onChanged: _change,
       child: widget.child(context),
     );

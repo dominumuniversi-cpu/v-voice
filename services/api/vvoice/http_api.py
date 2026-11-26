@@ -96,7 +96,9 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            live_sessions: Any = None,
            exporter: Any = None,
            gate: Any = None,
-           export_targets: Any = None) -> Response:
+           export_targets: Any = None,
+           auth_token: str | None = None,
+           device_tokens: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -105,6 +107,13 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
     if method.upper() not in allowed:
         return Response(405, {"error": "method_not_allowed", "message": "Этот путь принимает: " + ", ".join(allowed)},
                         {"Allow": ", ".join(allowed)})
+
+    # Пускаем только своих. Пустой список токенов — сервер открыт (как было), и это осознанный
+    # режим разработки: он не должен тихо превращаться в «открыто» на боевом сервере.
+    if device_tokens and not _authorized(auth_token, device_tokens):
+        return Response(401, {"error": "unauthorized",
+                              "message": "Нужен токен устройства. Он выдаётся при настройке приложения."},
+                        {"WWW-Authenticate": "Bearer"})
 
     if method.upper() == "GET":
         if template == "/api/v1/sessions/{session_id}/transcript":
@@ -218,3 +227,15 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         if not ok:
             return Response(422, {"error": "unproven_item", "reason": reason})
         return Response(200, {"ok": True})
+
+
+def _authorized(token: str | None, allowed: Any) -> bool:
+    """Сверка токена за постоянное время.
+
+    Обычное == выходит из сравнения на первом несовпавшем символе, и по задержке ответа
+    можно подбирать токен посимвольно. compare_digest так не делает.
+    """
+    import hmac
+    if not token:
+        return False
+    return any(hmac.compare_digest(str(token), str(known)) for known in allowed)

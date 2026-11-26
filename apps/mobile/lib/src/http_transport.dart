@@ -18,18 +18,18 @@ class RealHttpTransport implements HttpTransport {
   final Duration timeout;
 
   @override
-  Future<(int, String)> get(String path) async {
-    final response = await _client.get(Uri.parse(baseUrl + path)).timeout(timeout);
+  Future<(int, String)> get(String path, {Map<String, String>? headers}) async {
+    final response = await _client.get(Uri.parse(baseUrl + path), headers: headers).timeout(timeout);
     // bytes + utf8: иначе русский текст в теле превращается в кракозябры
     return (response.statusCode, utf8.decode(response.bodyBytes));
   }
 
   @override
-  Future<(int, String)> post(String path, Map<String, dynamic> body) async {
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers}) async {
     final response = await _client
         .post(
           Uri.parse(baseUrl + path),
-          headers: const {'Content-Type': 'application/json; charset=utf-8'},
+          headers: {...?headers, 'Content-Type': 'application/json; charset=utf-8'},
           body: utf8.encode(jsonEncode(body)),
         )
         .timeout(timeout);

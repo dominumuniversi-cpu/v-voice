@@ -47,6 +47,8 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         'exporter': None,
         # Адреса целей — из настроек: телефон не должен знать, где живёт задачник.
         'export_targets': settings.export_targets,
+        # Пусто — сервер открыт (режим разработки). Задан — без токена не пустим.
+        'device_tokens': settings.device_tokens,
     }
 
 
@@ -91,7 +93,10 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(413, {'error': 'too_large',
                                'message': 'Запись больше допустимого размера.'})
             return
-        response = handle(method, self.path, raw, **self.deps)
+        # Токен устройства приходит заголовком, а не в теле: тело — это звук, и лишний разбор
+        # большого запроса ради одного поля нам не нужен.
+        token = (self.headers.get('Authorization') or '').removeprefix('Bearer ').strip() or None
+        response = handle(method, self.path, raw, auth_token=token, **self.deps)
         self._respond(response.status, response.body, response.headers)
 
     def do_GET(self) -> None:  # noqa: N802 — имена заданы http.server

@@ -30,7 +30,8 @@ class VoiceApp extends StatelessWidget {
       theme: VVTheme.dark(),
       home: ServerScopeLoader(
         store: PrefsServerStore(),
-        // Адрес читается до первого экрана: иначе настройки не действовали бы вовсе.
+        tokenStore: PrefsTokenStore(),
+        // Адрес и токен читаются до первого экрана: иначе настройки не действовали бы вовсе.
         child: (_) => ListenScreen(controller: RecordingController(MethodChannelBridge())),
       ),
     );

@@ -817,6 +817,20 @@ _jira_req = _to_payload2(_rem, 'jira', 'https://x.atlassian.net')
 check("jira_reminder_time_is_kept", '09:00' in _jira_req.body['fields']['description'],
       'время напоминания потерялось без предупреждения')
 check("jira_reminder_date_set", _jira_req.body['fields'].get('duedate') == '2026-11-27')
+# Сервер не должен отдавать чужую расшифровку тому, кто просто знает адрес.
+from vvoice.http_api import handle as _handle
+_code_no_token = _handle('GET', '/api/v1/health', device_tokens=('secret-1',))
+check("auth_rejects_without_token", _code_no_token.status == 401, _code_no_token.status)
+_code_wrong, _ = _handle('GET', '/api/v1/health', device_tokens=('secret-1',), auth_token='nope')
+check("auth_rejects_wrong_token", _code_wrong.status == 401, _code_wrong.status)
+_code_ok, _ = _handle('GET', '/api/v1/health', device_tokens=('secret-1',), auth_token='secret-1')
+check("auth_accepts_right_token", _code_ok.status == 200, _code_ok.status)
+_code_open, _ = _handle('GET', '/api/v1/health')
+check("auth_off_by_default", _code_open.status == 200, _code_open.status)
+check("auth_sets_challenge", _code_no_token.headers.get('WWW-Authenticate') == 'Bearer', _code_no_token.headers)
+load_cfg = _load
+_s = load_cfg({'VV_DEVICE_TOKENS': 'a, b ,'})
+check("auth_tokens_from_env", _s.device_tokens == ('a', 'b'), _s.device_tokens)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

@@ -3,9 +3,12 @@
 /// Почему с проверкой: без неё появляется «сервер недоступен» на любой опечатке, и человек
 /// не понимает, что виноват не интернет, а забытая буква или лишний слэш в конце.
 class ServerSettings {
-  ServerSettings({required this.baseUrl});
+  ServerSettings({required this.baseUrl, this.deviceToken = ''});
 
   final String baseUrl;
+
+  /// Токен устройства: сервер пускает только своих. Пустой — сервер открыт (режим разработки).
+  final String deviceToken;
 
   static const List<String> presets = [
     'https://v-voice.vernadsky-npc.ru',

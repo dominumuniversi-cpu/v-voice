@@ -5,13 +5,13 @@ import 'package:v_voice/src/api_client.dart';
 class FakeTransport implements HttpTransport {
   final List<String> calls = [];
   @override
-  Future<(int, String)> get(String path) async {
+  Future<(int, String)> get(String path, {Map<String, String>? headers}) async {
     calls.add(path);
     return (200, '{}');
   }
 
   @override
-  Future<(int, String)> post(String path, Map<String, dynamic> body) async {
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers}) async {
     calls.add(path);
     return (200, '{"verdict":"working","message":"ок"}');
   }
