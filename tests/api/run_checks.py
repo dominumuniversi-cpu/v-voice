@@ -316,6 +316,50 @@ check("http_item_unproven_422", rbad.status == 422, str(rbad.body))
 check("http_item_unproven_reason", "цитаты нет" in rbad.body.get("reason", ""), str(rbad.body))
 check("http_validate_needs_transcript", handle("POST", "/api/v1/items/validate", json.dumps({"item": good_item})).status == 400)
 
+
+# ---------- экспорт: четыре формата, границы времени ----------
+from vvoice.formats import (  # noqa: E402
+    Line, clock, render, srt_stamp, to_json, to_markdown, to_srt, to_txt, to_vtt, vtt_stamp,
+)
+
+check("srt_stamp_comma", srt_stamp(5.25) == "00:00:05,250", srt_stamp(5.25))
+check("vtt_stamp_dot", vtt_stamp(5.25) == "00:00:05.250", vtt_stamp(5.25))
+check("stamp_boundary_59_999", srt_stamp(59.999) == "00:01:00,000" or srt_stamp(59.999) == "00:00:59,999", srt_stamp(59.999))
+check("stamp_hour", srt_stamp(3661.5) == "01:01:01,500", srt_stamp(3661.5))
+check("stamp_negative_clamped", srt_stamp(-3) == "00:00:00,000")
+check("clock_short", clock(252) == "04:12")
+check("clock_long", clock(3725) == "01:02:05")
+
+lines = [Line(0.0, 2.5, "Привет, коллеги", "Голос 1"), Line(2.5, 6.0, "Начнём  с\nпункта два", "Голос 2")]
+txt = to_txt(lines)
+check("txt_has_timecode", "[00:00]" in txt)
+check("txt_has_speaker", "Голос 1: Привет" in txt)
+check("txt_strips_newlines", "пункта" in txt and "\nпункта" not in txt)
+
+srt = to_srt(lines)
+check("srt_starts_with_index", srt.startswith("1\n"))
+check("srt_arrow", " --> " in srt)
+check("srt_blocks_separated", "\n\n2\n" in srt)
+
+vtt = to_vtt(lines)
+check("vtt_header", vtt.startswith("WEBVTT"))
+check("vtt_no_indices", "\n2\n" not in vtt)
+
+md = to_markdown(lines, "Встреча")
+check("md_title", md.startswith("# Встреча"))
+check("md_tick", "`00:00`" in md)
+
+data = to_json(lines)
+check("json_shape", data[0]["speaker"] == "Голос 1" and data[0]["start_s"] == 0.0)
+check("json_single_line_text", data[1]["text"] == "Начнём с пункта два", data[1]["text"])
+
+check("render_by_name", render("srt", lines).startswith("1\n"))
+try:
+    render("docx", lines)
+    check("render_unknown_format", False)
+except ValueError as exc:
+    check("render_unknown_format", "docx" in str(exc))
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
