@@ -60,7 +60,8 @@ void main() {
 
   test('адрес со слэшем в конце нормализуется для запросов', () async {
     final store = MemoryServerStore();
-    await ServerSettingsKeeper(store).save('https://a.example/');
+    await ServerSettingsKeeper(store: store, validate: ServerSettings.problem, normalize: ServerSettings.normalize)
+        .save('https://a.example/');
     expect(await store.read(), 'https://a.example');
   });
 }

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'src/app_config.dart';
 import 'src/consent_model.dart';
 import 'src/digest_loader.dart';
 import 'src/consent_store.dart';

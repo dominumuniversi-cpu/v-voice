@@ -52,6 +52,13 @@ class ServerScopeLoader extends StatefulWidget {
 class _ServerScopeLoaderState extends State<ServerScopeLoader> {
   String? _url;
 
+  /// Та же связка правил, что и на экране настроек: одно место проверки адреса.
+  ServerSettingsKeeper get _keeper => ServerSettingsKeeper(
+        store: widget.store,
+        validate: ServerSettings.problem,
+        normalize: ServerSettings.normalize,
+      );
+
   @override
   void initState() {
     super.initState();
@@ -59,15 +66,14 @@ class _ServerScopeLoaderState extends State<ServerScopeLoader> {
   }
 
   Future<void> _load() async {
-    final keeper = ServerSettingsKeeper(widget.store);
+    final keeper = _keeper;
     final url = await keeper.load(AppConfig.defaultServer);
     if (mounted) setState(() => _url = url);
   }
 
   Future<void> _change(String next) async {
     final normalized = ServerSettings.normalize(next);
-    final keeper = ServerSettingsKeeper(widget.store);
-    await keeper.save(normalized);
+    await _keeper.save(normalized);
     if (mounted) setState(() => _url = normalized);
   }
 
