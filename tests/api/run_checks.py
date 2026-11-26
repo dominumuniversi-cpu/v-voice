@@ -615,6 +615,23 @@ check("export_reaches_end", _r.status == 200 and _r.body.get("sent") == 1, (_r.s
 check("export_delivers_only_approved", len(_delivered) == 1)
 _payload0 = getattr(_delivered[0], "body", {}) if _delivered else {}
 check("export_payload_has_schema", isinstance(_payload0, dict) and _payload0.get("schema") == "vvoice.item.v1")
+# Настройка сервера из окружения (#44): живость без ключей, ключ не утекает, мусор не проходит.
+from vvoice import config as _cfg
+_empty = _cfg.load({})
+check("config_empty_is_alive", _empty.asr_ready is False and _empty.llm_ready is False)
+_full = _cfg.load({"VV_ASR_PROVIDER": "deepgram", "VV_ASR_KEY": "secret-asr", "VV_LLM_PROVIDER": "openai", "VV_LLM_KEY": "secret-llm"})
+check("config_reads_providers", _full.asr_ready and _full.llm_ready and _full.asr_provider == "deepgram")
+_health_text = repr(_full.public_health())
+check("config_key_never_leaks", "secret-asr" not in _health_text and "secret-llm" not in _health_text)
+check("config_fingerprint_differs", _full.public_health()["asr"]["key_fingerprint"] != _full.public_health()["llm"]["key_fingerprint"])
+_junk = _cfg.load({"VV_ASR_PROVIDER": "нечто", "VV_ASR_KEY": "k"})
+check("config_rejects_unknown_provider", _junk.asr_provider == "" and _junk.asr_ready is False)
+_exp = _cfg.load({"VV_EXPORT_WEBHOOK_URL": "https://x.test/h"})
+check("config_reads_export_targets", _exp.export_targets.get("webhook") == "https://x.test/h")
+# Стык: /health действительно говорит о моделях и не выдаёт ключи.
+_h = _handle('GET', '/api/v1/health')
+check("health_reports_settings", _h.status == 200 and "settings" in _h.body and "asr" in _h.body["settings"])
+check("health_no_secret_in_body", "secret" not in repr(_h.body))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

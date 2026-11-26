@@ -110,7 +110,11 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
                                       "message": "Разбор этой записи ещё не готов."})
             return Response(200, found)
         if path == "/api/v1/health":
-            return Response(200, {"status": "ok", "service": "v-voice", "version": "1"})
+            # Сюда добавляются настройки моделей: человек по этому ответу понимает, работает ли разбор,
+            # и видит отпечаток ключа, чтобы сверить, тот ли подхвачен. Значения ключей не выходят никогда.
+            from .config import load as _load_settings
+            return Response(200, {"status": "ok", "service": "v-voice", "version": "1",
+                                  "settings": _load_settings().public_health()})
         if path == "/api/v1/presets":
             return Response(200, {"presets": presets()})
 
