@@ -763,6 +763,25 @@ _llm_status = _describe(_load({'VV_LLM_PROVIDER': 'openai'}))
 check("factory_reports_llm", _llm_status.get('llm_configured') == 'openai', _llm_status)
 check("factory_llm_not_usable_yet", _llm_status.get('llm_usable') is False)
 check("factory_lists_llm", isinstance(_IMPL_LLM, tuple))
+# Расшифровка должна уходить человеку файлом в привычном формате, а не JSON-обёрткой.
+from vvoice.transcript_route import transcript_file as _transcript_file
+_digest_with_speech = {'utterances': [
+    {'speaker': 'S1', 'start_s': 0.0, 'end_s': 2.5, 'text': 'Начнём с бюджета.'},
+    {'speaker': 'S2', 'start_s': 2.5, 'end_s': 5.0, 'text': 'Смету пришлю утром.'},
+]}
+_c_srt, _b_srt, _h_srt = _transcript_file(_digest_with_speech, 'srt')
+check("transcript_srt_works", _c_srt == 200 and '-->' in _b_srt and 'Смету' in _b_srt, _c_srt)
+check("transcript_srt_type", _h_srt.get('Content-Type', '').startswith('application/x-subrip'), _h_srt)
+_c_txt, _b_txt, _ = _transcript_file(_digest_with_speech, 'txt')
+check("transcript_txt_has_speaker", _c_txt == 200 and 'S1' in _b_txt, _b_txt[:60])
+_c_bad, _b_bad, _ = _transcript_file(_digest_with_speech, 'docx')
+check("transcript_unknown_format", _c_bad == 400 and _b_bad.get('error') == 'unknown_format', _b_bad)
+_c_none, _b_none, _ = _transcript_file(None, 'txt')
+check("transcript_missing_is_honest", _c_none == 404 and _b_none.get('error') == 'digest_not_found', _b_none)
+_c_empty, _b_empty, _ = _transcript_file({'utterances': []}, 'txt')
+check("transcript_empty_is_honest", _c_empty == 409 and _b_empty.get('error') == 'transcript_empty', _b_empty)
+check("transcript_route_registered", '/api/v1/sessions/{session_id}/transcript' in ROUTES)
+check("pipeline_keeps_utterances", '"utterances"' in (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice' / 'pipeline.py').read_text(encoding='utf-8'))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

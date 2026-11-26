@@ -53,6 +53,12 @@ def run_session(
     return {
         "live_text": state.live.display_text(),
         "transcript": transcript.text,
+        # Реплики с таймкодами. Без них не собрать субтитры и не вернуться к месту в записи,
+        # а разговор — это в первую очередь «кто и когда сказал», а не сплошной текст.
+        "utterances": [
+            {"speaker": u.speaker, "start_s": u.start_s, "end_s": u.end_s, "text": u.text}
+            for u in transcript.utterances
+        ],
         "speakers": sorted(transcript.speakers),
         "dropped_noise": transcript.dropped_noise,
         "dropped_by_vad": dropped_frames,

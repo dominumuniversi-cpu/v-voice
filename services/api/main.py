@@ -57,12 +57,21 @@ class Handler(BaseHTTPRequestHandler):
     deps: dict[str, Any] = {}
     settings: Settings | None = None
 
-    def _respond(self, status: int, body: dict[str, Any], headers: dict[str, str] | None = None) -> None:
-        raw = json.dumps(body, ensure_ascii=False).encode('utf-8')
+    def _respond(self, status: int, body: Any, headers: dict[str, str] | None = None) -> None:
+        # Строка — это файл (расшифровка в TXT/SRT): отдаём байты как есть, иначе человек вместо
+        # субтитров получит JSON-обёртку с тем же текстом внутри. Всё остальное — JSON, как раньше.
+        if isinstance(body, str):
+            raw = body.encode('utf-8')
+            default_type = 'text/plain; charset=utf-8'
+        else:
+            raw = json.dumps(body, ensure_ascii=False).encode('utf-8')
+            default_type = 'application/json; charset=utf-8'
         self.send_response(status)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Type', (headers or {}).get('Content-Type', default_type))
         self.send_header('Content-Length', str(len(raw)))
         for name, value in (headers or {}).items():
+            if name.lower() == 'content-type':
+                continue  # уже отправлен выше с правильным значением
             self.send_header(name, value)
         self.end_headers()
         self.wfile.write(raw)

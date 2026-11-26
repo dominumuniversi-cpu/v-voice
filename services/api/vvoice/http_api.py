@@ -23,6 +23,7 @@ from .evidence import validate_item
 from .sessions import create_session, is_session_id
 from .digest_store import DigestStore
 from .export_route import export_session
+from .transcript_route import transcript_file
 from .job import analyze
 from .live_sessions import LiveSessions, push_chunk
 from .open_session import open_session
@@ -59,6 +60,8 @@ ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/sessions/{session_id}/stream": ("POST",),
     # Отправка одобренных задач наружу (Helper, Jira, Bitrix24, webhook).
     "/api/v1/sessions/{session_id}/export": ("POST",),
+    # Скачивание расшифровки в привычном формате: человек уносит разговор с собой.
+    "/api/v1/sessions/{session_id}/transcript": ("GET",),
 }
 
 # Шаблонные пути: клиент обращается к /api/v1/sessions/<id>/digest, поэтому точного совпадения мало.
@@ -104,6 +107,14 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
                         {"Allow": ", ".join(allowed)})
 
     if method.upper() == "GET":
+        if template == "/api/v1/sessions/{session_id}/transcript":
+            # Формат — часть пути для человека (?format=srt), по умолчанию TXT.
+            from urllib.parse import parse_qs
+            query = parse_qs(path.split("?", 1)[1]) if "?" in path else {}
+            fmt = (query.get("format") or ["txt"])[0].strip().lower()
+            found = digests.load(param) if digests is not None else None
+            code, body, headers = transcript_file(found, fmt)
+            return Response(code, body, headers)
         if template == "/api/v1/sessions/{session_id}/digest":
             # Путь есть. Данных может не быть — тогда говорим именно это, а не «нет такого пути».
             found = digests.load(param) if digests is not None else None
