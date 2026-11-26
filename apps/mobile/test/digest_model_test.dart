@@ -133,4 +133,22 @@ void main() {
     final d = Digest.fromJson({'summary': [], 'items': [], 'participants': []});
     expect(d.topic, isEmpty);
   });
+
+  test('неподтверждённые задачи доходят до человека причиной, а не служебным индексом', () {
+    final d = Digest.fromJson({
+      'summary': [],
+      'items': [],
+      'participants': [],
+      'rejected': [
+        {'index': 0, 'title': 'Позвонить в банк', 'reason': 'цитаты нет в расшифровке'},
+        {'index': 1, 'title': '', 'reason': 'пустой заголовок'},
+      ],
+    });
+    expect(d.rejected, ['Позвонить в банк — цитаты нет в расшифровке', 'пустой заголовок']);
+  });
+
+  test('без отсева строка не появляется', () {
+    final d = Digest.fromJson({'summary': [], 'items': [], 'participants': []});
+    expect(d.rejected, isEmpty);
+  });
 }

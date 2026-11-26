@@ -4,7 +4,7 @@
 /// отбрасывает элементы без непустой цитаты, а не показывает их без доказательства:
 /// человек, который не может проверить, откуда взялась задача, задачи не примет.
 class Digest {
-  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.topic = ''});
+  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.topic = '', this.rejected = const []});
 
   final List<String> summary;
   final List<String> decisions;
@@ -15,6 +15,10 @@ class Digest {
   /// без него человек не поймёт, почему часть сказанного не попала в задачи.
   final List<List<String>> participants;
 
+  /// Предложения модели, которые не подтвердились дословной цитатой. Человек должен видеть,
+  /// почему задач меньше, чем прозвучало, а не думать, что модель промолчала.
+  final List<String> rejected;
+
   /// Одна строка «о чём был разговор». Пустая, если модель её не дала.
   final String topic;
 
@@ -22,6 +26,20 @@ class Digest {
   /// Показывать «готово» на половине — значит соврать про встречу.
   final bool truncated;
   final String model;
+
+  /// Из отчёта об отсеве делаем строку для человека: заголовок и причина, без служебных индексов.
+  static List<String> rejectedFrom(Object? value) {
+    if (value is! List) return const [];
+    final out = <String>[];
+    for (final r in value) {
+      if (r is! Map) continue;
+      final title = (r['title'] ?? '').toString().trim();
+      final reason = (r['reason'] ?? '').toString().trim();
+      if (title.isEmpty && reason.isEmpty) continue;
+      out.add(reason.isEmpty ? title : (title.isEmpty ? reason : title + ' — ' + reason));
+    }
+    return List<String>.unmodifiable(out);
+  }
 
   static Digest fromJson(Map<String, dynamic> json) {
     List<String> list(Object? value) => value is List ? value.map((e) => e.toString()).toList(growable: false) : const [];
@@ -54,6 +72,7 @@ class Digest {
       model: (json['model'] ?? '').toString(),
       truncated: json['truncated'] == true,
       topic: (json['topic'] ?? '').toString(),
+      rejected: rejectedFrom(json['rejected']),
     );
   }
 

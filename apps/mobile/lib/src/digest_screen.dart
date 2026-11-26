@@ -100,6 +100,16 @@ class _DigestScreenState extends State<DigestScreen> {
                 style: TextStyle(fontSize: 13, height: 1.45),
               ),
             ),
+          if (d.topic.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              // Тема — первой и крупнее: это ответ на вопрос «о чём вообще был разговор»,
+              // который человек задаёт раньше, чем читает список задач.
+              child: Text(
+                d.topic,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.35),
+              ),
+            ),
           // Заголовок раздела остаётся на месте всегда: пропавший заголовок читается как «здесь ничего нет».
           if (d.summary.isEmpty)
             Padding(
@@ -119,18 +129,17 @@ class _DigestScreenState extends State<DigestScreen> {
                 ],
               ),
             )
-          else
-            if (d.topic.isNotEmpty)
+          _section('Коротко', d.summary),
+          if (d.rejected.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              // Тема — первой и крупнее: это ответ на вопрос «о чём вообще был разговор»,
-              // который человек задаёт раньше, чем читает список задач.
+              // Честность важнее полноты: лучше сказать «это не подтверждено словами»,
+              // чем выдать догадку модели за задачу.
               child: Text(
-                d.topic,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.35),
+                'Не подтверждено словами, поэтому не добавлено: ' + d.rejected.join('; '),
+                style: const TextStyle(fontSize: 13, color: VVTheme.inkMuted, height: 1.4),
               ),
             ),
-          _section('Коротко', d.summary),
           _participants(d.participants),
           _section('Решили', d.decisions),
           _section('Осталось неясным', d.openQuestions),
