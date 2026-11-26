@@ -174,8 +174,15 @@ def main() -> int:
     health = settings.public_health()
     providers = describe_providers(settings)
     if providers['asr_configured'] and not providers['asr_usable']:
-        print('v-voice: провайдер %s настроен, но реализации нет — разбор речи не заработает'
-              % providers['asr_configured'])
+        if providers['asr_implemented']:
+            # Провайдер реализован, значит мешает не он. Самая частая причина — не установлена
+            # библиотека; говорить «реализации нет» в этом случае значит отправлять человека
+            # искать ошибку в коде, которого нет.
+            print('v-voice: провайдер %s настроен, но не может запуститься — проверьте установку '
+                  'зависимостей (pip install -r requirements.txt)' % providers['asr_configured'])
+        else:
+            print('v-voice: провайдер %s настроен, но реализации нет — разбор речи не заработает'
+                  % providers['asr_configured'])
     if providers['llm_configured'] and not providers['llm_usable']:
         print('v-voice: понимание настроено на %s, но реализации нет — задачи из разговора не появятся'
               % providers['llm_configured'])
