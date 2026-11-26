@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vvoice/src/device_key_store.dart';
-import 'package:vvoice/src/settings_screen.dart';
+import 'package:v_voice/src/device_key_store.dart';
+import 'package:v_voice/src/settings_screen.dart';
 
 void main() {
   testWidgets('в настройках можно вписать ключ устройства', (tester) async {
