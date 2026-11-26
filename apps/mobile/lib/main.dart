@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'src/method_channel_bridge.dart';
 import 'src/recording_controller.dart';
+import 'src/session_model.dart';
 import 'src/settings_screen.dart';
 import 'src/theme.dart';
 
@@ -34,10 +37,18 @@ class ListenScreen extends StatefulWidget {
 }
 
 class _ListenScreenState extends State<ListenScreen> {
+  final SessionModel session = SessionModel();
+  Timer? _ticker;
+
   @override
   void initState() {
     super.initState();
     widget.controller.bind();
+    // Тик раз в секунду: время записи — факт, который человек проверяет глазами.
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => session.tick(recording: widget.controller.state == RecordingState.recording));
+    });
     widget.controller.changes.listen((_) {
       if (mounted) setState(() {});
     });
@@ -45,6 +56,7 @@ class _ListenScreenState extends State<ListenScreen> {
 
   @override
   void dispose() {
+    _ticker?.cancel();
     widget.controller.dispose();
     super.dispose();
   }
@@ -78,7 +90,33 @@ class _ListenScreenState extends State<ListenScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(session.clock, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w300, fontFeatures: [FontFeature.tabularFigures()])),
+                  const Spacer(),
+                  if (recording)
+                    OutlinedButton.icon(
+                      onPressed: () => setState(() => session.mark()),
+                      icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                      label: const Text('Метка'),
+                    ),
+                ],
+              ),
+              if (session.marks.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Метки: ' + session.marks.map((m) => m.clock).join(', '),
+                    style: const TextStyle(color: VVTheme.inkMuted, fontSize: 12),
+                  ),
+                ),
+              if (session.hint != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(session.hint!, style: const TextStyle(color: VVTheme.warn, fontSize: 12)),
+                ),
+              const SizedBox(height: 16),
               Expanded(
                 child: SingleChildScrollView(
                   child: Text(
