@@ -211,8 +211,7 @@ class _ListenScreenState extends State<ListenScreen> {
   ///
   /// Отдельно от [_openDigest]: тот берёт последнюю запись контроллера, а здесь файл выбран
   /// человеком, и живого режима у него нет — только «загрузить и разобрать».
-  Future<void> _analyzeRecovered(String path) async {
-    final api = scope.config.api;
+  Future<void> _analyzeRecovered(ApiClient api, String path) async {
     setState(() => _uploading = true);
     String? id;
     try {
@@ -247,7 +246,7 @@ class _ListenScreenState extends State<ListenScreen> {
           recordings: list,
           onOpen: (path) {
             Navigator.of(ctx).pop();
-            _analyzeRecovered(path);
+            _analyzeRecovered(scope.config.api, path);
           },
           onDelete: (path) async {
             await deleteRecording(path);
