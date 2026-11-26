@@ -4,7 +4,7 @@
 /// отбрасывает элементы без непустой цитаты, а не показывает их без доказательства:
 /// человек, который не может проверить, откуда взялась задача, задачи не примет.
 class Digest {
-  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const []});
+  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const [], this.costRub, this.sentSeconds});
 
   final List<String> summary;
   final List<String> decisions;
@@ -77,8 +77,17 @@ class Digest {
       summaryHidden: (json['summary_hidden'] is num) ? (json['summary_hidden'] as num).toInt() : 0,
       topic: (json['topic'] ?? '').toString(),
       rejected: rejectedFrom(json['rejected']),
+      costRub: json['cost_rub'] is num ? (json['cost_rub'] as num).toDouble() : null,
+      sentSeconds: json['sent_seconds'] is num ? (json['sent_seconds'] as num).toDouble() : null,
     );
   }
+
+  /// Стоимость встречи в рублях. null — сервер не знает тарифа, и тогда мы не показываем «0 ₽»:
+  /// выдуманная цена хуже отсутствующей, потому что на неё начнут опираться.
+  final double? costRub;
+
+  /// Сколько секунд аудио ушло в распознавание. Нужно, чтобы человек видел объём даже без тарифа.
+  final double? sentSeconds;
 
   /// Сколько элементов отброшено как недоказуемые — показываем человеку честно.
   int droppedCount = 0;

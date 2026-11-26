@@ -133,6 +133,12 @@ class _DigestScreenState extends State<DigestScreen> {
             )
           else
             _section('Коротко', d.summary),
+          if (_costLine(d) != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              // Стоимость видна до того, как человек начнёт листать: счёт за встречу важнее красоты.
+              child: Text(_costLine(d)!, style: const TextStyle(fontSize: 12, color: VVTheme.inkMuted)),
+            ),
           if (d.summaryHidden > 0)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -336,4 +342,19 @@ class _ItemCard extends StatelessWidget {
       ),
     );
   }
+
+/// Строка про израсходованное аудио и деньги.
+///
+/// null — говорить нечего: сервер не прислал ни секунд, ни цены. «0 ₽» не показываем никогда,
+/// потому что ноль здесь означает «тариф не задан», а не «встреча была бесплатной».
+String? _costLine(Digest d) {
+  final cost = d.costRub;
+  final seconds = d.sentSeconds;
+  if (cost == null && (seconds == null || seconds <= 0)) return null;
+  final minutes = ((seconds ?? 0) / 60).toStringAsFixed(seconds != null && seconds < 60 ? 1 : 0);
+  final parts = <String>[];
+  if (seconds != null && seconds > 0) parts.add('В распознавание ушло ~' + minutes + ' мин');
+  if (cost != null) parts.add('≈ ' + cost.toStringAsFixed(2) + ' ₽');
+  return parts.join(' · ') + '.';
+}
 }

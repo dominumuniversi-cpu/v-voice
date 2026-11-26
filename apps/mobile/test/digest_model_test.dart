@@ -3,6 +3,19 @@ import 'package:v_voice/src/digest_model.dart';
 
 void main() {
   group('Digest.fromJson', () {
+    test('стоимость встречи читается, когда сервер её прислал', () {
+      final digest = Digest.fromJson({'summary': ['x'], 'cost_rub': 12.5, 'sent_seconds': 1800.0});
+      expect(digest.costRub, 12.5);
+      expect(digest.sentSeconds, 1800.0);
+    });
+
+    test('без тарифа стоимость отсутствует, а не равна нулю', () {
+      // Ноль означал бы «встреча бесплатна». Сервер в этом случае поле не присылает вовсе.
+      final digest = Digest.fromJson({'summary': ['x'], 'sent_seconds': 600.0});
+      expect(digest.costRub, isNull);
+      expect(digest.sentSeconds, 600.0);
+    });
+
     test('элемент без цитаты отбрасывается', () {
       final digest = Digest.fromJson({
         'summary': ['Обсудили смету'],
