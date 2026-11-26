@@ -29,7 +29,16 @@ jobs:
       - name: node tests
         run: node --test "tests/native/*.test.mjs" "tests/api/*.mjs"
 
-      # 4) Мобильное приложение: анализатор и тесты контроллера (реальные, без телефона).
+      # 4) Серверные проверки и валидатор цитат («нет цитаты — нет задачи»).
+      # Стоят ДО Flutter и сборки намеренно: падение чужого шага (например, Maven ответил 429)
+      # раньше скрывало их целиком — шаг просто помечался skipped, и проверки не выполнялись.
+      - name: server checks
+        run: |
+          pip install pytest
+          python tests/api/run_checks.py
+          python -m pytest tests/api -q
+
+      # 5) Мобильное приложение: анализатор и тесты контроллера (реальные, без телефона).
       # Java 17 явно: на раннере может стоять Java 25, и Gradle 8.x падает на
       # "Unsupported class file major version 69" — ошибка выглядит как проблема проекта.
       - uses: actions/setup-java@v4
@@ -47,16 +56,10 @@ jobs:
         working-directory: apps/mobile
         run: flutter test
 
-      # 5) Сборка мобильного приложения. analyze и test НЕ собирают Kotlin и Swift:
+      # 6) Сборка мобильного приложения. analyze и test НЕ собирают Kotlin и Swift:
       # ошибка в нативном коде видна только здесь, и лучше здесь, чем на телефоне.
       - name: flutter build apk
         working-directory: apps/mobile
         run: flutter build apk --debug
       # iOS собирается только на macOS: на Linux нет toolchain Apple. Отдельная задача в бэклоге (#35).
 
-      # 6) Валидатор цитат под настоящим Python (правило «нет цитаты — нет задачи»).
-      - name: evidence validator
-        run: |
-          pip install pytest
-          python tests/api/run_checks.py
-          python -m pytest tests/api -q
