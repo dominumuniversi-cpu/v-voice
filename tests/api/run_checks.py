@@ -945,7 +945,7 @@ _few = _make_digest(_tr_short2, lambda s, u: {'summary': ['один', 'два'],
 check("summary_hidden_zero_when_short", _few['summary_hidden'] == 0, _few['summary_hidden'])
 check("summary_keeps_all_when_short", _few['summary'] == ['один', 'два'], _few['summary'])
 # Свои токены на цель: Helper, Jira и Bitrix24 ждут РАЗНЫЕ ключи. Общий токен пускал только один приёмник.
-from vvoice.config import from_settings as _from_settings
+from vvoice.config import load as _from_settings
 _s1 = _from_settings({'VV_ASR_PROVIDER': 'fake', 'VV_LLM_PROVIDER': 'fake', 'VV_EXPORT_HELPER_URL': 'https://h', 'VV_EXPORT_HELPER_TOKEN': 'prokhor', 'VV_EXPORT_TOKEN': 'common'})
 check("token_per_target", _s1.token_for('helper') == 'prokhor', _s1.token_for('helper'))
 check("token_falls_back_to_common", _s1.token_for('jira') == 'common', _s1.token_for('jira'))
