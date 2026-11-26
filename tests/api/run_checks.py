@@ -400,6 +400,26 @@ check("budget_meetings_floor", budget.meetings_left(30, 0.5) == 66, str(budget.m
 check("budget_meetings_guard", Budget(0, Usage()).meetings_left(30, 0.5) == 0)
 check("budget_ratio_capped", Budget(100, Usage(money_rub=500)).ratio == 1.0)
 
+
+# ---------- промпт разбора: правила на месте, пример валиден ----------
+import os  # noqa: E402
+
+PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "vvoice", "prompts", "digest_ru.md")
+prompt_text = open(PROMPT_PATH, encoding="utf-8").read()
+
+check("prompt_requires_quote", "Цитата обязательна" in prompt_text)
+check("prompt_forbids_invented_owner", "Не додумывай исполнителя" in prompt_text)
+check("prompt_separates_decision", "Не путай разговор и решение" in prompt_text)
+check("prompt_excludes_noise", "Шум и чужие разговоры" in prompt_text)
+check("prompt_russian", "Язык ответа — русский" in prompt_text)
+check("prompt_no_arabic_noise", not any("\u0600" <= ch <= "\u06ff" for ch in prompt_text), "в промпте чужие символы")
+
+prompt_json = prompt_text.split("```json")[1].split("```")[0]
+example = json.loads(prompt_json)
+check("prompt_example_valid_json", isinstance(example, dict) and "items" in example)
+check("prompt_example_item_has_evidence", all("evidence" in it for it in example["items"]))
+check("prompt_example_kinds", set(example) >= {"topic", "participants", "summary", "decisions", "open_questions", "items"})
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
