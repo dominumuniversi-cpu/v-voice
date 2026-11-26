@@ -24,6 +24,9 @@ jobs:
       - name: python imports
         run: node tests/native/py-imports.mjs tests/api/run_checks.py tests/api/scenario.py
 
+      - name: scope visibility
+        run: node tests/native/dart-scope-visibility.mjs apps/mobile/lib/main.dart apps/mobile/lib/src/*.dart
+
       - name: dart list syntax
         run: node tests/native/dart-list.mjs $(find apps/mobile/lib -name '*.dart')
 
