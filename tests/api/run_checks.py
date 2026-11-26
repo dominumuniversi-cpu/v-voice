@@ -360,6 +360,46 @@ try:
 except ValueError as exc:
     check("render_unknown_format", "docx" in str(exc))
 
+
+# ---------- восстановление после сбоя (FR-6) ----------
+from vvoice.recovery import HEADER_SIZE, duration_ms, inspect, rebuild_header, recover, usable_data_bytes  # noqa: E402
+
+check("recovery_empty_file_refused", inspect(0).recovered is False)
+check("recovery_header_only_refused", inspect(HEADER_SIZE).recovered is False)
+fragment = inspect(HEADER_SIZE + 16_000)
+check("recovery_fragment_marked", fragment.recovered is False and "обрывок" in fragment.reason, fragment.reason)
+big = HEADER_SIZE + 32_000 * 10
+check("recovery_ten_seconds_ok", inspect(big).recovered is True and duration_ms(big) >= 9990, str(duration_ms(big)))
+check("recovery_odd_byte_dropped", usable_data_bytes(HEADER_SIZE + 101) == 100)
+
+fake_raw = b"RIFF" + (0).to_bytes(4, "little") + b"WAVE" + b"\x00" * (HEADER_SIZE - 12) + b"\x01\x02" * 32_000
+wav, res = recover(fake_raw)
+check("recovery_rebuilds_header", wav.startswith(b"RIFF") and wav[8:12] == b"WAVE")
+check("recovery_riff_size_correct", int.from_bytes(wav[4:8], "little") == len(wav) - 8, str(int.from_bytes(wav[4:8], "little")))
+check("recovery_data_size_correct", int.from_bytes(wav[40:44], "little") == len(wav) - HEADER_SIZE)
+check("recovery_says_ok", res.recovered is True and res.duration_ms >= 990)
+check("recovery_header_generated", rebuild_header(b"\x00" * 100)[0:4] == b"RIFF")
+empty_wav, empty_res = recover(b"RIFF" + b"\x00" * 40)
+check("recovery_no_data_gives_no_file", empty_wav == b"" and empty_res.recovered is False)
+
+# ---------- лимиты месяца (FR-27) ----------
+from vvoice.limits import Budget, Usage  # noqa: E402
+
+budget = Budget(monthly_rub=1000, usage=Usage())
+check("budget_ok_initially", budget.state == "ok")
+budget.usage.add_minutes(10, 0.5)
+check("budget_counts_money", abs(budget.usage.money_rub - 5.0) < 1e-6, str(budget.usage.money_rub))
+check("budget_minutes", budget.usage.minutes == 10.0)
+budget.usage.money_rub = 850.0
+check("budget_warning_at_85", budget.state == "warning", budget.state)
+budget.usage.money_rub = 1000.0
+check("budget_exhausted", budget.state == "exhausted")
+check("budget_headline_human", "лимит исчерпан" in budget.headline().lower())
+budget.usage.money_rub = 0.0
+check("budget_meetings_floor", budget.meetings_left(30, 0.5) == 66, str(budget.meetings_left(30, 0.5)))
+check("budget_meetings_guard", Budget(0, Usage()).meetings_left(30, 0.5) == 0)
+check("budget_ratio_capped", Budget(100, Usage(money_rub=500)).ratio == 1.0)
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
