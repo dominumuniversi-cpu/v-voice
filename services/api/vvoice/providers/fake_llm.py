@@ -20,6 +20,17 @@ from typing import Callable
 # притворяться умной — она показывает, что путь работает, а не что модель хороша.
 _TASK_MARKERS = ("надо", "нужно", "сделаю", "отправлю", "позвоню", "проверю", "подготовлю")
 
+# Решение — это когда договорились, а не когда предложили. Без этих маркеров «Договорились: ...»
+# пропадало из разбора, и экран показывал пустой раздел решений на встрече, где решали.
+_DECISION_MARKERS = ("договорились", "решили", "приняли", "утвердили", "согласовали", "выходит в")
+
+# Открытый вопрос — то, что ещё не решили. Иначе «нужен ли созвон?» уходил в задачи как действие.
+_QUESTION_MARKERS = ("?", "нужен ли", "стоит ли", "пока не решили", "неясно")
+
+# Служебная разметка расшифровки: «S2 [4.5-9.2] ». Человеку она не нужна, а в заголовке задачи
+# выглядела как часть фразы.
+_SPEAKER_TAG = re.compile(r"^\s*S\d+\s*\[[\d.]+\s*-\s*[\d.]+\]\s*")
+
 
 def _sentences(text: str) -> list[str]:
     """Делит расшифровку на фразы. Точка в конце — тоже граница."""
@@ -33,10 +44,20 @@ def fake_understanding(system: str, user: str) -> dict:
     `user` — промпт с расшифровкой. Вытаскиваем фразы из него: так цитата в пункте
     совпадает с текстом, и валидатор не отбросит всё подряд.
     """
-    sentences = _sentences(_transcript_from_prompt(user))
+    sentences = [_SPEAKER_TAG.sub("", p) for p in _sentences(_transcript_from_prompt(user))]
+    sentences = [p for p in sentences if p]
     items = []
+    decisions = []
+    questions = []
     for phrase in sentences:
         low = phrase.lower()
+        # Вопрос проверяем ПЕРВЫМ: «нужно ли ...?» содержит «нужно», но это не задача.
+        if any(marker in low for marker in _QUESTION_MARKERS):
+            questions.append({"text": phrase[:200]})
+            continue
+        if any(marker in low for marker in _DECISION_MARKERS):
+            decisions.append({"text": phrase[:200]})
+            continue
         if any(marker in low for marker in _TASK_MARKERS):
             # Таймкоды обязательны: без них валидатор отбросит пункт как «некорректные таймкоды».
             # Заглушка не знает реальных времён, поэтому ставит диапазон по порядку фразы.
@@ -51,7 +72,8 @@ def fake_understanding(system: str, user: str) -> dict:
     return {
         "summary": summary,
         "items": items,
-        "decisions": [],
+        "decisions": decisions,
+        "open_questions": questions,
     }
 
 

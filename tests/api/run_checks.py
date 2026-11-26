@@ -1099,6 +1099,28 @@ _e5 = explain_digest_failure(KeyError("boom"))
 check("digest_failure_internal_kind", _e5["kind"] == "internal" and "сохранена" in _e5["message"], str(_e5))
 check("digest_failure_empty_scrub", scrub("") == "")
 
+# Эталонная встреча: разбор обязан опираться на речь, а не на придуманное.
+import json as _json, os as _os
+_fx_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'fixtures', 'meeting-ru.json')
+with open(_fx_path, encoding='utf-8') as _f:
+    _fx = _json.load(_f)
+check("meeting_fixture_has_speech", len(_fx['utterances']) >= 5 and all(u['text'].strip() for u in _fx['utterances']),
+      str(len(_fx['utterances'])))
+_lines = ["Участники: " + ", ".join(s['id'] + "=" + s['name'] for s in _fx['speakers'])]
+for _u in _fx['utterances']:
+    _lines.append("%s [%.1f-%.1f] %s" % (_u['speaker'], _u['start_s'], _u['end_s'], _u['text']))
+_prompt = "\n".join(_lines)
+from vvoice.providers.fake_llm import fake_understanding
+_out = fake_understanding("разбор", _prompt)
+_blob = _json.dumps(_out, ensure_ascii=False).lower()
+check("meeting_items_from_speech", any(w in _blob for w in _fx['expect']['items_should_mention']), _blob[:200])
+check("meeting_noise_not_taken", not any(n.lower() in _blob for n in _fx['expect']['noise_must_not_appear']), _blob[:200])
+check("meeting_decisions_found", any('пятниц' in d.get('text', '').lower() for d in _out.get('decisions', [])), str(_out.get('decisions')))
+check("meeting_questions_found", any('созвон' in q.get('text', '').lower() for q in _out.get('open_questions', [])), str(_out.get('open_questions')))
+check("meeting_no_speaker_tag_in_title", all('[' not in i.get('title', '') for i in _out.get('items', [])), str(_out.get('items', []))[:200])
+check("meeting_budget_is_task", any('бюджет' in i.get('title', '').lower() for i in _out.get('items', [])), str([i.get('title') for i in _out.get('items', [])]))
+check("meeting_has_evidence", all('evidence' in i for i in _out.get('items', [])), str(_out.get('items', [])[:1]))
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
