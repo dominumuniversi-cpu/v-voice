@@ -74,7 +74,10 @@ class Settings:
         # а библиотеки — не быть; тогда это видно здесь, а не по пустой расшифровке.
         from .provider_factory import _ws_available
         return {
+            # ready — «настроено и реализовано», но НЕ «ключ рабочий»: проверку ключа
+            # делает только живой запрос. Раньше ready читалось как «всё хорошо», и это вводило в заблуждение.
             'asr': {'provider': self.asr_provider, 'ready': asr_usable,
+                    'key_checked': False,
                     'ws_client': _ws_available(),
                     'configured': self.asr_ready, 'implemented': self.asr_provider in IMPLEMENTED_ASR,
                     'key_fingerprint': _fingerprint(self.asr_key)},
