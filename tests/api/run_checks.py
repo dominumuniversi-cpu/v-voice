@@ -210,8 +210,10 @@ budget = NetworkBudget()
 check("budget_live_initially", budget.state() == "live")
 check("budget_lagging", budget.cursor(2000) == "lagging")
 check("budget_offline", budget.cursor(3000) == "offline")
-check("budget_recovered", (budget.recovered(6000) or budget.state()) == "live", budget.state())
-check("budget_never_negative", budget.recovered(999999) and budget.lag_ms == 0)
+budget.recovered(6000)
+check("budget_recovered", budget.state() == "live", budget.state())
+budget.recovered(999999)
+check("budget_never_negative", budget.lag_ms == 0, str(budget.lag_ms))
 
 q = ResendQueue(max_ms=3000)
 for _ in range(20):
