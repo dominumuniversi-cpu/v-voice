@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'recording_controller.dart';
+import 'package:v_voice/src/recording_controller.dart';
 
 /// Фейковый мост: повторяет контракт нативных реализаций, но без телефона.
 class FakeBridge implements RecordingBridge {
