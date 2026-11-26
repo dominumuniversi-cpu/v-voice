@@ -41,7 +41,7 @@
 | **Сборка Android** | **APK собирается в CI** (`flutter build apk`), Kotlin компилируется | `.github/workflows/ci.yml` |
 | **Сборка iOS** | **не собирается**: нужен macOS-раннер — задача #35; `Info.plist`, `AppDelegate` и канал доведены до сборки | `ios/Runner/` |
 | **Мобильное приложение** | **экран «Слушаю» и контроллер записи**: `flutter analyze` и 6 тестов зелёные в CI | `apps/mobile/lib/` |
-| **Проверки** | **10 локальных + 76 Flutter + 174 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
+| **Проверки** | **10 локальных + 79 Flutter + 180 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
 
 ## Проверено фактом (числа)
 

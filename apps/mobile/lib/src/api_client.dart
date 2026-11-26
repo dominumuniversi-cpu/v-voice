@@ -18,6 +18,11 @@ abstract class HttpTransport {
 class ApiClient {
   ApiClient({required this.transport, required this.baseUrl});
 
+  /// Почему последний запрос разбора ничего не вернул.
+  /// Пустая строка — всё в порядке или запроса ещё не было.
+  /// Без этого экран показывал пустоту, и человек читал её как «приложение не поняло разговор».
+  String lastDigestProblem = '';
+
   final HttpTransport transport;
   final String baseUrl;
 
