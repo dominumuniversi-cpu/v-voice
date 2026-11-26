@@ -144,7 +144,9 @@ def main() -> int:
 
     settings = load_settings()
     data_dir = Path(os.environ.get('VV_DATA_DIR') or './data')
-    host = os.environ.get('VV_HOST') or '0.0.0.0'
+    # Дефолт — только свой компьютер: сервис записывает чужие разговоры, и «слушать везде»
+    # должен быть осознанным выбором человека, а не следствием умолчания.
+    host = os.environ.get('VV_HOST') or '127.0.0.1'
     port = int(os.environ.get('VV_PORT') or '8080')
     health = settings.public_health()
     providers = describe_providers(settings)
@@ -157,6 +159,11 @@ def main() -> int:
     print('v-voice: трансляция %s, понимание %s'
           % ('готово' if health['can_transcribe'] else 'НЕ настроено',
              'готово' if health['can_understand'] else 'НЕ настроено'))
+    # Одна строка, которую человек прочитает в консоли: он должен видеть, открыт сервер или нет.
+    if host in ('127.0.0.1', 'localhost'):
+        print('v-voice: слушаю %s:%d — только этот компьютер' % (host, port))
+    else:
+        print('v-voice: слушаю %s:%d — доступен из сети' % (host, port))
     make_server(host, port, settings, data_dir).serve_forever()
     return 0
 

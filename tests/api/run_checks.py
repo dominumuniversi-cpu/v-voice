@@ -864,6 +864,16 @@ _pipeline_src = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvo
 _names = [n for n in ('utterances', 'digest', 'errors', 'speakers') if ('"' + n + '"') in _pipeline_src]
 _missing_in_doc = [n for n in _names if ('`' + n + '`') not in _contract]
 check("contract_doc_matches_result", not _missing_in_doc, _missing_in_doc)
+# Инструкция установки не должна отставать от примера настроек.
+_setup = (Path(__file__).resolve().parents[2] / 'docs' / 'ARCHITECTURE' / 'SETUP.md').read_text(encoding='utf-8')
+_env_keys = sorted(set(re.findall(r'^(VV_[A-Z_]+)=', _env, re.M)))
+_setup_missing = [k for k in _env_keys if k not in _setup]
+check("setup_doc_lists_env_keys", not _setup_missing, _setup_missing)
+# Сервис записывает чужие разговоры: дефолт не должен открывать его в сеть.
+_main_src = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'main.py').read_text(encoding='utf-8')
+check("host_defaults_to_localhost", "or '127.0.0.1'" in _main_src, 'дефолт VV_HOST')
+check("host_default_not_wildcard", "or '0.0.0.0'" not in _main_src, 'дефолт 0.0.0.0 вернулся')
+check("startup_names_listen_scope", 'доступен из сети' in _main_src and 'только этот компьютер' in _main_src, 'строка о прослушивании')
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
