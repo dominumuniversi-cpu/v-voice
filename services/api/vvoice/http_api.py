@@ -19,6 +19,7 @@ from typing import Any
 
 from .evidence import validate_item
 from .sessions import create_session, is_session_id
+from .digest_store import DigestStore
 from .storage import AudioStore
 from .provider_probe import presets
 
@@ -68,7 +69,8 @@ def _bad_request(reason: str) -> Response:
 
 
 def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
-           store: "AudioStore | None" = None) -> Response:
+           store: "AudioStore | None" = None,
+           digests: "DigestStore | None" = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -80,10 +82,12 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
 
     if method.upper() == "GET":
         if template == "/api/v1/sessions/{session_id}/digest":
-            # Пока нет базы (M4), честный ответ: разбора по этой сессии нет.
-            # Важно не врать «нет такого пути»: путь есть, данных ещё нет.
-            return Response(404, {"error": "digest_not_found", "session_id": param,
-                                  "message": "Разбор этой записи ещё не готов."})
+            # Путь есть. Данных может не быть — тогда говорим именно это, а не «нет такого пути».
+            found = digests.load(param) if digests is not None else None
+            if found is None:
+                return Response(404, {"error": "digest_not_found", "session_id": param,
+                                      "message": "Разбор этой записи ещё не готов."})
+            return Response(200, found)
         if path == "/api/v1/health":
             return Response(200, {"status": "ok", "service": "v-voice", "version": "1"})
         if path == "/api/v1/presets":

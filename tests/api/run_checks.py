@@ -493,6 +493,18 @@ check("store_rejects_long_id", _store.find("a" * 65) is None)
 _notes = []
 _resp2 = _handle("POST", "/api/v1/sessions", _payload, store=_store, sender=_notes.append)
 check("store_notifies_once", _resp2.status == 409 and _notes == [])
+# Хранилище разборов: сохранение, выдача через маршрут, устойчивость к мусору.
+from vvoice.digest_store import DigestStore as _DigestStore
+
+_dig_root = _tempfile.mkdtemp(prefix="vvoice-digest-")
+_digests = _DigestStore(_dig_root)
+_digests.save(_sid, {"summary": ["Обсудили смету"], "items": []})
+check("digest_store_roundtrip", (_digests.load(_sid) or {}).get("summary") == ["Обсудили смету"])
+_got = _handle("GET", "/api/v1/sessions/" + _sid + "/digest", digests=_digests)
+check("digest_route_returns_saved", _got.status == 200 and _got.body.get("summary") == ["Обсудили смету"])
+_none = _handle("GET", "/api/v1/sessions/abcdef1234567890/digest", digests=_digests)
+check("digest_route_missing", _none.status == 404 and _none.body.get("error") == "digest_not_found")
+check("digest_store_bad_id_none", _digests.load("../x") is None)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
