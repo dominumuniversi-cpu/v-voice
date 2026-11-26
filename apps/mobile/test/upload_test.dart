@@ -73,6 +73,25 @@ void main() {
     });
   });
 
+  group('уборка записей', () {
+    test('запись удаляется после разбора', () async {
+      final dir = await Directory.systemTemp.createTemp('vvoice-del');
+      final file = File(dir.path + '/rec.wav');
+      await file.writeAsBytes([1, 2, 3]);
+      expect(await deleteRecording(file.path), isTrue);
+      expect(await file.exists(), isFalse);
+      await dir.delete(recursive: true);
+    });
+
+    test('отсутствующий файл считается уже убранным', () async {
+      expect(await deleteRecording('/нет/такого/файла.wav'), isTrue);
+    });
+
+    test('пустой путь ничего не удаляет и не падает', () async {
+      expect(await deleteRecording(''), isFalse);
+    });
+  });
+
   group('живой текст', () {
     test('сессия открывается до записи', () async {
       final api = ApiClient(transport: _Fake((200, '{"session_id":"abcdef1234567890"}')), baseUrl: '');

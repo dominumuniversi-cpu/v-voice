@@ -19,3 +19,20 @@ Future<Uint8List> readFileBytes(String path) async {
   }
   return bytes;
 }
+
+/// Удаляет запись с телефона после того, как она стала не нужна.
+///
+/// Вызывать ТОЛЬКО когда запись уже разобрана и сервер её сохранил: иначе человек,
+/// у которого закончилось место, потеряет разговор ради двух мегабайт.
+/// Возвращает false, если удалить не удалось — это не ошибка, просто придётся повторить позже.
+Future<bool> deleteRecording(String path) async {
+  if (path.trim().isEmpty) return false;
+  try {
+    final file = File(path);
+    if (!await file.exists()) return true;
+    await file.delete();
+    return true;
+  } on FileSystemException {
+    return false;
+  }
+}
