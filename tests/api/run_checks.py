@@ -268,7 +268,9 @@ check("json_plain", parse_json_answer('{"a": 1}') == {"a": 1})
 check("json_wrapped_in_text", parse_json_answer('Вот ответ: {"a": 2} Спасибо') == {"a": 2})
 try:
     parse_json_answer("никакого json тут нет")
+    check("json_missing_raises", False)
 except ValueError:
+    check("json_missing_raises", True)
 try:
     parse_json_answer('[1, 2]')
     check("json_array_rejected", False)
@@ -647,6 +649,9 @@ except Exception as _exc:
     _code_unknown = getattr(_exc, 'code', 0)
 check("server_returns_404_for_unknown", _code_unknown == 404, _code_unknown)
 _srv.shutdown()
+# Разбор несуществующей записи — 404, а не выдуманный пустой разбор.
+_absent = _handle('GET', '/api/v1/sessions/abcdef0123456789/digest')
+check("digest_route_missing", _absent.status == 404 and _absent.body.get("error") == "digest_not_found")
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
