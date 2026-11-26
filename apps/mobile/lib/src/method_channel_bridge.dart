@@ -29,4 +29,25 @@ class MethodChannelBridge implements RecordingBridge {
     final result = await _method.invokeMethod<String>('stop');
     return result ?? 'engine_failed';
   }
+
+  /// Спрашиваем систему. Ошибку не выдаём за «всё хорошо»: неизвестность — это false,
+  /// но решение принимает экран, а не этот метод.
+  @override
+  Future<bool> batteryRestricted() async {
+    try {
+      final result = await _method.invokeMethod<bool>('batteryRestricted');
+      return result ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> openBatterySettings() async {
+    try {
+      await _method.invokeMethod<String>('openBatterySettings');
+    } catch (_) {
+      // Экрана может не быть на прошивке; молчать здесь честнее, чем падать.
+    }
+  }
 }

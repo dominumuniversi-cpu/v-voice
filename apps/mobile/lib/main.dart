@@ -204,7 +204,39 @@ class _ListenScreenState extends State<ListenScreen> {
       setState(() => consent = consent.accept());
       await consentStore.save(consent);
     }
+    // Телефон может убить запись в фоне — предупреждаем ДО, а не объясняем после потери встречи.
+    if (!await _warnIfBatteryRestricted()) return;
+    if (!mounted) return;
     await widget.controller.start();
+  }
+
+  /// Возвращает false, если человек отказался начинать.
+  Future<bool> _warnIfBatteryRestricted() async {
+    final bridge = widget.controller.bridge;
+    final restricted = await bridge.batteryRestricted();
+    if (!restricted || !mounted) return true;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Телефон может оборвать запись'),
+        content: const Text(
+            'Система ограничивает работу приложений в фоне. На Xiaomi, Huawei и части Samsung запись '
+            'может остановиться, когда экран погаснет. Разрешите приложению работу в фоне — тогда '
+            'запись переживёт блокировку.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Позже')),
+          TextButton(
+            onPressed: () async {
+              await bridge.openBatterySettings();
+              if (ctx.mounted) Navigator.of(ctx).pop(true);
+            },
+            child: const Text('Разрешить'),
+          ),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Всё равно начать')),
+        ],
+      ),
+    );
+    return go == true;
   }
 
   @override

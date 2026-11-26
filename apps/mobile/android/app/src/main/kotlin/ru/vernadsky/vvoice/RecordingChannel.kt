@@ -29,6 +29,10 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
                 "start" -> result.success(start())
                 "stop" -> { context.stopService(Intent(context, RecordingService::class.java)); result.success("ok") }
                 "state" -> result.success(state)
+                // «Телефон разрешает нам работать в фоне» — на Xiaomi/Huawei/Oppo ответ часто нет,
+                // и человек об этом не знает, пока не потеряет запись встречи.
+                "batteryRestricted" -> result.success(batteryRestricted())
+                "openBatterySettings" -> { openBatterySettings(); result.success("ok") }
                 else -> result.notImplemented()
             }
         }
@@ -39,6 +43,26 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
      * микрофонный foreground-сервис из фона, Android 14+ — вообще требование платформы.
      * Возвращаем причину, чтобы приложение показало человеку понятный экран, а не «ничего не произошло».
      */
+    /** true — система ограничивает фон, запись может оборваться без предупреждения. */
+    private fun batteryRestricted(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+        val pm = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        return !pm.isIgnoringBatteryOptimizations(context.packageName)
+    }
+
+    /** Открывает системный экран, где человек снимает ограничение. Сам ничего не разрешает. */
+    private fun openBatterySettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val intent = Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            // Некоторые прошивки не имеют этого экрана — молча падать нельзя, но и падать незачем.
+            Log.w(TAG, "battery settings unavailable: " + e.message)
+        }
+    }
+
     private fun start(): String {
         if (!RecordingPermissions.hasMicrophone(context)) return "denied"
         val intent = Intent(context, RecordingService::class.java)

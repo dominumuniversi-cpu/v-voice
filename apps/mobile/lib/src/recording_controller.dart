@@ -13,6 +13,14 @@ abstract class RecordingBridge {
   Future<String> start();
   Future<String> stop();
   Stream<Map<String, dynamic>> get events;
+
+  /// Ограничивает ли система работу приложения в фоне. На Xiaomi/Huawei/Oppo — часто да,
+  /// и тогда запись обрывается без предупреждения. По умолчанию false: тестовые бриджи
+  /// не обязаны знать про батарею.
+  Future<bool> batteryRestricted() async => false;
+
+  /// Открыть системный экран, где человек снимает ограничение сам.
+  Future<void> openBatterySettings() async {}
 }
 
 /// Ошибки записи в человеческом виде: человек должен понимать, что случилось.
