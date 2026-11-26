@@ -991,6 +991,16 @@ for _tpl in _ROUTES:
 check("lock_covers_every_route", not _leaks, _leaks)
 _ok = _handle('GET', '/api/v1/health', '', device_tokens=('key-one',), auth_token='key-one')
 check("lock_lets_own_device_in", _ok.status != 401, _ok.status)
+# Маршрут, объявленный в ROUTES и не попавший в шаблоны, отвечает 404 на каждый запрос:
+# так молча не работало скачивание расшифровки.
+from vvoice.http_api import _route as _route_of
+_unresolved = []
+for _tpl in _ROUTES:
+    if '{session_id}' in _tpl:
+        _got, _p = _route_of(_tpl.replace('{session_id}', 'abc123def4567890'))
+        if _got != _tpl:
+            _unresolved.append((_tpl, _got))
+check("every_template_resolves", not _unresolved, _unresolved)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
