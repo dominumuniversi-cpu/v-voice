@@ -41,14 +41,14 @@ void main() {
   group('режим «только участники» уходит на сервер', () {
     test('по умолчанию флаг не отправляется', () async {
       final transport = _Recorder();
-      final api = ApiClient(transport);
+      final api = ApiClient(transport: transport, baseUrl: 'http://test');
       await api.startAnalysis('s1');
       expect(transport.lastBody, isEmpty);
     });
 
     test('включённый режим отправляет members_only: true', () async {
       final transport = _Recorder();
-      final api = ApiClient(transport)..membersOnly = true;
+      final api = ApiClient(transport: transport, baseUrl: 'http://test')..membersOnly = true;
       await api.startAnalysis('s1');
       expect(transport.lastBody?['members_only'], true);
     });
@@ -57,7 +57,7 @@ void main() {
   group('сбой живой расшифровки не стирает услышанное', () {
     test('при ошибке сервера сохраняется уже распознанный текст', () async {
       final transport = _Failing();
-      final api = ApiClient(transport);
+      final api = ApiClient(transport: transport, baseUrl: 'http://test');
       final text = await api.sendLiveChunk('s1', [1, 2, 3, 4]);
       expect(text, 'Анна: По бюджету до пятницы');
       expect(api.lastLiveProblem.isNotEmpty, isTrue); // причина всё равно названа
