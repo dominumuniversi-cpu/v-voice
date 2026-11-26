@@ -685,7 +685,7 @@ _h_sig = _inspect.signature(_handle)
 check("gate_is_a_handle_option", "gate" in _h_sig.parameters)
 check("config_noise_gate_on_by_default", _cfg.load({}).noise_gate is True)
 check("config_noise_gate_can_be_off", _cfg.load({"VV_NOISE_GATE": "off"}).noise_gate is False)
-_silence = b'\\x00\\x00' * 1600
+_silence = b"\x00\x00" * 1600
 _gate = _VadGate(config=VadConfig())
 _kept = _gate.push(_silence)
 # Тишина не должна выдаваться за речь: иначе шум уходит в распознавание.
