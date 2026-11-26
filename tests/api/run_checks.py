@@ -93,6 +93,41 @@ typo = Settings.from_env({"ASR_PROVIDER": "speechmatic"})
 check("typo_reported", any("ASR_PROVIDER" in p for p in validate(typo)))
 check("describe_mentions_keys", "SPEECHMATICS_API_KEY" in describe())
 
+
+# ---------- выгрузка во внешние продукты (задачник/CRM) ----------
+from vvoice.exporters import ApprovedItem, build_plan, export_all, to_payload  # noqa: E402
+
+ITEM = ApprovedItem(
+    id="item-1", kind="task", title="Отправить смету Анне",
+    evidence_quote="Я отправлю смету завтра утром, успеем", start_s=742.0, end_s=746.5,
+    owner="Дмитрий", due_at="2026-11-27T08:00:00+05:00", priority="high",
+    approved_by="Анна", session_id="sess-9",
+)
+helper_req = to_payload(ITEM, "helper", "https://helper.vernadsky-npc.ru")
+check("helper_priority_lower", helper_req.body["priority"] == "high")
+check("helper_keeps_quote", "Я отправлю смету" in helper_req.body["description"], helper_req.body["description"][:60])
+check("helper_keeps_timecode", "742.0" in helper_req.body["description"])
+check("helper_url", helper_req.url.endswith("/api/v1/tasks"))
+jira = to_payload(ITEM, "jira", "https://x.atlassian.net")
+check("jira_duedate_date", jira.body["fields"]["duedate"] == "2026-11-27")
+check("jira_summary", jira.body["fields"]["summary"] == ITEM.title)
+bx = to_payload(ITEM, "bitrix24", "https://b24.local")
+check("bitrix_deadline", bx.body["fields"]["DEADLINE"] == ITEM.due_at)
+wh = to_payload(ITEM, "webhook", "https://crm.local/hook")
+check("webhook_schema", wh.body["schema"] == "vvoice.item.v1")
+check("webhook_evidence", wh.body["evidence"]["quote"] == ITEM.evidence_quote)
+try:
+    to_payload(ITEM, "telegram", "https://x")
+    check("unknown_target_rejected", False)
+except ValueError:
+    check("unknown_target_rejected", True)
+plan = build_plan([ITEM, ITEM], {"helper": "https://a", "jira": "https://b"})
+check("plan_two_targets_two_items", len(plan) == 4, str(len(plan)))
+results = export_all([(helper_req, ITEM)], lambda r: (True, "201"))
+check("export_success", results[0].ok and results[0].target == "helper")
+results_bad = export_all([(helper_req, ITEM)], lambda r: (_ for _ in ()).throw(RuntimeError("нет сети")))
+check("export_failure_reported", (not results_bad[0].ok) and "нет сети" in results_bad[0].detail)
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
