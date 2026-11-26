@@ -198,6 +198,36 @@ check("presets_three", len(ps) == 3, str(list(ps)))
 check("presets_private_local", ps["приватно"]["asr"] == "gigaam" and ps["приватно"]["llm"] == "ollama")
 check("presets_have_titles", all(p.get("title") for p in ps.values()))
 
+
+# ---------- горячий путь: задержка, досыл, индикатор ----------
+from vvoice.hotpath import (  # noqa: E402
+    CHUNK_MS, NetworkBudget, ResendQueue, chunk_bytes, estimate_first_text_ms,
+)
+
+check("chunk_200ms_bytes", chunk_bytes() == 6400, str(chunk_bytes()))
+check("chunk_size_scales", chunk_bytes(100) == 3200)
+budget = NetworkBudget()
+check("budget_live_initially", budget.state() == "live")
+check("budget_lagging", budget.cursor(2000) == "lagging")
+check("budget_offline", budget.cursor(3000) == "offline")
+check("budget_recovered", (budget.recovered(6000) or budget.state()) == "live", budget.state())
+check("budget_never_negative", budget.recovered(999999) and budget.lag_ms == 0)
+
+q = ResendQueue(max_ms=3000)
+for _ in range(20):
+    q.push(b"x" * 10)
+check("queue_keeps_within_budget", q.pending_ms <= 3000, str(q.pending_ms))
+check("queue_drops_reported", q.dropped_ms > 0, str(q.dropped_ms))
+drained = q.drain()
+check("queue_drain_returns_kept", len(drained) == q.pending_ms // CHUNK_MS if q.pending_ms else len(drained) >= 1)
+check("queue_empty_after_drain", q.pending == [] and q.pending_ms == 0)
+
+fast = estimate_first_text_ms(60)
+slow = estimate_first_text_ms(400)
+check("first_text_fast_network", fast < 900, str(fast))
+check("first_text_slow_network_slower", slow > fast, str((fast, slow)))
+check("first_text_below_one_second_good_network", estimate_first_text_ms(80) <= 1000, str(estimate_first_text_ms(80)))
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
