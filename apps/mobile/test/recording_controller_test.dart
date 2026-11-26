@@ -78,6 +78,23 @@ void main() {
       expect(controller.state, RecordingState.recording);
     });
 
+    test('путь к записи доходит до экрана', () async {
+      await controller.start();
+      bridge.push({'type': 'saved', 'path': '/data/seg/segment.wav', 'duration_ms': 12000});
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.lastSavedPath, '/data/seg/segment.wav');
+      expect(controller.lastDurationMs, 12000);
+    });
+
+    test('пустое событие не затирает сохранённый путь', () async {
+      await controller.start();
+      bridge.push({'type': 'saved', 'path': '/data/a.wav', 'duration_ms': 1000});
+      await Future<void>.delayed(Duration.zero);
+      bridge.push({'type': 'saved', 'path': ''});
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.lastSavedPath, '/data/a.wav');
+    });
+
     test('двойное нажатие не создаёт вторую сессию', () async {
       await controller.start();
       await controller.start();

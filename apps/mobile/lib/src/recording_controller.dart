@@ -53,6 +53,13 @@ class RecordingController {
   /// Пока натив не присылает уровень, значение остаётся 0.
   double level = 0;
   String lastError = '';
+
+  /// Путь к последней сохранённой записи (пустой, пока ничего не сохранено).
+  /// Нужен, чтобы разбор знал, какую запись отправлять на сервер.
+  String lastSavedPath = '';
+
+  /// Длительность последней записи в миллисекундах.
+  int lastDurationMs = 0;
   String liveText = '';
 
   final StreamController<String> _changes = StreamController<String>.broadcast();
@@ -73,6 +80,15 @@ class RecordingController {
         final text = event['value'] as String?;
         if (text != null && text.isNotEmpty) liveText = text;
         _emit();
+      } else if (event['type'] == 'saved') {
+        // Файл готов: путь приходит от натива сразу после финализации WAV.
+        final path = event['path'] as String?;
+        if (path != null && path.isNotEmpty) {
+          lastSavedPath = path;
+          final ms = event['duration_ms'];
+          lastDurationMs = ms is num ? ms.toInt() : 0;
+          _emit();
+        }
       } else if (event['type'] == 'level') {
         // Натив присылает RMS (0..1). Неизвестный формат не должен ронять поток.
         final raw = event['value'];

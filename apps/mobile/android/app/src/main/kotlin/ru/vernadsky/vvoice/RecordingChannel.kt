@@ -84,5 +84,14 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
 
         /** Уровень 0..1 для индикатора — тот же формат и имя поля, что в iOS. */
         fun emitLevel(rms: Float) { eventSink?.success(mapOf("type" to "level", "value" to rms)) }
+
+        /**
+         * Запись сохранена: путь к файлу и длительность.
+         * Зачем событием, а не возвратом из stop(): stop() уже отдаёт "ok" и эту форму знает iOS;
+         * ломать общий контракт ради пути дороже, чем добавить ещё одно событие.
+         */
+        fun emitSaved(path: String, durationMs: Long) {
+            eventSink?.success(mapOf("type" to "saved", "path" to path, "duration_ms" to durationMs))
+        }
     }
 }

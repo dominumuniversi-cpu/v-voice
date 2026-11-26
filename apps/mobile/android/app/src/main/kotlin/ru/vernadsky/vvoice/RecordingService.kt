@@ -137,8 +137,13 @@ class RecordingService : Service() {
         writer?.close()
         writer = null
         // Финализируем WAV-заголовок, чтобы файл читался любым плеером/фоновым процессором.
-        RecordingPaths.finalizeWav(RecordingPaths.sessionDir(this), SAMPLE_RATE)
+        val dir = RecordingPaths.sessionDir(this)
+        RecordingPaths.finalizeWav(dir, SAMPLE_RATE)
         RecordingChannel.emitState("stopped")
+        // Путь нужен наверху: без него экран разбора не знает, какую запись отправлять на сервер.
+        val file = File(dir, "segment.wav")
+        val durationMs = if (file.exists()) (file.length() / 32L) else 0L
+        RecordingChannel.emitSaved(file.absolutePath, durationMs)
     }
 
     override fun onDestroy() {
