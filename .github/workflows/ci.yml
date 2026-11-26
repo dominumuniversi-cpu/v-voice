@@ -89,6 +89,14 @@ jobs:
       # ошибка в нативном коде видна только здесь, и лучше здесь, чем на телефоне.
       - name: flutter build apk
         working-directory: apps/mobile
-        run: flutter build apk --debug
+        # Maven Central отвечает 429 Too Many Requests при частых сборках. Это не ошибка кода,
+        # но без повтора сборка «падает» и человек идёт искать несуществующую поломку.
+        run: |
+          for attempt in 1 2 3; do
+            flutter build apk --debug && exit 0
+            echo "попытка $attempt не удалась, ждём и пробуем снова"
+            sleep 30
+          done
+          exit 1
       # iOS собирается только на macOS: на Linux нет toolchain Apple. Отдельная задача в бэклоге (#35).
 

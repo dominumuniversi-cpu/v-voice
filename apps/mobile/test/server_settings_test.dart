@@ -7,8 +7,10 @@ void main() {
       expect(ServerSettings.problem('   ')!, contains('не заполнен'));
     });
 
-    test('без схемы — понятная ошибка', () {
-      expect(ServerSettings.problem('v-voice.ru')!, contains('http://'));
+    test('без схемы — не ошибка: схему дописывает нормализация', () {
+      // Так решили осознанно: человек не обязан знать про http и https.
+      expect(ServerSettings.problem('v-voice.ru'), isNull);
+      expect(ServerSettings.normalize('v-voice.ru'), 'https://v-voice.ru');
     });
 
     test('слэш в конце не считается ошибкой — он нормализуется', () {
