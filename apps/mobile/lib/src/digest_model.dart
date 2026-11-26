@@ -147,6 +147,21 @@ class Item {
     return m + ':' + s;
   }
 
+  static const _months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+  /// Срок в человеческом виде: «27 ноя, 10:00».
+  /// Модель отдаёт ISO8601, и человек, увидев «2026-11-27T10:00:00», не станет вчитываться —
+  /// а для напоминания срок и есть главное. Непонятную дату не выдумываем: отдаём как есть.
+  String get dueHuman {
+    final parsed = DateTime.tryParse(due);
+    if (parsed == null) return due;
+    final day = parsed.day.toString();
+    final hh = parsed.hour.toString().padLeft(2, '0');
+    final mm = parsed.minute.toString().padLeft(2, '0');
+    final hasTime = parsed.hour != 0 || parsed.minute != 0;
+    return day + ' ' + _months[parsed.month - 1] + (hasTime ? ', ' + hh + ':' + mm : '');
+  }
+
   String get kindLabel {
     switch (kind) {
       case 'meeting':

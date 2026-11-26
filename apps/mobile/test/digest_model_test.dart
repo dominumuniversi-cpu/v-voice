@@ -151,4 +151,21 @@ void main() {
     final d = Digest.fromJson({'summary': [], 'items': [], 'participants': []});
     expect(d.rejected, isEmpty);
   });
+
+  group('срок показывается по-человечески', () {
+    Item withDue(String due) =>
+        Item(id: 'i', kind: 'reminder', title: 'Позвонить', owner: '', due: due, quote: 'Позвони мне завтра утром', startS: 0, approved: false);
+
+    test('ISO-дата превращается в «27 ноя, 10:00»', () {
+      expect(withDue('2026-11-27T10:00:00').dueHuman, '27 ноя, 10:00');
+    });
+
+    test('дата без времени — без ложного часа', () {
+      expect(withDue('2026-11-27T00:00:00').dueHuman, '27 ноя');
+    });
+
+    test('непонятный срок отдаём как есть, а не выдумываем дату', () {
+      expect(withDue('завтра утром').dueHuman, 'завтра утром');
+    });
+  });
 }

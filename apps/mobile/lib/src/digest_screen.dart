@@ -301,7 +301,7 @@ class _ItemCard extends StatelessWidget {
           if (item.owner.isNotEmpty || item.due.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text([item.owner, item.due].where((s) => s.isNotEmpty).join(' · '),
+              child: Text([item.owner, item.dueHuman].where((s) => s.isNotEmpty).join(' · '),
                   style: const TextStyle(color: VVTheme.inkMuted, fontSize: 13)),
             ),
           const SizedBox(height: 10),
