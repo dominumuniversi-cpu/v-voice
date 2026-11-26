@@ -10,6 +10,7 @@ import 'src/prefs_key_value_store.dart' as prefs;
 import 'src/method_channel_bridge.dart';
 import 'src/prefs_server_store.dart';
 import 'src/recording_controller.dart';
+import 'src/server_scope.dart';
 import 'src/session_model.dart';
 import 'src/settings_screen.dart';
 import 'src/theme.dart';
@@ -26,7 +27,11 @@ class VoiceApp extends StatelessWidget {
       title: 'Умный диктофон',
       debugShowCheckedModeBanner: false,
       theme: VVTheme.dark(),
-      home: ListenScreen(controller: RecordingController(MethodChannelBridge())),
+      home: ServerScopeLoader(
+        store: PrefsServerStore(),
+        // Адрес читается до первого экрана: иначе настройки не действовали бы вовсе.
+        child: (_) => ListenScreen(controller: RecordingController(MethodChannelBridge())),
+      ),
     );
   }
 }
@@ -116,6 +121,7 @@ class _ListenScreenState extends State<ListenScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scope = ServerScope.maybeOf(context)!;
     final c = widget.controller;
     final recording = c.state == RecordingState.recording;
 
@@ -140,8 +146,8 @@ class _ListenScreenState extends State<ListenScreen> {
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => SettingsScreen(
-                          api: AppConfig(serverUrl: AppConfig.defaultServer).api,
-                          initialServerUrl: AppConfig.defaultServer,
+                          api: scope.config.api,
+                          initialServerUrl: scope.serverUrl,
                           store: PrefsServerStore(),
                         ),
                       ),
@@ -197,7 +203,7 @@ class _ListenScreenState extends State<ListenScreen> {
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => DigestLoader(
-                          api: AppConfig(serverUrl: AppConfig.defaultServer).api,
+                          api: scope.config.api,
                         ),
                       ),
                     ),

@@ -4,6 +4,7 @@ import 'api_client.dart';
 import 'providers_model.dart';
 import 'server_settings.dart';
 import 'server_store.dart';
+import 'server_scope.dart';
 import 'theme.dart';
 
 /// Экран «Подключение моделей» (FR-24..FR-26).
@@ -89,6 +90,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         server.text = ServerSettings.normalize(server.text);
       }
     });
+    // Сохранение действует сразу: без этого адрес менялся бы только после перезапуска.
+    if (problem == null) {
+      ServerScope.maybeOf(context)?.onChanged(server.text.trim());
+    }
   }
 
   TextEditingController _keyFor(String id) => keys.putIfAbsent(id, () => TextEditingController());
