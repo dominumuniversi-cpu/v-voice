@@ -1,6 +1,6 @@
 # STATUS — состояние проекта
 
-Обновлено: 26.11.2026 (веха M1: написан код, не только документы)
+Обновлено: 27.11.2026 (демо без ключей, стоимость встречи, предел расходов)
 
 ## Что есть
 
@@ -9,7 +9,7 @@
 | Репозиторий, правила, AGENTS.md | есть | [AGENTS.md](../../AGENTS.md) |
 | Исследование с фактами и ссылками | есть | [RESEARCH-2026-11](../RESEARCH/RESEARCH-2026-11.md) |
 | ТЗ, архитектура, подключение моделей, карта | есть | [VOICE-TZ](VOICE-TZ.md), [ARCHITECTURE](../ARCHITECTURE/ARCHITECTURE.md) |
-| Бэклог | 34 задачи, 7 вех, 27 меток | GitHub Issues |
+| Бэклог | 41 открытая задача, 9 закрытых, 7 вех, 27 меток | GitHub Issues |
 | Дизайн | 3 концепта (HTML+PNG) | `docs/UI/prototypes/` |
 | **Android-мост записи** | **написан** (сервис, канал, пути, разрешения) | `apps/mobile/android/` |
 | **iOS-мост записи** | **написан код, не собран** (движок, канал, Info.plist); проверить нечем до появления Xcode — [#48](https://github.com/dominumuniversi-cpu/v-voice/issues/48) | `apps/mobile/ios/` |
@@ -23,7 +23,7 @@
 | **Горячий путь** | **правила задержки и досыла покрыты тестами** | `services/api/vvoice/hotpath.py` |
 | **ASR-адаптер** | **Speechmatics**: протокол разобран и покрыт тестами | `services/api/vvoice/providers/speechmatics.py` |
 | **Интеграции** | **контракт есть**: helper/Jira/Битрикс24/вебхук | `services/api/vvoice/exporters.py` |
-| **LLM-адаптер** | **4 провайдера**: deepseek, anthropic, gigachat, ollama | `services/api/vvoice/providers/llm.py` |
+| **LLM-адаптер** | **отправка работает** для deepseek, anthropic, ollama; gigachat описан, но не проверен (нужен OAuth). Заглушка `fake` включает демо без ключей | `services/api/vvoice/providers/llm.py`, `llm_send.py`, `fake_llm.py` |
 | **Проверка ключа** | **есть**: кнопка «Проверить» объясняет причину отказа | `services/api/vvoice/provider_probe.py` |
 | **Настройки** | **написаны**: каждая переменная с описанием, проверка перед запуском | `services/api/vvoice/settings.py`, `.env.example` |
 | **Задачник репозитория** | **описан**: метки, вехи, шаблон задачи, PR-шаблон | `docs/SPECS/ISSUE-SPEC.md` |
@@ -31,7 +31,7 @@
 | **Индикатор уровня** | **написан** (RMS 0..1, окно 200 мс), читается контроллером; на Android проверяется сборкой, на iOS — нет (#48) | `RecordingService.kt`, `RecordingChannel.swift` |
 | **Экран записи** | **есть**: время, уровень с подсказками, метки моментов (FR-4, FR-5) | `apps/mobile/lib/src/session_model.dart` |
 | **Экран настроек** | **есть**: провайдеры с честными подписями, проверка ключа, 3 пресета (FR-24..FR-26) | `apps/mobile/lib/src/settings_screen.dart` |
-| **Экран разбора** | **есть**: выжимка, решения, вопросы, задачи с цитатой и таймкодом | `apps/mobile/lib/src/digest_screen.dart` |
+| **Экран разбора** | **есть**: выжимка, решения, вопросы, задачи с цитатой и таймкодом, **стоимость встречи и предупреждение о перерасходе** | `apps/mobile/lib/src/digest_screen.dart` |
 | **Связка экранов** | **настройки ходят в сервер через ApiClient**; адрес проверяется и сохраняется | `apps/mobile/lib/src/app_config.dart` |
 | **Адрес сервера** | **есть**: проверка опечаток, нормализация, сохранение при перезапуске через shared_preferences, подстановка на экране | `apps/mobile/lib/src/server_settings.dart` |
 | **Транспорт** | **реальный** поверх пакета `http`, UTF-8 и таймаут 20 с | `apps/mobile/lib/src/http_transport.dart` |
@@ -42,7 +42,8 @@
 | **Сборка iOS** | **невозможна**: нет Xcode-проекта (только 5 файлов Swift) — [#48](https://github.com/dominumuniversi-cpu/v-voice/issues/48); для прогона нужен macOS (#35) | `ios/Runner/` |
 | **Мобильное приложение** | **экран «Слушаю» и контроллер записи**: `flutter analyze` и 6 тестов зелёные в CI | `apps/mobile/lib/` |
 | **Цепочка записи** | **замкнута в коде**: запись → путь → загрузка → хранение → разбор → выдача (#37 закрыта) | `sessions.py`, `storage.py`, `job.py`, `digest_store.py` |
-| **Чего нет** | настоящий распознаватель (#38) и живой прогон на телефоне (#39) | — |
+| **Стоимость** | **есть**: `sent_seconds` в разборе, `cost_rub` при заданном тарифе, `budget_exceeded` при превышении предела (AC-9) | `http_api.py`, `config.py` |
+| **Чего нет** | рабочий ключ распознавания/модели (#36, #38, #40), живой прогон на телефоне (#39, #49), сборка iOS (#48) | — |
 | **Проверки** | **10 локальных + 79 Flutter + 180 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
 
 ## Проверено фактом (числа)
