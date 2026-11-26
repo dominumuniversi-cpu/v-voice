@@ -26,6 +26,9 @@ jobs:
         run: node tests/native/native-drift-check.mjs
 
       # 3) Сквозные кейсы конвейера и контракта.
+      - name: duplicate imports
+        run: node tests/native/import-duplicates.mjs
+
       - name: node tests
         run: node --test "tests/native/*.test.mjs" "tests/api/*.mjs"
 

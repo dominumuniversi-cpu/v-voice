@@ -59,7 +59,10 @@ def export_session(
         return 400, {'error': 'bad_request', 'message': 'Нужны targets: адреса, куда отправлять.'}
     # Адрес берём из настроек сервера. То, что прислал клиент, — только имя цели и, в крайнем случае,
     # временный адрес для отладки; иначе телефон мог бы отправить задачу в самого себя.
-    if configured:
+    if configured is not None:
+        # Пустой словарь — это «настройка есть, но не заполнена», и адрес клиента тут не замена:
+        # именно так задача уходила в собственный сервер. None означает явный режим вызова без
+        # настроек (используется только в проверках).
         resolved = {name: configured[name] for name in targets_raw if name in configured}
         if not resolved:
             return 503, {'error': 'export_not_configured',
