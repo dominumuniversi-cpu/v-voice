@@ -37,6 +37,8 @@ jobs:
         run: node tests/native/dart-named-args.mjs $(find apps/mobile -name '*.dart')
 
       # 2) Контракт нативных мостов: записи на Android/iOS не разошлись.
+      - name: error code explanations
+        run: node tests/native/error-codes-explained.mjs
       - name: native contract
         run: node tests/native/native-drift-check.mjs
 
