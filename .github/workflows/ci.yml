@@ -52,9 +52,7 @@ jobs:
       - name: flutter build apk
         working-directory: apps/mobile
         run: flutter build apk --debug
-      - name: flutter build ios
-        working-directory: apps/mobile
-        run: flutter build ios --debug --no-codesign
+      # iOS собирается только на macOS: на Linux нет toolchain Apple. Отдельная задача в бэклоге (#35).
 
       # 6) Валидатор цитат под настоящим Python (правило «нет цитаты — нет задачи»).
       - name: evidence validator
