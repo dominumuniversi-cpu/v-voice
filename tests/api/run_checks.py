@@ -1089,6 +1089,8 @@ _e1 = explain_digest_failure(RuntimeError("GET https://api.example.com/v2?key=SE
 check("digest_failure_hides_key", "SECRET123456" not in str(_e1), str(_e1))
 _e2 = explain_digest_failure(RuntimeError("Authorization: Bearer sk-abcdef123456"))
 check("digest_failure_hides_bearer", "sk-abcdef123456" not in str(_e2), str(_e2))
+_e2b = explain_digest_failure(RuntimeError("sent Bearer sk-zyx98765432 upstream"))
+check("digest_failure_hides_bare_bearer", "sk-zyx98765432" not in str(_e2b), str(_e2b))
 _e3 = explain_digest_failure(TimeoutError("timed out"))
 check("digest_failure_network_kind", _e3["kind"] == "network" and "интернет" in _e3["message"], str(_e3))
 _e4 = explain_digest_failure(RuntimeError("401 Unauthorized"))

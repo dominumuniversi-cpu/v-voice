@@ -18,14 +18,18 @@ _SECRET_PATTERN = re.compile(
 
 # Отдельно: «Authorization: Bearer <токен>» — после первой замены остаётся голый токен,
 # поэтому второй проход ищет сам заголовок целиком и затирает его до конца строки.
-_BEARER_PATTERN = re.compile(r"(?i)(authorization\s*[=:]\s*bearer)\s+\S+")
+# Заголовок может стоять как «Authorization: Bearer <токен>», так и голым «Bearer <токен>».
+# Ловим оба вида ДО общей замены: общая замена превращает «Bearer sk-...» в «Bearer ***»,
+# после чего шаблон заголовка уже не находит себе пару и токен остаётся открытым.
+_BEARER_PATTERN = re.compile(r"(?i)authorization\s*[=:]\s*bearer\s+\S+")
+_BEARER_ONLY_PATTERN = re.compile(r"(?i)(?<=\bbearer)\s+\S+")
 
 def scrub(text: str) -> str:
     """Убирает из текста всё, похожее на секрет. Пустая строка остаётся пустой."""
     if not text:
         return ""
-    once = _SECRET_PATTERN.sub(lambda m: m.group(1) + m.group(2) + "***", text)
-    return _BEARER_PATTERN.sub(lambda m: m.group(1) + " ***", once)
+    headers_gone = _BEARER_ONLY_PATTERN.sub(" ***", _BEARER_PATTERN.sub("***", text))
+    return _SECRET_PATTERN.sub(lambda m: m.group(1) + m.group(2) + "***", headers_gone)
 
 
 def explain_digest_failure(exc: BaseException) -> dict[str, str]:
