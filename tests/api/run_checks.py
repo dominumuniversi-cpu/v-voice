@@ -675,6 +675,21 @@ check("factory_describes_gap", _desc["asr_configured"] == "deepgram" and _desc["
 from vvoice.provider_factory import IMPLEMENTED_ASR as _impl
 _allowed = set(_cfg.ASR_PROVIDERS)
 check("factory_lists_agree", set(_impl) <= _allowed, (sorted(_impl), sorted(_allowed)))
+# Отсечение шума действительно доходит до разбора, а не лежит мёртвым кодом.
+from vvoice.pipeline import run_session as _run_session
+from vvoice.vad import VadConfig, VadGate as _VadGate
+import inspect as _inspect
+_sig = _inspect.signature(_run_session)
+check("gate_is_a_pipeline_option", "gate" in _sig.parameters)
+_h_sig = _inspect.signature(_handle)
+check("gate_is_a_handle_option", "gate" in _h_sig.parameters)
+check("config_noise_gate_on_by_default", _cfg.load({}).noise_gate is True)
+check("config_noise_gate_can_be_off", _cfg.load({"VV_NOISE_GATE": "off"}).noise_gate is False)
+_silence = b'\\x00\\x00' * 1600
+_gate = _VadGate(config=VadConfig())
+_kept = _gate.push(_silence)
+# Тишина не должна выдаваться за речь: иначе шум уходит в распознавание.
+check("gate_drops_silence", not _kept, _kept)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

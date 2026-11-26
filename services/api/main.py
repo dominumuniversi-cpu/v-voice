@@ -23,6 +23,7 @@ from vvoice.http_api import handle
 from vvoice.live_sessions import LiveSessions
 from vvoice.provider_factory import describe as describe_providers, make_asr_factory
 from vvoice.storage import AudioStore
+from vvoice.vad import VadConfig, VadGate
 
 MAX_BODY_BYTES = 12 * 1024 * 1024  # запись приходит base64, запас на JSON-обёртку
 
@@ -38,6 +39,9 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         # с заполненным ключом. Теперь фабрика собирается из настроек, а отсутствие реализации
         # видно в /health, а не в молчаливом «ничего не произошло».
         'recognizer': make_asr_factory(settings),
+        # Отсечение шума: без этого шум шёл в распознавание целиком, и код vad.py существовал,
+        # но ни один запрос через него не проходил. None — только если человек сам выключил.
+        'gate': VadGate(config=VadConfig()) if settings.noise_gate else None,
         # Отправка задач наружу появится, когда будут ключи интеграций; пока None —
         # маршрут отвечает 503 и говорит правду, вместо того чтобы делать вид.
         'exporter': None,

@@ -33,6 +33,9 @@ class Settings:
     asr_key: str
     llm_key: str
     export_targets: dict[str, str]
+    # Отсечение шума и тишины. Человек может выключить, но по умолчанию — включено:
+    # в записанном разговоре шум мешает модели сильнее, чем редкая потерянная пауза.
+    noise_gate: bool = True
 
     @property
     def asr_ready(self) -> bool:
@@ -121,4 +124,5 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
         asr_key=(source.get('VV_ASR_KEY') or '').strip(),
         llm_key=(source.get('VV_LLM_KEY') or '').strip(),
         export_targets=targets,
+        noise_gate=(source.get('VV_NOISE_GATE') or 'on').strip().lower() not in ('off', '0', 'false', 'нет'),
     )

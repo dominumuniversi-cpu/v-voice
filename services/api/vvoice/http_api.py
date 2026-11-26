@@ -91,7 +91,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            recognizer: Any = None,
            call_llm: Any = None,
            live_sessions: Any = None,
-           exporter: Any = None) -> Response:
+           exporter: Any = None,
+           gate: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -169,7 +170,7 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             return Response(503, {"error": "pipeline_unavailable",
                                   "message": "Сервер не настроен запускать разбор."})
         outcome = analyze(param, store=store, digests=digests,
-                          provider_factory=recognizer, call_llm=call_llm)
+                          provider_factory=recognizer, call_llm=call_llm, gate=gate)
         return Response(outcome.status, outcome.body)
 
     if template == "/api/v1/sessions/{session_id}/stream":
