@@ -244,7 +244,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final (verdict, message) = await client.probe(info.id, key);
       setState(() => results[info.id] = Pair(verdict, message));
     } catch (e) {
-      setState(() => results[info.id] = Pair('rejected', 'Не удалось соединиться: ' + e.toString()));
+      // Сеть — это «неизвестно», а не «ключ плохой». Пометив rejected, мы отправляли человека
+      // менять рабочий ключ из-за упавшего интернета.
+      setState(() => results[info.id] = Pair('unknown', 'Не удалось проверить: ' + e.toString()));
     } finally {
       setState(() => busy = false);
     }
