@@ -404,7 +404,7 @@ check("budget_ratio_capped", Budget(100, Usage(money_rub=500)).ratio == 1.0)
 # ---------- промпт разбора: правила на месте, пример валиден ----------
 import os  # noqa: E402
 
-PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "vvoice", "prompts", "digest_ru.md")
+PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "services", "api", "vvoice", "prompts", "digest_ru.md")
 prompt_text = open(PROMPT_PATH, encoding="utf-8").read()
 
 check("prompt_requires_quote", "Цитата обязательна" in prompt_text)
