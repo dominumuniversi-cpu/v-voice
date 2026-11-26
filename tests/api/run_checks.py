@@ -422,6 +422,7 @@ check("prompt_example_kinds", set(example) >= {"topic", "participants", "summary
 
 # Шаблонный путь разбора: клиент обращается к /api/v1/sessions/<id>/digest.
 from vvoice.http_api import handle as _handle
+from vvoice.http_api import ROUTES as _ROUTES  # noqa: E402
 
 _ok = _handle("GET", "/api/v1/sessions/abc123/digest")
 check("digest_route_exists", _ok.body.get("error") == "digest_not_found", "путь должен существовать, а не давать «нет такого пути»")
@@ -780,7 +781,7 @@ _c_none, _b_none, _ = _transcript_file(None, 'txt')
 check("transcript_missing_is_honest", _c_none == 404 and _b_none.get('error') == 'digest_not_found', _b_none)
 _c_empty, _b_empty, _ = _transcript_file({'utterances': []}, 'txt')
 check("transcript_empty_is_honest", _c_empty == 409 and _b_empty.get('error') == 'transcript_empty', _b_empty)
-check("transcript_route_registered", '/api/v1/sessions/{session_id}/transcript' in ROUTES)
+check("transcript_route_registered", '/api/v1/sessions/{session_id}/transcript' in _ROUTES)
 check("pipeline_keeps_utterances", '"utterances"' in (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice' / 'pipeline.py').read_text(encoding='utf-8'))
 for name, passed, detail in checks:
     if not passed:
