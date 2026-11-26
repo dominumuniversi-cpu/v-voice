@@ -10,6 +10,9 @@ import android.content.Intent
 import android.os.PowerManager
 import android.content.pm.ServiceInfo
 import android.media.AudioFormat
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
@@ -37,6 +40,8 @@ class RecordingService : Service() {
     private var writer: FileOutputStream? = null
     /// Файл текущей записи: финализация и событие saved должны говорить об этом же файле.
     private var currentFile: File? = null
+    private var focusRequest: Any? = null
+    private var voiceLost = false
     private var worker: Thread? = null
     private var running = false
 
@@ -115,6 +120,7 @@ class RecordingService : Service() {
 
     private fun startRecording() {
         acquireWakeLock()
+        requestAudioFocus()
         if (running) return
         val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val record = AudioRecord(
@@ -200,7 +206,69 @@ class RecordingService : Service() {
         RecordingChannel.emitSaved(file.absolutePath, durationMs)
     }
 
+    /**
+     * Аудио-фокус: звонок или другой диктофон могут забрать микрофон, и запись превращается в тишину.
+     * Молчать об этом нельзя — человек уверен, что собеседник записан, а в файле ничего нет.
+     */
+    /** Отпускаем фокус при остановке: иначе телефон считает микрофон занятым и после записи. */
+    private fun abandonFocus() {
+        try {
+          val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+          val req = focusRequest as? AudioFocusRequest
+          if (req != null) am.abandonAudioFocusRequest(req)
+        } catch (e: Exception) {
+          Log.w(TAG, "focus release failed: " + e.message)
+        }
+    }
+
+    private fun requestAudioFocus() {
+        try {
+            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                .setOnAudioFocusChangeListener { change ->
+                    // Потеря надолго — это звонок или чужой диктофон: предупреждаем сразу.
+                    if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                        voiceLost = true
+                        RecordingChannel.emitError("audio_focus_lost")
+                        updateNotice(LOST_TEXT)
+                    } else if (change == AudioManager.AUDIOFOCUS_GAIN && voiceLost) {
+                        voiceLost = false
+                        updateNotice(RUNNING_TEXT)
+                    }
+                }
+                .build()
+            am.requestAudioFocus(request)
+            focusRequest = request
+        } catch (e: Exception) {
+            // Нет фокуса — ещё не значит, что записи нет: микрофон может работать и так.
+            Log.w(TAG, "audio focus unavailable: " + e.message)
+        }
+    }
+
+    /** Меняет текст постоянного уведомления, не трогая состояние записи. */
+    private fun updateNotice(text: String) {
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notification = Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.recording_title))
+                .setContentText(text)
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setOngoing(true)
+                .build()
+            nm.notify(NOTIF_ID, notification)
+        } catch (e: Exception) {
+            Log.w(TAG, "notice update failed: " + e.message)
+        }
+    }
+
     override fun onDestroy() {
+        abandonFocus()
         stopRecording()
         releaseWakeLock()
         super.onDestroy()

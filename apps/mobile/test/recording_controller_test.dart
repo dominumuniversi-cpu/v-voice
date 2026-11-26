@@ -180,6 +180,13 @@ void main() {
     expect(bridge.batteryAsked, 1);
   });
 
+  test('занятый микрофон объясняется словами', () {
+    // Звонок забирает микрофон, запись превращается в тишину — об этом надо сказать сразу.
+    final text = RecordingError.explain('audio_focus_lost');
+    expect(text.contains('audio_focus_lost'), isFalse);
+    expect(text, contains('Микрофон занят'));
+  });
+
   test('отказ телефона объясняется человеку, а не сырым кодом', () {
     final text = RecordingError.explain('start_failed');
     expect(text.contains('start_failed'), isFalse);
