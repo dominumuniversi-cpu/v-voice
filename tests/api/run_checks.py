@@ -661,6 +661,16 @@ _fromfile = _cfg.load_env_file(_envpath)
 check("config_reads_env_file", _fromfile.get("VV_ASR_PROVIDER") == "assemblyai" and _fromfile.get("VV_ASR_KEY") == "ключ-из-файла", _fromfile)
 check("config_env_ignores_comments", len(_fromfile) == 3)
 check("config_missing_env_file_ok", _cfg.load_env_file(_envdir + "/нет-такого") == {})
+# Фабрика провайдеров: заглушка только по явной настройке, нереализованный провайдер не выдаёт себя за рабочий.
+from vvoice.provider_factory import make_asr_factory as _mk, describe as _describe
+_none = _mk(_cfg.load({}))
+check("factory_empty_gives_none", _none is None)
+_fake = _mk(_cfg.load({"VV_ASR_PROVIDER": "fake"}))
+check("factory_fake_only_explicit", _fake is not None)
+_dg = _mk(_cfg.load({"VV_ASR_PROVIDER": "deepgram", "VV_ASR_KEY": "k"}))
+check("factory_unimplemented_gives_none", _dg is None)
+_desc = _describe(_cfg.load({"VV_ASR_PROVIDER": "deepgram", "VV_ASR_KEY": "k"}))
+check("factory_describes_gap", _desc["asr_configured"] == "deepgram" and _desc["asr_usable"] is False)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

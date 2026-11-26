@@ -21,6 +21,7 @@ from vvoice.config import Settings, load as load_settings
 from vvoice.digest_store import DigestStore
 from vvoice.http_api import handle
 from vvoice.live_sessions import LiveSessions
+from vvoice.provider_factory import describe as describe_providers, make_asr_factory
 from vvoice.storage import AudioStore
 
 MAX_BODY_BYTES = 12 * 1024 * 1024  # запись приходит base64, запас на JSON-обёртку
@@ -33,6 +34,10 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         'store': AudioStore(data_dir / 'audio'),
         'digests': DigestStore(data_dir / 'digests'),
         'live_sessions': LiveSessions(),
+        # Распознавание речи: раньше сюда ничего не передавалось, и разбор не мог работать даже
+        # с заполненным ключом. Теперь фабрика собирается из настроек, а отсутствие реализации
+        # видно в /health, а не в молчаливом «ничего не произошло».
+        'recognizer': make_asr_factory(settings),
         # Отправка задач наружу появится, когда будут ключи интеграций; пока None —
         # маршрут отвечает 503 и говорит правду, вместо того чтобы делать вид.
         'exporter': None,
@@ -105,6 +110,10 @@ def main() -> int:
     host = os.environ.get('VV_HOST') or '0.0.0.0'
     port = int(os.environ.get('VV_PORT') or '8080')
     health = settings.public_health()
+    providers = describe_providers(settings)
+    if providers['asr_configured'] and not providers['asr_usable']:
+        print('v-voice: провайдер %s настроен, но реализации нет — разбор речи не заработает'
+              % providers['asr_configured'])
     print('v-voice: трансляция %s, понимание %s'
           % ('готово' if health['can_transcribe'] else 'НЕ настроено',
              'готово' if health['can_understand'] else 'НЕ настроено'))
