@@ -8,7 +8,7 @@
 1. `E:\!Develop\Vernadsky\General rules\00-MANIFEST.md` + манифесты по теме (DEV-RULES, SDD, SESSIONS, SWARM, TOKENS, HOSTING).
 2. Локальные правила проекта: `docs/SPECS/LOCAL-RULES.md`.
 3. Текущее состояние: `docs/ROADMAP/ROADMAP.md`, `docs/SPECS/STATUS.md`.
-4. Задачник — GitHub Issues репозитория `dominumuniversi-cpu/v-voice`. Все задачи/баги — только там.
+4. Шаблон задачи: `docs/SPECS/ISSUE-SPEC.md`. Задачник — GitHub Issues репозитория `dominumuniversi-cpu/v-voice`. Все задачи/баги — только там.
 
 ## Правила этого проекта
 
