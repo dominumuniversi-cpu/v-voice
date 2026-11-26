@@ -176,7 +176,9 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         try:
             # Заменить запись можно ТОЛЬКО у сессии, открытой заранее под живой текст: её звук
             # приходит после «Стоп». Для обычной записи защита «второй файл не затирает первый» сильна.
-            opened_live = live_sessions is not None and (live_sessions.peek(body["session_id"]) is not None and live_sessions.peek(body["session_id"]).size() > 0)
+            _live_state = live_sessions.peek(body["session_id"]) if live_sessions is not None else None
+            opened_live = _live_state is not None and (
+                bool(_live_state.live.finals) or _live_state.live.volatile is not None)
             store.save(body["session_id"], audio, replace=opened_live)
         except FileExistsError:
             return Response(409, {"error": "already_exists",
