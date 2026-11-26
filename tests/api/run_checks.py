@@ -783,6 +783,16 @@ _c_empty, _b_empty, _ = _transcript_file({'utterances': []}, 'txt')
 check("transcript_empty_is_honest", _c_empty == 409 and _b_empty.get('error') == 'transcript_empty', _b_empty)
 check("transcript_route_registered", '/api/v1/sessions/{session_id}/transcript' in _ROUTES)
 check("pipeline_keeps_utterances", '"utterances"' in (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice' / 'pipeline.py').read_text(encoding='utf-8'))
+# Журнал изменений: без него «что менялось» знает только автор коммита.
+_changelog = Path(__file__).resolve().parents[2] / 'CHANGELOG.md'
+check("changelog_exists", _changelog.exists(), 'CHANGELOG.md отсутствует')
+_cl_text = _changelog.read_text(encoding='utf-8') if _changelog.exists() else ''
+check("changelog_has_unreleased", '## [Unreleased]' in _cl_text)
+check("changelog_not_empty", len(_cl_text.strip().splitlines()) > 4, 'журнал пуст')
+# STATUS не должен врать о числе путей: это первое, что читает новый человек.
+_status_text = (Path(__file__).resolve().parents[2] / 'docs' / 'SPECS' / 'STATUS.md').read_text(encoding='utf-8')
+check("status_route_count_matches", ('**%d путей**' % len(_ROUTES)) in _status_text,
+      'в STATUS не совпадает число путей: их %d' % len(_ROUTES))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

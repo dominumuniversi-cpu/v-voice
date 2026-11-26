@@ -17,8 +17,8 @@
 | **Промпт разбора** | **файл под ревью + 13 проверок содержимого** | `services/api/vvoice/prompts/digest_ru.md` |
 | **Восстановление** | **есть**: пересборка WAV-заголовка, обрывки отсекаются (FR-6) | `services/api/vvoice/recovery.py` |
 | **Лимиты** | **есть**: расход месяца, предупреждение 80%, сколько встреч осталось (FR-27) | `services/api/vvoice/limits.py` |
-| **Экспорт** | **TXT, Markdown, SRT, VTT, JSON** с таймкодами и спикерами (FR-11) | `services/api/vvoice/formats.py` |
-| **HTTP-слой** | **4 пути**: health, presets, probe, items/validate; коды и причины | `services/api/vvoice/http_api.py` |
+| **Экспорт** | **TXT, Markdown, SRT, VTT, JSON** с таймкодами и спикерами; **скачивается** через `GET /api/v1/sessions/{id}/transcript?format=` (FR-11) | `services/api/vvoice/formats.py`, `transcript_route.py` |
+| **HTTP-слой** | **11 путей** (записи, живые куски, разбор, экспорт, расшифровка, health); коды и причины | `services/api/vvoice/http_api.py` |
 | **Схема БД** | **есть миграция v1** (биометрия — в отдельной схеме) | `services/api/migrations/0001_init.sql` |
 | **Горячий путь** | **правила задержки и досыла покрыты тестами** | `services/api/vvoice/hotpath.py` |
 | **ASR-адаптер** | **Speechmatics**: протокол разобран и покрыт тестами | `services/api/vvoice/providers/speechmatics.py` |
