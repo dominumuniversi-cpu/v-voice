@@ -57,5 +57,8 @@ def analyze(
         # str(exc) не годится для экрана: там бывает URL с ключом и текст из чужой библиотеки.
         # Наружу — фраза человека и вид сбоя, техническая подробность — вычищенной.
         return JobResult(502, dict({"error": "digest_failed"}, **explain_digest_failure(exc)))
-    digests.save(session_id, result)
+    # Сохраняем и отдаём САМ разбор, а не обёртку конвейера. Раньше сюда попадал весь result
+    # (с live_text, transcript, digest внутри), и /digest возвращал объект, у которого нет summary:
+    # экран разбора показывал пустоту при полностью успешном разборе.
+    digests.save(session_id, result.get("digest", result))
     return JobResult(200, result)

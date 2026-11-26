@@ -39,6 +39,28 @@ void main() {
     });
   });
 
+  group('форма ответа разбора', () {
+    test('вложенный разбор разворачивается', () async {
+      final c = ApiClient(transport: FakeTransport({
+        '/api/v1/sessions/s1/digest': (
+          200,
+          '{"live_text":"","digest":{"summary":["Обсудили смету"],"decisions":[],"open_questions":[],"items":[]}}'
+        ),
+      }), baseUrl: '');
+      final d = await c.fetchDigest('s1');
+      expect(d, isNotNull);
+      expect(d!.summary.first, 'Обсудили смету');
+    });
+
+    test('плоский разбор читается как есть', () async {
+      final c = ApiClient(transport: FakeTransport({
+        '/api/v1/sessions/s1/digest': (200, '{"summary":["Пришли к смете"],"decisions":[],"open_questions":[],"items":[]}'),
+      }), baseUrl: '');
+      final d = await c.fetchDigest('s1');
+      expect(d!.summary.first, 'Пришли к смете');
+    });
+  });
+
   group('отправка в задачник', () {
     test('задачи без цитаты не теряются молча', () async {
       final c = ApiClient(transport: FakeTransport({

@@ -265,10 +265,16 @@ class ApiClient {
       lastDigestProblem = message.isNotEmpty ? message : 'Сервер ответил кодом ' + code.toString() + '.';
       return null;
     }
-    final data = _safeDecode(body);
+    var data = _safeDecode(body);
     if (data.isEmpty) {
       lastDigestProblem = 'Сервер прислал пустой ответ.';
       return null;
+    }
+    // Старые серверы отдавали обёртку конвейера, где разбор лежал во вложенном поле. Без этой
+    // развёртки экран показывал пустоту при успешном разборе — и понять, что виноват формат, было некому.
+    final nested = data['digest'];
+    if (nested is Map && !data.containsKey('summary')) {
+      data = Map<String, dynamic>.from(nested);
     }
     return Digest.fromJson(data);
   }
