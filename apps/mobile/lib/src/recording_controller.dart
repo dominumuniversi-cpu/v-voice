@@ -48,6 +48,10 @@ class RecordingController {
 
   final RecordingBridge bridge;
   RecordingState state = RecordingState.idle;
+
+  /// Уровень сигнала 0..1 из нативного слоя. Ноль — «ничего не слышим», не «тихо».
+  /// Пока натив не присылает уровень, значение остаётся 0.
+  double level = 0;
   String lastError = '';
   String liveText = '';
 
@@ -63,8 +67,10 @@ class RecordingController {
       } else if (event['type'] == 'error') {
         lastError = RecordingError.explain(event['code'] as String? ?? 'unknown');
         _emit();
-      } else if (event['type'] == 'live') {
-        liveText = event['value'] as String? ?? liveText;
+      } else if (event['type'] == 'level') {
+        // Натив присылает RMS (0..1). Неизвестный формат не должен ронять поток.
+        final raw = event['value'];
+        if (raw is num) level = raw.toDouble().clamp(0, 1).toDouble();
         _emit();
       }
     }, onError: (Object error) {

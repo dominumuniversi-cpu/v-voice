@@ -81,5 +81,8 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
 
         fun emitState(newState: String) { state = newState; eventSink?.success(mapOf("type" to "state", "value" to newState)) }
         fun emitError(code: String) { eventSink?.success(mapOf("type" to "error", "code" to code)) }
+
+        /** Уровень 0..1 для индикатора — тот же формат и имя поля, что в iOS. */
+        fun emitLevel(rms: Float) { eventSink?.success(mapOf("type" to "level", "value" to rms)) }
     }
 }

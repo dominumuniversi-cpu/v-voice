@@ -108,11 +108,19 @@ class RecordingService : Service() {
         // Буфер пишется на диск каждые ~200 мс: система может убить процесс, аудио должно остаться.
         worker = Thread {
             val buf = ByteArray(minBuf)
+            var sinceLevel = 0
             while (running) {
                 val read = record.read(buf, 0, buf.size)
                 if (read > 0) {
                     writer?.write(buf, 0, read)
                     writer?.flush()
+                    // Уровень считаем здесь, где данные уже в руках: отдельный опрос не нужен,
+                    // а AudioRecord (в отличие от MediaRecorder) сам амплитуду не отдаёт.
+                    sinceLevel += read
+                    if (sinceLevel >= LEVEL_WINDOW_BYTES) {
+                        sinceLevel = 0
+                        RecordingChannel.emitLevel(rmsOf(buf, read))
+                    }
                 }
             }
         }.also { it.start() }
@@ -143,8 +151,31 @@ class RecordingService : Service() {
         private const val CHANNEL_ID = "voice_record"
         private const val NOTIF_ID = 42
         private const val SAMPLE_RATE = 16_000
+        /** ~200 мс при 16 кГц моно 16 бит: частота индикатора, а не запись. */
+        private const val LEVEL_WINDOW_BYTES = 6400
         const val ACTION_STOP = "ru.vernadsky.vvoice.STOP"
         const val ACTION_PAUSE = "ru.vernadsky.vvoice.PAUSE"
         const val ACTION_RESUME = "ru.vernadsky.vvoice.RESUME"
     }
+
+    /**
+     * RMS куска PCM16 в диапазоне 0..1 — «сколько звука», без зависимости от модели телефона.
+     *
+     * Считаем по байтам: 16-битные сэмплы, младший байт первым (AudioRecord по умолчанию little-endian).
+     */
+    private fun rmsOf(buf: ByteArray, length: Int): Float {
+        if (length < 2) return 0f
+        var sum = 0.0
+        var i = 0
+        while (i + 1 < length) {
+            val lo = buf[i].toInt() and 0xFF
+            val hi = buf[i + 1].toInt()
+            val sample = (hi shl 8) or lo
+            sum += sample.toDouble() * sample
+            i += 2
+        }
+        val rms = kotlin.math.sqrt(sum / (length / 2))
+        return (rms / 32768.0).toFloat().coerceIn(0f, 1f)
+    }
+
 }
