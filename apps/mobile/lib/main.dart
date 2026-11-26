@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'src/api_client.dart';
+import 'src/audio_file.dart';
 import 'src/consent_model.dart';
 import 'src/digest_loader.dart';
 import 'src/consent_store.dart';
@@ -50,6 +52,54 @@ class _ListenScreenState extends State<ListenScreen> {
   final SessionModel session = SessionModel();
   Timer? _ticker;
   final ConsentStore consentStore = ConsentStore(store: prefs.PrefsKeyValueStore());
+
+  /// Идёт отправка записи на сервер: кнопка разбора в это время не врёт «готово».
+  bool _uploading = false;
+
+  /// Идентификатор сессии на сервере для последней успешной отправки.
+  String? _sessionId;
+
+  /// Открывает разбор: сначала убеждается, что запись отправлена, иначе разбирать нечего.
+  Future<void> _openDigest(ApiClient api) async {
+    final path = widget.controller.lastSavedPath;
+    if (_sessionId == null && path.isEmpty) {
+      // Записи нет — экран разбора сам объяснит, чего не хватает, без выдумок.
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => DigestLoader(api: api)),
+      );
+      return;
+    }
+    if (_sessionId == null) {
+      setState(() => _uploading = true);
+      try {
+        final bytes = await readFileBytes(path);
+        final id = await api.uploadSession(bytes);
+        if (!mounted) return;
+        if (id == null) {
+          setState(() {
+            _uploading = false;
+            widget.controller.lastError = api.lastUploadProblem;
+          });
+          return;
+        }
+        _sessionId = id;
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _uploading = false;
+            widget.controller.lastError = 'Не удалось прочитать запись: ' + e.toString();
+          });
+        }
+        return;
+      }
+      if (mounted) setState(() => _uploading = false);
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => DigestLoader(api: api, sessionId: _sessionId)),
+    );
+  }
 
   /// Согласие на запись: приложение слушает чужие голоса, и человек должен знать это заранее.
   ConsentModel consent = ConsentModel(
@@ -199,14 +249,8 @@ class _ListenScreenState extends State<ListenScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => DigestLoader(
-                          api: scope.config.api,
-                        ),
-                      ),
-                    ),
-                    child: const Text('Открыть разбор'),
+                    onPressed: () => _openDigest(scope.config.api),
+                    child: Text(_uploading ? 'Отправляю запись…' : 'Открыть разбор'),
                   ),
                 ),
                             // Одна главная кнопка: действие зависит от состояния, без второй «кнопки отмены».

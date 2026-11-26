@@ -1,0 +1,67 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:v_voice/src/api_client.dart';
+import 'package:v_voice/src/audio_file.dart';
+
+class _Fake implements HttpTransport {
+  _Fake(this.reply);
+  final (int, String) reply;
+  Map<String, dynamic>? lastBody;
+
+  @override
+  Future<(int, String)> get(String path) async => reply;
+
+  @override
+  Future<(int, String)> post(String path, Map<String, dynamic> body) async {
+    lastBody = body;
+    return reply;
+  }
+}
+
+void main() {
+  group('загрузка записи', () {
+    test('успех возвращает идентификатор сессии', () async {
+      final t = _Fake((200, '{"session_id":"abc123def456"}'));
+      final api = ApiClient(transport: t, baseUrl: '');
+      final id = await api.uploadSession([1, 2, 3]);
+      expect(id, 'abc123def456');
+      expect(t.lastBody!['audio_base64'], isNotNull);
+    });
+
+    test('отказ сервера объясняет причину', () async {
+      final api = ApiClient(
+        transport: _Fake((415, '{"error":"not_wav","message":"Нужен файл WAV: заголовок не распознан."}')),
+        baseUrl: '',
+      );
+      expect(await api.uploadSession([1, 2, 3]), isNull);
+      expect(api.lastUploadProblem, contains('WAV'));
+    });
+
+    test('пустая запись не отправляется вообще', () async {
+      final t = _Fake((200, '{"session_id":"x"}'));
+      final api = ApiClient(transport: t, baseUrl: '');
+      expect(await api.uploadSession([]), isNull);
+      expect(t.lastBody, isNull);
+      expect(api.lastUploadProblem, contains('пустая'));
+    });
+  });
+
+  group('чтение записи с диска', () {
+    test('пустой путь — ошибка, а не пустая отправка', () async {
+      expect(() => readFileBytes(''), throwsA(isA<FormatException>()));
+    });
+
+    test('несуществующий файл — ошибка с путём', () async {
+      expect(() => readFileBytes('/нет/такого/файла.wav'), throwsA(isA<FileSystemException>()));
+    });
+
+    test('настоящий файл читается целиком', () async {
+      final dir = await Directory.systemTemp.createTemp('vvoice');
+      final file = File(dir.path + '/a.wav');
+      await file.writeAsBytes([82, 73, 70, 70]);
+      expect(await readFileBytes(file.path), [82, 73, 70, 70]);
+      await dir.delete(recursive: true);
+    });
+  });
+}

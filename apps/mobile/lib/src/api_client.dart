@@ -18,6 +18,36 @@ abstract class HttpTransport {
 class ApiClient {
   ApiClient({required this.transport, required this.baseUrl});
 
+  /// Отправляет запись на сервер и возвращает идентификатор сессии (или null с причиной в lastUploadProblem).
+  ///
+  /// Почему base64: транспорт уже проверен на JSON-путях, и отдельный двоичный протокол
+  /// означал бы ещё один непроверенный кусок. Цена — примерно треть лишнего объёма, которую
+  /// платим только в момент загрузки.
+  Future<String?> uploadSession(List<int> audioBytes) async {
+    lastUploadProblem = '';
+    if (audioBytes.isEmpty) {
+      lastUploadProblem = 'Запись пустая — отправлять нечего.';
+      return null;
+    }
+    final encoded = base64Encode(audioBytes);
+    final (code, body) = await transport.post('/api/v1/sessions', {'audio_base64': encoded});
+    final data = _safeDecode(body);
+    if (code != 200) {
+      final message = (data['message'] ?? '').toString();
+      lastUploadProblem = message.isNotEmpty ? message : 'Сервер ответил кодом ' + code.toString() + '.';
+      return null;
+    }
+    final id = (data['session_id'] ?? '').toString();
+    if (id.isEmpty) {
+      lastUploadProblem = 'Сервер не вернул идентификатор сессии.';
+      return null;
+    }
+    return id;
+  }
+
+  /// Почему последняя загрузка не удалась. Пустая строка — всё хорошо или загрузки не было.
+  String lastUploadProblem = '';
+
   /// Почему последний запрос разбора ничего не вернул.
   /// Пустая строка — всё в порядке или запроса ещё не было.
   /// Без этого экран показывал пустоту, и человек читал её как «приложение не поняло разговор».
