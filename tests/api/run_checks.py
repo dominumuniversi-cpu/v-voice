@@ -128,6 +128,45 @@ check("export_success", results[0].ok and results[0].target == "helper")
 results_bad = export_all([(helper_req, ITEM)], lambda r: (_ for _ in ()).throw(RuntimeError("нет сети")))
 check("export_failure_reported", (not results_bad[0].ok) and "нет сети" in results_bad[0].detail)
 
+
+# ---------- адаптер Speechmatics: протокол без сети ----------
+from vvoice.providers.speechmatics import (  # noqa: E402
+    add_audio_message, end_of_stream_message, parse_response, start_recognition_message, wav_to_pcm,
+)
+
+WAV_HEADER = b"RIFF" + (36).to_bytes(4, "little") + b"WAVE" + b"fmt " + (16).to_bytes(4, "little") + b"\x01\x00\x01\x00" + \
+    (16000).to_bytes(4, "little") + (32000).to_bytes(4, "little") + b"\x02\x00\x10\x00" + b"data" + (8).to_bytes(4, "little")
+PCM = b"\x01\x02\x03\x04\x05\x06\x07\x08"
+
+check("wav_header_stripped", wav_to_pcm(WAV_HEADER + PCM) == PCM)
+check("pcm_passthrough", wav_to_pcm(PCM) == PCM)
+msg = json.loads(add_audio_message(PCM, 7))
+check("audio_message_kind", msg["message"] == "AddAudio")
+check("audio_message_base64", msg["audio"] == "AQIDBAUGBwg=", msg["audio"])
+check("audio_message_seq", msg["seq_no"] == 7)
+start = json.loads(start_recognition_message("ru"))
+check("start_format_pcm16", start["audio_format"]["encoding"] == "pcm_s16le")
+check("start_diarization_on", start["transcription_config"]["diarization"] == "speaker")
+check("end_of_stream", json.loads(end_of_stream_message(9))["last_seq_no"] == 9)
+
+final = parse_response(json.dumps({
+    "message": "AddTranscript", "start_time": 3.0, "end_time": 5.5,
+    "metadata": {"transcript": "Отправим смету завтра утром."},
+    "results": [{"alternatives": [{"speaker": "S2", "content": "Отправим"}], "start_time": 3.0, "end_time": 5.5}],
+}))
+check("transcript_final_parsed", final is not None and not final.volatile and final.text.startswith("Отправим"), str(final))
+check("transcript_speaker", final.speaker == "Голос 2", str(final.speaker))
+partial = parse_response(json.dumps({"message": "AddPartialTranscript", "start_time": 1.0, "end_time": 2.0,
+                                     "metadata": {"transcript": "Отпра"}}))
+check("partial_is_volatile", partial.volatile is True)
+check("service_messages_ignored", parse_response(json.dumps({"message": "AudioAdded", "seq_no": 1})) is None)
+check("broken_json_ignored", parse_response("не json") is None)
+try:
+    parse_response(json.dumps({"message": "Error", "type": "quota"}))
+    check("error_raises", False)
+except ConnectionError:
+    check("error_raises", True)
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
