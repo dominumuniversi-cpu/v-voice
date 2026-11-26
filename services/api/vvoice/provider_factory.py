@@ -36,11 +36,18 @@ def make_asr_factory(settings: Settings) -> Callable[[str], Any] | None:
     return None
 
 
+IMPLEMENTED_LLM: tuple[str, ...] = ()
+
+
 def describe(settings: Settings) -> dict[str, Any]:
     """Что из настроенного реально можно подключить. Для /health и для журнала старта."""
     provider = (settings.asr_provider or '').strip().lower()
+    llm = (settings.llm_provider or '').strip().lower()
     return {
         'asr_configured': provider,
         'asr_implemented': provider in IMPLEMENTED_ASR,
         'asr_usable': make_asr_factory(settings) is not None,
+        'llm_configured': llm,
+        'llm_implemented': llm in IMPLEMENTED_LLM,
+        'llm_usable': llm in IMPLEMENTED_LLM,
     }

@@ -128,6 +128,9 @@ def main() -> int:
     if providers['asr_configured'] and not providers['asr_usable']:
         print('v-voice: провайдер %s настроен, но реализации нет — разбор речи не заработает'
               % providers['asr_configured'])
+    if providers['llm_configured'] and not providers['llm_usable']:
+        print('v-voice: понимание настроено на %s, но реализации нет — задачи из разговора не появятся'
+              % providers['llm_configured'])
     print('v-voice: трансляция %s, понимание %s'
           % ('готово' if health['can_transcribe'] else 'НЕ настроено',
              'готово' if health['can_understand'] else 'НЕ настроено'))

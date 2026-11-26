@@ -749,7 +749,7 @@ check("webhook_has_required_fields", not _required_missing, _required_missing)
 _main_src = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'main.py').read_text(encoding='utf-8')
 check("main_has_entrypoint", "if __name__ == '__main__'" in _main_src)
 check("main_loads_env_file", 'load_env_file(env_file)' in _main_src, 'env не читается при запуске')
-check("main_builds_settings", 'load(' in _main_src or 'Settings(' in _main_src)
+check("main_builds_settings", 'load_settings(' in _main_src)
 check("main_warns_about_gap", 'describe_providers(' in _main_src,
       'сервер не предупреждает, что настроенный провайдер не реализован')
 
@@ -757,6 +757,12 @@ check("main_warns_about_gap", 'describe_providers(' in _main_src,
 _s = _load({'VV_ASR_PROVIDER': 'fake', 'VV_LLM_PROVIDER': 'fake'})
 check("config_env_reaches_settings", _s.asr_provider == 'fake' and _s.llm_provider == 'fake',
       (_s.asr_provider, _s.llm_provider))
+# Понимание речи — такой же честный статус, как и распознавание: молчание тут опаснее ошибки.
+from vvoice.provider_factory import describe as _describe, IMPLEMENTED_LLM as _IMPL_LLM
+_llm_status = _describe(_load({'VV_LLM_PROVIDER': 'openai'}))
+check("factory_reports_llm", _llm_status.get('llm_configured') == 'openai', _llm_status)
+check("factory_llm_not_usable_yet", _llm_status.get('llm_usable') is False)
+check("factory_lists_llm", isinstance(_IMPL_LLM, tuple))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
