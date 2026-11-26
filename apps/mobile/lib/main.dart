@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'src/app_config.dart';
+import 'src/consent_model.dart';
 import 'src/method_channel_bridge.dart';
 import 'src/prefs_server_store.dart';
 import 'src/recording_controller.dart';
@@ -41,6 +42,46 @@ class ListenScreen extends StatefulWidget {
 class _ListenScreenState extends State<ListenScreen> {
   final SessionModel session = SessionModel();
   Timer? _ticker;
+
+  /// Согласие на запись: приложение слушает чужие голоса, и человек должен знать это заранее.
+  ConsentModel consent = ConsentModel(
+    version: '2026-11-01',
+    terms: const [
+      'Приложение слушает разговор через микрофон и сохраняет расшифровку.',
+      'Текст и записи хранятся на указанном вами сервере, а не пересылаются третьим лицам без вашего ведома.',
+      'Запись разговора может требовать согласия его участников — это ваша ответственность, приложение не заменяет её.',
+    ],
+  );
+
+  /// Старт с проверкой согласия: без него запись не начинается вовсе.
+  Future<void> _startWithConsent() async {
+    if (!consent.canRecord) {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Перед записью'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: consent.terms
+                .map((line) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text('• ' + line),
+                    ))
+                .toList(),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Отмена')),
+            FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Понимаю, начать')),
+          ],
+        ),
+      );
+      if (accepted != true) return;
+      if (!mounted) return;
+      setState(() => consent = consent.accept());
+    }
+    await widget.controller.start();
+  }
 
   @override
   void initState() {
@@ -143,7 +184,7 @@ class _ListenScreenState extends State<ListenScreen> {
                 height: 64,
                 child: FilledButton(
                   style: FilledButton.styleFrom(backgroundColor: recording ? VVTheme.live : VVTheme.accent),
-                  onPressed: recording ? c.stop : c.start,
+                  onPressed: recording ? c.stop : _startWithConsent,
                   child: Text(recording ? 'Стоп' : 'Слушаю', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 ),
               ),
