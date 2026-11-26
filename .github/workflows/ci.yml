@@ -44,6 +44,9 @@ jobs:
         run: node tests/native/dart-implements.mjs
       # Подписи про готовность моделей не обещают проверку ключа, которой сервер не делал.
       # Схема в промпте совпадает с тем, что читает валидатор: иначе разбор пуст по вине не модели.
+      # Контракт экспорта и схема не расходятся: их читают чужие люди, а не сборка.
+      - name: export contract
+        run: node tests/native/export-contract-check.mjs
       - name: prompt schema
         run: node tests/native/prompt-schema-check.mjs
       - name: settings claims
