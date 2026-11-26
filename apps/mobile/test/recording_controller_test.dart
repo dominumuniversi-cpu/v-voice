@@ -22,6 +22,13 @@ class FakeBridge implements RecordingBridge {
 
   @override
   Future<void> openBatterySettings() async {}
+
+  /// Записи на телефоне. Пусто: тесты про запись и состояние, не про файлы.
+  @override
+  Future<List<Map<String, Object>>> listRecordings() async => recovered;
+
+  // Записи, которые будто лежат на телефоне — для теста восстановления после сбоя.
+  final List<Map<String, Object>> recovered = [];
   final _events = StreamController<Map<String, dynamic>>.broadcast();
   int startCalls = 0;
   int stopCalls = 0;
@@ -191,5 +198,14 @@ void main() {
     final text = RecordingError.explain('start_failed');
     expect(text.contains('start_failed'), isFalse);
     expect(text, contains('Телефон не дал включить запись'));
+  });
+
+  test('записи на телефоне видит контроллер', () async {
+    final bridge = FakeBridge();
+    bridge.recovered.add({'path': '/tmp/a.wav', 'name': 'a.wav', 'bytes': 48000, 'modified_ms': 0});
+    final controller = RecordingController(bridge);
+    final list = await controller.listRecordings();
+    expect(list.length, 1);
+    expect(list.first['name'], 'a.wav');
   });
 }

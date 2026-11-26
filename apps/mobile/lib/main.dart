@@ -207,6 +207,33 @@ class _ListenScreenState extends State<ListenScreen> {
     }
   }
 
+  /// Отправляет на разбор запись, найденную на телефоне.
+  ///
+  /// Отдельно от [_openDigest]: тот берёт последнюю запись контроллера, а здесь файл выбран
+  /// человеком, и живого режима у него нет — только «загрузить и разобрать».
+  Future<void> _analyzeRecovered(String path) async {
+    final api = scope.config.api;
+    setState(() => _uploading = true);
+    String? id;
+    try {
+      final bytes = await readFileBytes(path);
+      id = await api.uploadSession(bytes);
+      if (id == null) {
+        widget.controller.lastError = api.lastUploadProblem;
+      } else {
+        final started = await api.startAnalysis(id);
+        if (!started) widget.controller.lastError = api.lastAnalysisProblem;
+      }
+    } catch (e) {
+      widget.controller.lastError = 'Не удалось прочитать запись: ' + e.toString();
+    }
+    if (!mounted) return;
+    setState(() => _uploading = false);
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => DigestLoader(api: api, sessionId: id)),
+    );
+  }
+
   /// Показывает записи на телефоне и даёт отправить любую на разбор.
   ///
   /// Зачем: после падения процесса файл остаётся целым, но экран о нём не знает.
@@ -220,7 +247,7 @@ class _ListenScreenState extends State<ListenScreen> {
           recordings: list,
           onOpen: (path) {
             Navigator.of(ctx).pop();
-            _openDigest(path);
+            _analyzeRecovered(path);
           },
           onDelete: (path) async {
             await deleteRecording(path);
