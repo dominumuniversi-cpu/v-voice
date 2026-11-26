@@ -21,6 +21,9 @@ jobs:
       - name: python syntax
         run: node scripts/syntax-check.mjs
 
+      - name: python imports
+        run: node tests/native/py-imports.mjs tests/api/run_checks.py tests/api/scenario.py
+
       # 2) Контракт нативных мостов: записи на Android/iOS не разошлись.
       - name: native contract
         run: node tests/native/native-drift-check.mjs

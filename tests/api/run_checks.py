@@ -4,6 +4,7 @@
 чтобы поведение было проверено уже сейчас. Запуск: python tests/api/run_checks.py
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -692,7 +693,6 @@ _kept = _gate.push(_silence)
 # Тишина не должна выдаваться за речь: иначе шум уходит в распознавание.
 check("gate_drops_silence", not _kept, _kept)
 # Каждая настройка из кода описана в .env.example: иначе она есть, но о ней не узнать.
-import re as _re
 _example_path = Path(__file__).resolve().parents[2] / 'services' / 'api' / '.env.example'
 _example_text = _example_path.read_text(encoding='utf-8')
 _code_names = set()
@@ -802,7 +802,6 @@ check("health_can_transcribe_is_honest", _h_configured['can_transcribe'] is Fals
 _h_fake = _load({'VV_ASR_PROVIDER': 'fake', 'VV_ASR_KEY': 'k'}).public_health()
 check("health_ready_for_implemented", _h_fake['asr']['ready'] is True, _h_fake['asr'])
 # Документ советует конкретные имена провайдеров. Если человек скопирует их, настройки не должны молча пустеть.
-import re as _re
 _doc = (Path(__file__).resolve().parents[2] / 'docs' / 'ARCHITECTURE' / 'AI-PROVIDERS.md').read_text(encoding='utf-8')
 _doc_asr = set(_re.findall(r'VV_ASR_PROVIDER=([a-z0-9_]+)', _doc))
 _doc_llm = set(_re.findall(r'VV_LLM_PROVIDER=([a-z0-9_]+)', _doc))
