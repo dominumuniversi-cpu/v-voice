@@ -26,6 +26,11 @@ def send_request(request: ExportRequest, *, token: str = '', timeout_s: int = TI
     body = json.dumps(request.body, ensure_ascii=False).encode('utf-8') if request.body is not None else None
     headers = dict(request.headers or {})
     headers.setdefault('Content-Type', 'application/json; charset=utf-8')
+    # В export.py заголовок собран с образцом "Bearer <HELPER_TOKEN>". Если оставить его без подстановки,
+    # в чужую систему уходит заведомо неверный ключ, а человек получает загадочный отказ приёмника.
+    if '<' in str(headers.get('Authorization', '')):
+        if not token:
+            return False, 'не задан ключ приёмника (VV_EXPORT_*_TOKEN) — отправка отменена'
     if token:
         headers['Authorization'] = 'Bearer ' + token
     # Заголовки в HTTP — только latin-1. Русский токен/адрес иначе падал бы невнятным UnicodeEncodeError,

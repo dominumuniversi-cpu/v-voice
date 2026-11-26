@@ -1014,6 +1014,15 @@ check("no_invented_speaker_list", not _no_spk.speakers, sorted(_no_spk.speakers)
 _segB = _SegLabels(start_s=0.0, end_s=2.0, text='Проверяем наличие настоящего участника', speaker='Анна')
 _with_spk = _assemble([_segB])
 check("real_speaker_kept", 'Анна' in {u.speaker for u in _with_spk.utterances}, [u.speaker for u in _with_spk.utterances])
+# Образец <HELPER_TOKEN> не должен уходить наружу: чужой сервис ответит загадкой, а не причиной.
+from vvoice.export_sender import send_request as _send_req
+from vvoice.exporters import ExportRequest as _ExpReq, ApprovedItem as _Appr, to_payload as _payload
+_it = _Appr(id='i1', kind='task', title='Позвонить Ивану', evidence_quote='позвони Ивану завтра утром',
+            start_s=1.0, end_s=3.0, priority='medium')
+_req = _payload(_it, 'helper', 'https://example.invalid')
+_ok_no, _why_no = _send_req(_req, token='')
+check("export_needs_receiver_token", _ok_no is False and 'ключ приёмника' in _why_no, _why_no)
+check("export_marker_never_sent", '<HELPER_TOKEN>' not in str(_req.headers.get('Authorization')), _req.headers)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
