@@ -602,6 +602,19 @@ _c5, _b5 = _export({"targets": {"webhook": "x"}, "items": [_item_ok]}, send=_boo
 check("export_failure_reported", _c5 == 200 and _b5.get("failed") == 1 and _b5.get("sent") == 0)
 _r = _handle("POST", "/api/v1/sessions/" + _sid + "/export", '{"targets":{"webhook":"x"},"items":[]}')
 check("export_route_rejects_empty", _r.status == 400)
+# Сквозная проверка стыка: одобренная задача доходит до адресанта через http_api, неодобренная — нет.
+import json as _json
+_envelope = {'targets': {'webhook': 'https://example.test/hook'}, 'items': [
+    {'id': 'a1', 'kind': 'task', 'title': 'Позвонить в банк', 'evidence_quote': 'позвони в банк завтра', 'approved': True},
+    {'id': 'a2', 'kind': 'task', 'title': 'Купить кофе', 'evidence_quote': 'заскочи за кофе', 'approved': False},
+]}
+_delivered = []
+_r = _handle('POST', '/api/v1/sessions/' + _sid + '/export', _json.dumps(_envelope),
+               exporter=lambda req: (_delivered.append(req), (True, 'ok'))[1])
+check("export_reaches_end", _r.status == 200 and _r.body.get("sent") == 1, (_r.status, _r.body))
+check("export_delivers_only_approved", len(_delivered) == 1)
+_payload0 = getattr(_delivered[0], "body", {}) if _delivered else {}
+check("export_payload_has_schema", isinstance(_payload0, dict) and _payload0.get("schema") == "vvoice.item.v1")
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
