@@ -24,9 +24,14 @@ void main() {
     expect(cfg.api.baseUrl, 'https://v.ru');
   });
 
-  test('проблемный адрес виден конфигурации', () {
-    expect(AppConfig(serverUrl: 'v.ru', transport: FakeTransport()).addressProblem, isNotNull);
+  test('адрес без схемы проблемой не считается', () {
+    // Решение осознанное: схему дописывает нормализация.
+    expect(AppConfig(serverUrl: 'v.ru', transport: FakeTransport()).addressProblem, isNull);
     expect(AppConfig(serverUrl: 'https://v.ru', transport: FakeTransport()).addressProblem, isNull);
+  });
+
+  test('случайное слово видно конфигурации как проблема', () {
+    expect(AppConfig(serverUrl: 'плохо', transport: FakeTransport()).addressProblem, isNotNull);
   });
 
   test('клиент действительно ходит через переданный транспорт', () async {

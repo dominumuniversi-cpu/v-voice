@@ -30,9 +30,16 @@ void main() {
     expect(await store.read(), 'https://v.ru');
   });
 
-  test('плохой адрес не сохраняется вовсе', () async {
+  test('адрес без схемы сохраняется со схемой, а не отвергается', () async {
+    // Схему дописываем сами: человек не обязан знать про http и https.
     final store = MemoryServerStore();
-    final reason = await keeper(store).save('v.ru');
+    expect(await keeper(store).save('v.ru'), isNull);
+    expect(await store.read(), 'https://v.ru');
+  });
+
+  test('случайное слово адресом не считается', () async {
+    final store = MemoryServerStore();
+    final reason = await keeper(store).save('плохо');
     expect(reason, isNotNull);
     expect(await store.read(), isNull);
   });
