@@ -42,12 +42,15 @@ def fake_understanding(system: str, user: str) -> dict[str, Any]:
         'items': [{
             'kind': 'task',
             'title': 'Отправить смету',
-            'owner': 'Анна',
+            'owner': None,
             'due_at': '2026-11-27T10:00:00+05:00',
             'priority': 'high',
-            'evidence_quote': 'я отправлю смету завтра утром',
-            'start_s': 1.0,
-            'end_s': 3.0,
+            # Схема ответа модели: цитата и таймкоды лежат во вложенном evidence, а не плоскими полями.
+            'evidence': {
+                'quote': 'я отправлю смету завтра утром',
+                'start_s': 1.0,
+                'end_s': 3.0,
+            },
         }],
     }
 
@@ -83,11 +86,21 @@ def main() -> int:
     code, file_body, headers = transcript_file(saved, 'srt')
     steps.append(('расшифровка отдаётся файлом', code == 200 and '-->' in file_body, headers.get('Content-Type', '')))
 
-    item = saved['digest']['items'][0]
+    kept_items = saved['digest'].get('items') or []
+    rejected = saved['digest'].get('rejected') or saved.get('rejected') or []
+    if not kept_items:
+        # Молчаливый IndexError ничего не объясняет: говорим, какой пункт отброшен и почему.
+        print('FAIL разбор не оставил ни одного пункта')
+        for r in rejected:
+            print('     отброшен: ' + str(r.get('title')) + ' :: ' + str(r.get('reason')))
+        print('     расшифровка: ' + repr(saved.get('transcript'))[:200])
+        print('     ключи разбора: ' + ', '.join(sorted(saved.get('digest', {}))))
+        return 1
+    item = kept_items[0]
     approved = ApprovedItem(
         id='i1', session_id='scenario-session', kind=item['kind'], title=item['title'],
         owner=item.get('owner'), due_at=item.get('due_at'), priority=item.get('priority', 'medium'),
-        evidence_quote=item['evidence_quote'], start_s=item['start_s'], end_s=item['end_s'],
+        evidence_quote=item['evidence']['quote'], start_s=item['evidence']['start_s'], end_s=item['evidence']['end_s'],
         approved_by='сценарий',
     )
     request = to_payload(approved, 'webhook', 'https://example.invalid/hook')
