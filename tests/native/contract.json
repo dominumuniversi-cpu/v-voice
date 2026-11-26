@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе.",
   "android": {
     "files": [
@@ -42,5 +42,20 @@
       "beginBackgroundTask"
     ],
     "forbiddenSymbols": []
+  },
+  "mobile_ui": {
+    "files": [
+      "apps/mobile/lib/main.dart",
+      "apps/mobile/lib/src/recording_controller.dart"
+    ],
+    "requiredSymbols": [
+      "Слушаю",
+      "RecordingError.explain",
+      "RecordingState.recording"
+    ],
+    "forbiddenSymbols": [
+      "showDialog(",
+      "confirm"
+    ]
   }
 }

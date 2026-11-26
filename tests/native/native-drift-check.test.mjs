@@ -55,3 +55,15 @@ test('jsondiff: разные проблемы видны', () => {
   const b = { contractVersion: '1.0', problems: [{ platform: 'ios' }] };
   assert.ok(diff(normalizeReport(a), normalizeReport(b)).length > 0);
 });
+
+
+test('UI: запрет блокирующих подтверждений ловится', () => {
+  const fake = 'void ask() { showDialog(context: c); }';
+  const problems = checkSource(contract, fake, 'mobile_ui');
+  assert.ok(problems.some((p) => String(p.forbidden).includes('showDialog')), JSON.stringify(problems));
+});
+
+test('UI: обязательные символы экрана на месте', () => {
+  const real = read('apps/mobile/lib/main.dart') + read('apps/mobile/lib/src/recording_controller.dart');
+  assert.deepEqual(checkSource(contract, real, 'mobile_ui'), []);
+});

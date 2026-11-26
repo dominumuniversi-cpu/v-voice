@@ -25,7 +25,7 @@ export function checkSource(contract, source, platform) {
   const need = (s, why) => { if (!source.includes(s)) problems.push({ platform, missing: s, why }); };
   const forbid = (s, why) => { if (source.includes(s)) problems.push({ platform, forbidden: s, why }); };
   for (const sym of contract[platform].requiredSymbols) need(sym, 'обязательный символ моста записи');
-  for (const perm of contract[platform].requiredPermissions) need(perm, 'обязательное разрешение платформы');
+  for (const perm of contract[platform].requiredPermissions || []) need(perm, 'обязательное разрешение платформы');
   for (const s of contract[platform].forbiddenSymbols || []) forbid(s, 'запрещено правилами платформы/проекта');
   return problems;
 }
@@ -47,7 +47,8 @@ export function checkPlatform(rootDir, contract, platform) {
 function main() {
   const contract = loadContract();
   const out = [];
-  for (const platform of ['android', 'ios']) out.push(...checkPlatform(root, contract, platform));
+  const platforms = ['android', 'ios', ...(contract.mobile_ui ? ['mobile_ui'] : [])];
+  for (const platform of platforms) out.push(...checkPlatform(root, contract, platform));
   const report = normalizeReport({ contractVersion: contract.version, problems: out });
   if (process.argv.includes('--json')) console.log(JSON.stringify(report, null, 2));
   else {

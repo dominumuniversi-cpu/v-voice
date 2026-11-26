@@ -1,0 +1,24 @@
+name: v_voice
+description: Умный диктофон — слушает, расшифровывает и разбирает разговор.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Работа в фоне и состояния приложения: нужна, чтобы честно показать «запись остановлена системой».
+  widget_lifecycle: ^1.0.0
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
