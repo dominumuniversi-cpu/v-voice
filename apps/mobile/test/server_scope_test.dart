@@ -50,10 +50,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: ServerScopeLoader(
         store: MemoryServerStore(),
-        child: (ctx) {
-          seen = ServerScope.maybeOf(ctx)?.serverUrl;
-          return const SizedBox();
-        },
+        child: (_) => _Probe(onRead: (url) => seen = url),
       ),
     ));
     await tester.pumpAndSettle();
