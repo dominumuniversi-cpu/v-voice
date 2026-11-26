@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:v_voice/src/api_client.dart';
+import 'package:v_voice/src/digest_model.dart';
 
 /// Транспорт-заглушка: отвечает тем, что велели, и запоминает путь.
 class FakeTransport implements HttpTransport {
@@ -35,6 +36,32 @@ void main() {
       final c = ApiClient(transport: tr, baseUrl: '');
       await c.fetchHealth();
       expect(tr.lastHeaders, isNull);
+    });
+  });
+
+  group('отправка в задачник', () {
+    test('задачи без цитаты не теряются молча', () async {
+      final c = ApiClient(transport: FakeTransport({
+        '/api/v1/sessions/s1/export': (
+          200,
+          '{"sent":1,"failed":0,"skipped":2,"results":[]}'
+        ),
+      }), baseUrl: '');
+      final items = [Item(id: 'i1', kind: 'task', title: 'Отправить смету', owner: '', due: '', quote: 'я отправлю смету', startS: 1, endS: 3, approved: true)];
+      final result = await c.exportItems('s1', items, {'helper': ''});
+      expect(result.sent, 1);
+      expect(result.skipped, 2);
+      // Человек обязан узнать, что две одобренные задачи не ушли и почему.
+      expect(result.problem, contains('без цитаты'));
+    });
+
+    test('без потерь сообщать нечего', () async {
+      final c = ApiClient(transport: FakeTransport({
+        '/api/v1/sessions/s1/export': (200, '{"sent":3,"failed":0,"skipped":0}'),
+      }), baseUrl: '');
+      final items = [Item(id: 'i1', kind: 'task', title: 'x', owner: '', due: '', quote: 'цитата из разговора', startS: 1, endS: 2, approved: true)];
+      final result = await c.exportItems('s1', items, {'helper': ''});
+      expect(result.problem, isEmpty);
     });
   });
 

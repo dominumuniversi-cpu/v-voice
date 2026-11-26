@@ -261,17 +261,20 @@ class _DigestScreenState extends State<DigestScreen> {
     // Цель — задачник Helper. Адрес задаёт СЕРВЕР из своих настроек: телефон не должен ни знать,
     // где живёт задачник, ни уметь отправить задачу сам себе. Пустое значение = «решает сервер».
     final targets = <String, String>{'helper': ''};
-    final (sent, failed, problem) = await api.exportItems(sessionId, widget.digest.items, targets);
+    final result = await api.exportItems(sessionId, widget.digest.items, targets);
     if (!mounted) return;
     setState(() {
       _sending = false;
       // problem уже содержит правду о частичном провале (его формирует клиент), поэтому
       // второй источник того же текста здесь не нужен — только выбор, что показать.
       // Счётчик сбрасывается при частичном провале: дослать недоехавшее — можно, дубли — нельзя.
-      _sentCount = failed > 0 ? 0 : sent;
-      _sentMessage = problem.isNotEmpty
-          ? problem
-          : (sent > 0 ? 'Отправлено задач: ' + sent.toString() + '.' : 'Отправлять было нечего.');
+      // Досылать можно, только если ничего не потерялось: иначе повтор удвоил бы уже доехавшее.
+      _sentCount = (result.failed > 0 || result.skipped > 0) ? 0 : result.sent;
+      _sentMessage = result.problem.isNotEmpty
+          ? result.problem
+          : (result.sent > 0
+              ? 'Отправлено задач: ' + result.sent.toString() + '.'
+              : 'Отправлять было нечего.');
     });
   }
 

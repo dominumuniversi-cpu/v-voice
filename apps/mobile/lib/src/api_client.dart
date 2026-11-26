@@ -43,13 +43,13 @@ class ApiClient {
   ///
   /// Почему сюда приходит уже одобренное: сервер отвергает неодобренное намеренно.
   /// Приложение не решает за человека, что попадёт в его задачник.
-  Future<(int sent, int failed, String problem)> exportItems(
+  Future<ExportResult> exportItems(
     String sessionId,
     List<Item> items,
     Map<String, String> targets,
   ) async {
     final approved = items.where((i) => i.approved).toList();
-    if (approved.isEmpty) return (0, 0, 'Ни одна задача не одобрена — отправлять нечего.');
+    if (approved.isEmpty) return const ExportResult(0, 0, 0, 'Ни одна задача не одобрена — отправлять нечего.');
     final (code, body) = await transport.post(
       '/api/v1/sessions/' + sessionId + '/export',
       {
@@ -61,11 +61,21 @@ class ApiClient {
     final data = _safeDecode(body);
     if (code != 200) {
       final message = (data['message'] ?? '').toString();
-      return (0, 0, message.isNotEmpty ? message : 'Сервер ответил кодом ' + code.toString() + '.');
+      return ExportResult(0, 0, 0, message.isNotEmpty ? message : 'Сервер ответил кодом ' + code.toString() + '.');
     }
     final sent = (data['sent'] is num) ? (data['sent'] as num).toInt() : 0;
     final failed = (data['failed'] is num) ? (data['failed'] as num).toInt() : 0;
-    return (sent, failed, failed > 0 ? 'Не дошли до ' + failed.toString() + ' адресатов.' : '');
+    // Сервер отдельно считает задачи, которые НЕ ушли из-за отсутствия цитаты. Раньше это число
+    // терялось, и человек считал, что ушли все одобренные. Молчать о потерянной задаче нельзя:
+    // задача, которую он видел и одобрил, должна иметь судьбу.
+    final skipped = (data['skipped'] is num) ? (data['skipped'] as num).toInt() : 0;
+    final problems = <String>[];
+    if (failed > 0) problems.add('Не дошли до ' + failed.toString() + ' адресатов.');
+    if (skipped > 0) {
+      problems.add('Не отправлено без цитаты: ' + skipped.toString() +
+          '. Сервер не берёт задачу, у которой нет дословной фразы из разговора.');
+    }
+    return ExportResult(sent, failed, skipped, problems.join(' '));
   }
 
   /// Открывает сессию заранее, до появления записи.
@@ -271,4 +281,13 @@ class ApiClient {
       return <String, dynamic>{};
     }
   }
+}
+
+/// Итог отправки в задачник: сколько ушло, сколько не дошло, сколько отброшено и почему.
+class ExportResult {
+  const ExportResult(this.sent, this.failed, this.skipped, this.problem);
+  final int sent;
+  final int failed;
+  final int skipped;
+  final String problem;
 }
