@@ -168,6 +168,36 @@ try:
 except ConnectionError:
     check("error_raises", True)
 
+
+# ---------- кнопка «Проверить» на экране настроек (FR-24) ----------
+from vvoice.provider_probe import check_key, interpret_status, presets, probe  # noqa: E402
+
+check("empty_key_rejected", check_key("speechmatics", "   ").verdict == "rejected")
+check("space_in_key_rejected", "пробел" in check_key("deepgram", "abcd efgh ijkl mnop").message)
+check("short_key_rejected", check_key("deepgram", "abcdef").verdict == "rejected")
+check("good_shape_key", check_key("deepgram", "a" * 32).ok)
+
+check("status_200_working", interpret_status(200).ok)
+check("status_401_names_key", "Ключ неверный" in interpret_status(401).message)
+check("status_402_balance", "баланс" in interpret_status(402).message)
+check("status_429_limit", "лимит" in interpret_status(429).message.lower())
+check("status_unknown_honest", interpret_status(418).verdict == "unknown")
+check("no_response_explained", "Нет ответа" in interpret_status(None).message)
+
+ok = probe("deepgram", "b" * 32, lambda p, k: (200, ""))
+check("probe_success", ok.ok, str(ok.as_dict()))
+bad = probe("deepgram", "b" * 32, lambda p, k: (401, "bad token"))
+check("probe_rejected", not bad.ok and bad.status == 401)
+net = probe("deepgram", "b" * 32, lambda p, k: (_ for _ in ()).throw(OSError("timeout")))
+check("probe_network_error", "Не удалось соединиться" in net.message)
+short_circuit = probe("deepgram", "", lambda p, k: (_ for _ in ()).throw(AssertionError("сеть не должна вызываться")))
+check("probe_skips_network_for_bad_key", short_circuit.verdict == "rejected")
+
+ps = presets()
+check("presets_three", len(ps) == 3, str(list(ps)))
+check("presets_private_local", ps["приватно"]["asr"] == "gigaam" and ps["приватно"]["llm"] == "ollama")
+check("presets_have_titles", all(p.get("title") for p in ps.values()))
+
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
