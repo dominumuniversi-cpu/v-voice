@@ -1042,8 +1042,9 @@ _st = _State()
 _run_live(_prov, _st, [_quiet] * 10, gate=_VadGate(config=_VadCfg()))
 check("live_noise_is_gated", _prov.calls < 10, 'провайдеру ушло кусков: ' + str(_prov.calls))
 _st2 = _State()
-_run_live(_prov, _st2, [_quiet] * 2)
-check("live_without_gate_passes_all", _prov.calls == 12, 'кусков: ' + str(_prov.calls))
+_prov2 = _CountingProvider()
+_run_live(_prov2, _st2, [_quiet] * 5)
+check("live_without_gate_passes_all", _prov2.calls == 5, 'кусков: ' + str(_prov2.calls))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
