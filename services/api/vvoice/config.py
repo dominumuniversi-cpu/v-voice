@@ -49,14 +49,21 @@ class Settings:
 
     def public_health(self) -> dict[str, object]:
         """Что показать в /health. Ключей здесь нет и быть не может."""
+        # Готово — значит «этим можно пользоваться», а не «человек вписал ключ». Иначе экран говорит
+        # «готово» о провайдере, которого ещё нет в коде, и человек ищет ошибку у себя.
+        from .provider_factory import IMPLEMENTED_ASR, IMPLEMENTED_LLM
+        asr_usable = self.asr_ready and self.asr_provider in IMPLEMENTED_ASR
+        llm_usable = self.llm_ready and self.llm_provider in IMPLEMENTED_LLM
         return {
-            'asr': {'provider': self.asr_provider, 'ready': self.asr_ready,
+            'asr': {'provider': self.asr_provider, 'ready': asr_usable,
+                    'configured': self.asr_ready, 'implemented': self.asr_provider in IMPLEMENTED_ASR,
                     'key_fingerprint': _fingerprint(self.asr_key)},
-            'llm': {'provider': self.llm_provider, 'ready': self.llm_ready,
+            'llm': {'provider': self.llm_provider, 'ready': llm_usable,
+                    'configured': self.llm_ready, 'implemented': self.llm_provider in IMPLEMENTED_LLM,
                     'key_fingerprint': _fingerprint(self.llm_key)},
             'export': sorted(self.export_targets),
-            'can_transcribe': self.asr_ready,
-            'can_understand': self.llm_ready,
+            'can_transcribe': asr_usable,
+            'can_understand': llm_usable,
         }
 
 

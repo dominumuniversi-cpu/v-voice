@@ -793,6 +793,14 @@ check("changelog_not_empty", len(_cl_text.strip().splitlines()) > 4, 'журна
 _status_text = (Path(__file__).resolve().parents[2] / 'docs' / 'SPECS' / 'STATUS.md').read_text(encoding='utf-8')
 check("status_route_count_matches", ('**%d путей**' % len(_ROUTES)) in _status_text,
       'в STATUS не совпадает число путей: их %d' % len(_ROUTES))
+# «Готово» на экране человека должно означать «этим можно пользоваться», а не «ключ вписан».
+_h_configured = _load({'VV_ASR_PROVIDER': 'deepgram', 'VV_ASR_KEY': 'k'}).public_health()
+check("health_ready_means_usable", _h_configured['asr']['ready'] is False, _h_configured['asr'])
+check("health_shows_configured", _h_configured['asr']['configured'] is True, _h_configured['asr'])
+check("health_shows_not_implemented", _h_configured['asr']['implemented'] is False, _h_configured['asr'])
+check("health_can_transcribe_is_honest", _h_configured['can_transcribe'] is False)
+_h_fake = _load({'VV_ASR_PROVIDER': 'fake', 'VV_ASR_KEY': 'k'}).public_health()
+check("health_ready_for_implemented", _h_fake['asr']['ready'] is True, _h_fake['asr'])
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

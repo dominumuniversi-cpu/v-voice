@@ -176,8 +176,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (part == null) return title + ': сервер не ответил';
     final provider = (part['provider'] ?? '').toString();
     final ready = part['ready'] == true;
+    final configured = part['configured'] == true;
+    final implemented = part['implemented'] != false;
     if (provider.isEmpty) return title + ': не подключена';
-    return title + ': ' + provider + (ready ? ' — готово' : ' — ключ не указан');
+    // Три разные правды — три разные фразы. «Ключ не указан» при нереализованном провайдере
+    // отправляет человека искать ошибку у себя, хотя её там нет.
+    if (!implemented) return title + ': ' + provider + ' — в этой версии ещё не подключена';
+    if (!configured) return title + ': ' + provider + ' — ключ не указан';
+    return title + ': ' + provider + (ready ? ' — готово' : ' — ключ не принят');
   }
 
   Future<void> _probe(ProviderInfo info) async {
