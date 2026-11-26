@@ -126,11 +126,21 @@ class ApiClient {
 
   Future<String?> sendLiveChunk(String sessionId, List<int> pcm) async {
     if (pcm.isEmpty) return null;
-    final (code, body) = await transport.post(
-      '/api/v1/sessions/' + sessionId + '/stream',
-      {'pcm_base64': base64Encode(pcm)},
-      headers: _headers,
-    );
+    final (int code, String body) reply;
+    try {
+      reply = await transport.post(
+        '/api/v1/sessions/' + sessionId + '/stream',
+        {'pcm_base64': base64Encode(pcm)},
+        headers: _headers,
+      );
+    } catch (_) {
+      // Обрыв сети превращаем в обычный «кусок не дошёл», а не бросаем наружу. Раньше здесь
+      // исключение вылетало наружу, счётчик потерь не рос, и человек видел замерший текст
+      // без единого слова о том, что связь пропала.
+      lastLiveProblem = 'Связь с сервером прервалась — часть текста может быть неполной.';
+      return null;
+    }
+    final (code, body) = reply;
     if (code != 200) {
       lastLiveProblem = 'Сервер не принял кусок звука (код ' + code.toString() + ').';
       // Сервер при сбое распознавания отдаёт уже услышанное. Выбросить тело — значит стереть

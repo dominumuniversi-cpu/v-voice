@@ -22,6 +22,19 @@ class FakeTransport implements HttpTransport {
   }
 }
 
+/// Транспорт, у которого рвётся сеть: так выглядит уехавший из зоны Wi-Fi телефон.
+class ThrowingTransport implements HttpTransport {
+  @override
+  Future<(int, String)> post(String path, Map<String, dynamic> body, {Map<String, String>? headers}) async {
+    throw Exception('network down');
+  }
+
+  @override
+  Future<(int, String)> get(String path, {Map<String, String>? headers}) async {
+    throw Exception('network down');
+  }
+}
+
 void main() {
   group('токен устройства', () {
     test('уходит заголовком Authorization', () async {
@@ -36,6 +49,16 @@ void main() {
       final c = ApiClient(transport: tr, baseUrl: '');
       await c.fetchHealth();
       expect(tr.lastHeaders, isNull);
+    });
+  });
+
+  group('обрыв сети при живом тексте', () {
+    test('обрыв сети не бросает наружу', () async {
+      final c = ApiClient(transport: ThrowingTransport(), baseUrl: '');
+      final text = await c.sendLiveChunk('s1', [1, 2, 3]);
+      expect(text, isNull);
+      // Человек должен узнать, что связь пропала, а не смотреть на замерший текст.
+      expect(c.lastLiveProblem, contains('прервалась'));
     });
   });
 
