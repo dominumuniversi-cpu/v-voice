@@ -129,6 +129,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _saveDeviceKey();
   }
 
+  /// Сохранение ключа устройства. Пустой ключ — законное «замка нет».
+  Future<void> _saveDeviceKey() async {
+    final problem = deviceKeyProblem(deviceKey.text);
+    if (problem != null) {
+      if (mounted) setState(() => deviceKeyProblemText = problem);
+      return;
+    }
+    final store = widget.deviceKeyStore;
+    if (store != null) await store.write(deviceKey.text.trim());
+    if (!mounted) return;
+    setState(() {
+      deviceKeyProblemText = null;
+      deviceKeySaved = deviceKey.text.trim().isNotEmpty;
+      deviceKey.text = deviceKey.text.trim();
+    });
+  }
+
   TextEditingController _keyFor(String id) => keys.putIfAbsent(id, () => TextEditingController());
 
   /// Клиент действующего адреса: если человек поменял адрес, проверка уйдёт на новый,
