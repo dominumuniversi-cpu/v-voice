@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'src/app_config.dart';
+import 'src/api_client.dart';
 import 'src/consent_model.dart';
+import 'src/digest_loader.dart';
 import 'src/consent_store.dart';
 import 'src/prefs_key_value_store.dart' as prefs;
 import 'src/method_channel_bridge.dart';
@@ -188,12 +190,32 @@ class _ListenScreenState extends State<ListenScreen> {
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Text(c.lastError, style: const TextStyle(color: VVTheme.warn, fontSize: 14)),
                 ),
-              // Одна главная кнопка: действие зависит от состояния, без второй «кнопки отмены».
+              // Разбор становится доступен после первой записи: до этого разбирать нечего.
+              if (session.seconds > 0 && !recording)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => DigestLoader(
+                          api: AppConfig(serverUrl: AppConfig.defaultServer).api,
+                        ),
+                      ),
+                    ),
+                    child: const Text('Открыть разбор'),
+                  ),
+                ),
+                            // Одна главная кнопка: действие зависит от состояния, без второй «кнопки отмены».
               SizedBox(
                 height: 64,
                 child: FilledButton(
                   style: FilledButton.styleFrom(backgroundColor: recording ? VVTheme.live : VVTheme.accent),
-                  onPressed: recording ? c.stop : _startWithConsent,
+                  onPressed: recording
+                      ? () async {
+                          await c.stop();
+                          if (mounted) setState(() {});
+                        }
+                      : _startWithConsent,
                   child: Text(recording ? 'Стоп' : 'Слушаю', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 ),
               ),
