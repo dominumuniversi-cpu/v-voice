@@ -9,6 +9,19 @@ class FakeBridge implements RecordingBridge {
   FakeBridge({this.startResult = 'ok'});
 
   final String startResult;
+
+  /// Ограничивает ли телефон фон. По умолчанию нет: большинство тестов не про батарею.
+  bool batteryLimited = false;
+  int batteryAsked = 0;
+
+  @override
+  Future<bool> batteryRestricted() async {
+    batteryAsked++;
+    return batteryLimited;
+  }
+
+  @override
+  Future<void> openBatterySettings() async {}
   final _events = StreamController<Map<String, dynamic>>.broadcast();
   int startCalls = 0;
   int stopCalls = 0;
@@ -159,5 +172,11 @@ void main() {
   test('RecordingController прерывание звонком объясняется человеку', () {
     final text = RecordingError.explain('recording_interrupted');
     expect(text.contains('прервана'), isTrue, reason: text);
+  });
+
+  test('мост сообщает об ограничении фона', () async {
+    final bridge = FakeBridge()..batteryLimited = true;
+    expect(await bridge.batteryRestricted(), isTrue);
+    expect(bridge.batteryAsked, 1);
   });
 }
