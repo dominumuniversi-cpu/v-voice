@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'src/method_channel_bridge.dart';
 import 'src/recording_controller.dart';
+import 'src/settings_screen.dart';
 import 'src/theme.dart';
 
 /// Точка входа. Экран один: «Слушаю» -> живой текст -> выжимка и задачи.
@@ -67,6 +68,14 @@ class _ListenScreenState extends State<ListenScreen> {
                   const Spacer(),
                   // Индикатор записи обязателен и виден всегда (правило UI-канона).
                   RecordingDot(active: recording),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Подключение моделей',
+                    icon: const Icon(Icons.tune, size: 20, color: VVTheme.inkMuted),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),

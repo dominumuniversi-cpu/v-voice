@@ -1,0 +1,160 @@
+import 'package:flutter/material.dart';
+
+import 'providers_model.dart';
+import 'theme.dart';
+
+/// Экран «Подключение моделей» (FR-24..FR-26).
+///
+/// Решения интерфейса:
+///  - пресеты сверху: человеку проще выбрать намерение («точно / дёшево / приватно»),
+///    чем разбираться, чем Speechmatics отличается от Deepgram;
+///  - у каждого провайдера короткая честная подпись: где данные, что с качеством, нужен ли ключ;
+///  - «Проверить» сначала прогоняет простые правила на телефоне (пустой ключ, пробел, обрезок)
+///    и только потом идёт в сеть — так человек получает ответ мгновенно, без ожидания.
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key, this.onProbe});
+
+  /// Проверка ключа на сервере. Возвращает пару (вердикт, сообщение).
+  final Future<Pair> Function(String provider, String key)? onProbe;
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class Pair {
+  const Pair(this.verdict, this.message);
+  final String verdict;
+  final String message;
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  String selectedKind = 'asr';
+  String? activePreset;
+  final Map<String, TextEditingController> keys = {};
+  final Map<String, Pair> results = {};
+  bool busy = false;
+
+  @override
+  void dispose() {
+    for (final c in keys.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  TextEditingController _keyFor(String id) => keys.putIfAbsent(id, () => TextEditingController());
+
+  Future<void> _probe(ProviderInfo info) async {
+    final key = _keyFor(info.id).text;
+    final local = KeyCheck.problem(info.id, key);
+    if (local != null) {
+      setState(() => results[info.id] = Pair('rejected', local));
+      return;
+    }
+    if (widget.onProbe == null) {
+      setState(() => results[info.id] = const Pair('unknown', 'Проверка доступна после входа в аккаунт.'));
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final pair = await widget.onProbe!(info.id, key);
+      setState(() => results[info.id] = pair);
+    } catch (e) {
+      setState(() => results[info.id] = Pair('rejected', 'Не удалось соединиться: ' + e.toString()));
+    } finally {
+      setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final list = kProviders.where((p) => p.kind == selectedKind).toList();
+    return Scaffold(
+      backgroundColor: VVTheme.bg,
+      appBar: AppBar(backgroundColor: VVTheme.surface, title: const Text('Подключение моделей')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text('Готовые наборы настроек', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: kPresets.entries.map((e) {
+              final active = activePreset == e.key;
+              return ChoiceChip(
+                label: Text(e.value['title']!),
+                selected: active,
+                onSelected: (_) => setState(() => activePreset = e.key),
+              );
+            }).toList(),
+          ),
+          if (activePreset != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(kPresets[activePreset]!['hint']!, style: const TextStyle(color: VVTheme.inkMuted, fontSize: 13)),
+            ),
+          const SizedBox(height: 24),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'asr', label: Text('Распознавание')),
+              ButtonSegment(value: 'llm', label: Text('Разбор')),
+            ],
+            selected: {selectedKind},
+            onSelectionChanged: (s) => setState(() => selectedKind = s.first),
+          ),
+          const SizedBox(height: 16),
+          ...list.map(_providerCard),
+        ],
+      ),
+    );
+  }
+
+  Widget _providerCard(ProviderInfo info) {
+    final pair = results[info.id];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: VVTheme.surface, borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(info.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(info.note, style: const TextStyle(color: VVTheme.inkMuted, fontSize: 13, height: 1.4)),
+          if (info.needsKey) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _keyFor(info.id),
+              obscureText: true,
+              decoration: const InputDecoration(hintText: 'Ключ доступа', isDense: true),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                OutlinedButton(
+                  onPressed: busy ? null : () => _probe(info),
+                  child: const Text('Проверить'),
+                ),
+                const SizedBox(width: 12),
+                if (pair != null)
+                  Expanded(
+                    child: Text(
+                      pair.message,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: pair.verdict == 'working' ? VVTheme.ok : VVTheme.warn,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ] else
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Ключ не нужен: работает на вашем оборудовании.', style: TextStyle(color: VVTheme.ok, fontSize: 13)),
+            ),
+        ],
+      ),
+    );
+  }
+}
