@@ -862,7 +862,7 @@ check("filled_summary_not_marked", _dg_ok['summary_missing'] is False, _dg_ok)
 # Документ для внешних продуктов не должен называть полей, которых нет.
 _contract = (Path(__file__).resolve().parents[2] / 'docs' / 'ARCHITECTURE' / 'EXPORT-CONTRACT.md').read_text(encoding='utf-8')
 _pipeline_src = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'vvoice' / 'pipeline.py').read_text(encoding='utf-8')
-_names = [n for n in ('utterances', 'digest', 'errors', 'speakers') if ('"' + n + '"') in _pipeline_src]
+_names = [n for n in ('utterances', 'digest', 'errors', 'speakers', 'sent_seconds', 'sent_chunks') if ('"' + n + '"') in _pipeline_src]
 _missing_in_doc = [n for n in _names if ('`' + n + '`') not in _contract]
 check("contract_doc_matches_result", not _missing_in_doc, _missing_in_doc)
 # Инструкция установки не должна отставать от примера настроек.

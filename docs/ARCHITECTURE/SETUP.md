@@ -25,6 +25,7 @@ copy .env.example .env          # Windows
 ```
 VV_ASR_PROVIDER=deepgram
 VV_ASR_KEY=<ключ распознавания>
+VV_ASR_PRICE_PER_HOUR=
 VV_LLM_PROVIDER=openai
 VV_LLM_KEY=<ключ модели>
 VV_EXPORT_HELPER_URL=https://helper.vernadsky-npc.ru
