@@ -38,6 +38,10 @@ jobs:
         run: node tests/native/dart-url-rule.mjs
       - name: dart named arguments
         run: node tests/native/dart-named-args.mjs $(find apps/mobile -name '*.dart')
+      # Класс с implements обязан объявить все методы интерфейса: иначе flutter analyze падает
+      # «Missing concrete implementations», а локально это видно только здесь.
+      - name: dart implements complete
+        run: node tests/native/dart-implements.mjs
 
       # 2) Контракт нативных мостов: записи на Android/iOS не разошлись.
       - name: live upload starts analysis

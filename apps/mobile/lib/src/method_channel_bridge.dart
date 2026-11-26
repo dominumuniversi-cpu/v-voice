@@ -24,6 +24,18 @@ class MethodChannelBridge implements RecordingBridge {
     return result ?? 'engine_failed';
   }
 
+  /// Пауза. Ошибку натива не глотаем молча: без неё экран показал бы «на паузе», а запись шла бы.
+  @override
+  Future<void> pause() async {
+    await _method.invokeMethod<String>('pause');
+  }
+
+  /// Продолжение после паузы.
+  @override
+  Future<void> resume() async {
+    await _method.invokeMethod<String>('resume');
+  }
+
   @override
   Future<String> stop() async {
     final result = await _method.invokeMethod<String>('stop');
