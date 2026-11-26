@@ -81,9 +81,9 @@ void main() {
     });
 
     test('обрыв связи с нативной частью виден на экране, а не проглатывается', () async {
-      controller.bind();
+      await controller.start();
       await bridge.close();
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(controller.state, RecordingState.unavailable);
       expect(controller.lastError, isNotEmpty);
     });

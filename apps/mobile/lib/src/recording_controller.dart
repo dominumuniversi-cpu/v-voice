@@ -71,6 +71,15 @@ class RecordingController {
       lastError = 'Связь с записью потеряна: ' + error.toString();
       state = RecordingState.unavailable;
       _emit();
+    }, cancelOnError: false);
+    // Поток событий закрылся без явной ошибки — нативная часть «отвалилась». Молча оставлять
+    // «запись идёт» нельзя: человек должен видеть, что его больше не слушают.
+    _sub!.onDone(() {
+      if (state == RecordingState.recording || state == RecordingState.paused) {
+        lastError = 'Нативная часть записи остановилась. Проверьте, что приложение не выгружено системой.';
+        state = RecordingState.unavailable;
+        _emit();
+      }
     });
   }
 
