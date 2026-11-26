@@ -39,6 +39,10 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
+    // Отправлять можно только принятое человеком — это правило проекта, а не помеха тесту.
+    await tester.tap(find.text('Принять'));
+    await tester.pumpAndSettle();
+
     final send = find.text('Отправить в задачник');
     expect(send, findsOneWidget);
     await tester.tap(send);
