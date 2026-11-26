@@ -27,5 +27,16 @@ if (delIdx >= 0 && !delLine.includes('digestReady == true')) {
   console.log('FAIL: запись стирается без подтверждения, что разбор показан');
   process.exit(1);
 }
+// Третья стража: согласие можно отозвать, и отзыв действительно сохраняется.
+const settings = readFileSync(join(root, 'apps/mobile/lib/src/settings_screen.dart'), 'utf8');
+if (!settings.includes('Отозвать согласие') || !settings.includes('store.save(')) {
+  console.log('FAIL: отозвать согласие неоткуда — согласие становится вечным');
+  process.exit(1);
+}
+if (!main.includes('consentStore: consentStore')) {
+  console.log('FAIL: хранилище согласия не передано в настройки — отзыв пропадёт при закрытии');
+  process.exit(1);
+}
 console.log('OK: живая встреча после загрузки сама уходит в разбор');
 console.log('OK: запись стирается только после показанного разбора');
+console.log('OK: согласие можно отозвать, и отзыв сохраняется');
