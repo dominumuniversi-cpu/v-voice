@@ -138,7 +138,14 @@ class _ListenScreenState extends State<ListenScreen> {
         final id = await api.uploadSession(bytes, sessionId: _sessionId);
         if (!mounted) return;
         setState(() => _uploading = false);
-        if (id == null) widget.controller.lastError = api.lastUploadProblem;
+        if (id == null) {
+          widget.controller.lastError = api.lastUploadProblem;
+        } else {
+          // Разбор не начинается сам — ни после загрузки, ни по живому тексту.
+          // Без этого живая встреча грузилась и навсегда оставалась «ещё не готов».
+          final started = await api.startAnalysis(id);
+          if (!started && mounted) widget.controller.lastError = api.lastAnalysisProblem;
+        }
       } catch (e) {
         if (mounted) setState(() => _uploading = false);
         widget.controller.lastError = 'Не удалось прочитать запись: ' + e.toString();
