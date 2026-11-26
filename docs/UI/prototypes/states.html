@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Состояния экрана записи</title>
+<style>
+  :root { --ink:#12161a; --muted:#6b7681; --bg:#f4f1ea; --accent:#2f6f5e; --warn:#b4553a; }
+  body { margin:0; padding:32px; background:var(--bg); color:var(--ink);
+         font-family:-apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1 { font-size:24px; margin:0 0 8px; }
+  .lead { color:var(--muted); max-width:70ch; margin:0 0 28px; }
+  .grid { display:flex; gap:24px; flex-wrap:wrap; }
+  .state { width:280px; }
+  .state h2 { font-size:16px; margin:0 0 4px; }
+  .note { font-size:13px; color:var(--muted); margin:0 0 12px; min-height:44px; }
+  .phone { background:#fff; border-radius:24px; padding:20px; box-shadow:0 6px 24px rgba(18,22,26,.08); }
+  .dot { width:12px; height:12px; border-radius:50%; background:var(--accent); margin-bottom:12px; }
+  .state--paused .dot { background:var(--muted); }
+  .state--lost .dot { background:var(--warn); }
+  .state--idle .dot { background:#c9c2b4; }
+  .timer { font-variant-numeric:tabular-nums; font-size:28px; font-weight:600; margin-bottom:12px; }
+  .text { font-size:14px; line-height:1.45; color:var(--muted); min-height:64px; }
+  .state--lost .text { color:var(--warn); }
+  .btn { margin-top:16px; text-align:center; padding:12px; border-radius:999px;
+         background:var(--ink); color:#fff; font-size:14px; }
+  .state--paused .btn { background:var(--accent); }
+</style>
+</head>
+<body>
+  <h1>Состояния экрана записи</h1>
+  <p class="lead">Четыре состояния, которые человек увидит на самом деле. Слева направо: как идёт
+  запись, что бывает при паузе, что видно при обрыве связи и что — пока ничего не сказано.
+  Тот же размер телефона 390×844, что и в трёх концепциях.</p>
+  <div class="grid">
+      <article class="state state--live">
+        <h2>Слушаю</h2>
+        <p class="note">Идёт запись, живой текст появляется серым и оседает в итоговый.</p>
+        <div class="phone">
+          <div class="dot"></div>
+          <div class="timer">04:12</div>
+          <div class="text">…и тогда мы договорились, что смету я приношу в пятницу.</div>
+          <div class="btn">Стоп</div>
+        </div>
+      </article>
+      <article class="state state--paused">
+        <h2>Пауза</h2>
+        <p class="note">Всё сказанное сейчас не попадёт ни в файл, ни в задачи.</p>
+        <div class="phone">
+          <div class="dot"></div>
+          <div class="timer">04:12</div>
+          <div class="text">…и тогда мы договорились, что смету я приношу в пятницу.</div>
+          <div class="btn">Стоп</div>
+        </div>
+      </article>
+      <article class="state state--lost">
+        <h2>Связь пропала</h2>
+        <p class="note">Кусок звука не дошёл — текст может быть неполным.</p>
+        <div class="phone">
+          <div class="dot"></div>
+          <div class="timer">04:12</div>
+          <div class="text">…и тогда мы договорились, что смету я приношу в пятницу.</div>
+          <div class="btn">Стоп</div>
+        </div>
+      </article>
+      <article class="state state--idle">
+        <h2>Пусто</h2>
+        <p class="note">Пока тихо. Нажмите «Слушаю» — я начну расшифровывать.</p>
+        <div class="phone">
+          <div class="dot"></div>
+          <div class="timer">04:12</div>
+          <div class="text">…и тогда мы договорились, что смету я приношу в пятницу.</div>
+          <div class="btn">Стоп</div>
+        </div>
+      </article>
+  </div>
+</body>
+</html>
