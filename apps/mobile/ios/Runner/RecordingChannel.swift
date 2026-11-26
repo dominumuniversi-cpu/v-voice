@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import UIKit
 
@@ -5,12 +6,20 @@ import UIKit
 ///   start() -> "ok" | "denied" | "session_failed" | "engine_failed" | "mic_unavailable"
 ///   stop()  -> "ok"
 ///   state   -> idle | recording | paused | stopped
-final class RecordingChannel {
+/// NSObject обязателен: внутри объявлен FlutterStreamHandler, а этот протокол требует NSObject-наследника.
+/// Ошибку видно только при сборке в Xcode — в CI она не всплывала, потому что iOS там не собирается (#35).
+final class RecordingChannel: NSObject {
 
     private let engine = RecordingEngine()
     private var channel: FlutterMethodChannel?
 
     init(messenger: FlutterBinaryMessenger) {
+        super.init()
+        register(messenger)
+    }
+
+    /// Регистрация каналов: вынесена из init, чтобы super.init() был первой строкой.
+    private func register(_ messenger: FlutterBinaryMessenger) {
         channel = FlutterMethodChannel(name: "vvoice/recording", binaryMessenger: messenger)
         channel?.setMethodCallHandler { [weak self] call, result in
             switch call.method {

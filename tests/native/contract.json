@@ -1,5 +1,5 @@
 {
-  "version": "1.3",
+  "version": "1.4",
   "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе. v1.2: бэкап аудио запрещён на уровне манифеста (152-ФЗ).",
   "android": {
     "files": [
@@ -36,7 +36,8 @@
     "files": [
       "apps/mobile/ios/Runner/Info.plist",
       "apps/mobile/ios/Runner/RecordingEngine.swift",
-      "apps/mobile/ios/Runner/RecordingChannel.swift"
+      "apps/mobile/ios/Runner/RecordingChannel.swift",
+      "apps/mobile/ios/Runner/AppDelegate.swift"
     ],
     "requiredPermissions": [
       "NSMicrophoneUsageDescription"
@@ -47,7 +48,9 @@
       "AVAudioSession",
       "AVAudioEngine",
       "AVAudioFile",
-      "beginBackgroundTask"
+      "beginBackgroundTask",
+      "RecordingChannel(messenger:",
+      "final class RecordingChannel: NSObject"
     ],
     "forbiddenSymbols": [],
     "requiredPlistKeys": [
