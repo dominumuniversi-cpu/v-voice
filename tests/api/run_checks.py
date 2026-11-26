@@ -580,6 +580,28 @@ check("broken_wav_gives_audio", _ba is not None and len(_ba) == len(_broken))
 _tiny = _full[:120]
 _tc, _tb, _ = _create_session({"audio_base64": _b64.b64encode(_tiny).decode()})
 check("tiny_broken_rejected", _tc == 400 and _tb.get("error") == "audio_too_short")
+# Экспорт задач: без одобрения не уходит, неизвестная цель отвергается, сбой адресата не валит остальных.
+from vvoice.export_route import export_session as _export
+
+_item_ok = {'id': 'i1', 'kind': 'task', 'title': 'Отправить смету', 'evidence_quote': 'я отправлю смету Ивану', 'start_s': 1.0, 'end_s': 3.0, 'approved': True}
+_item_no = {'id': 'i2', 'kind': 'task', 'title': 'Позвонить', 'evidence_quote': 'позвони ему завтра', 'approved': False}
+_sent = []
+_c, _b = _export({'targets': {'webhook': 'https://example.test/hook'}, 'items': [_item_ok, _item_no]}, send=lambda req: (_sent.append(req), (True, 'ok'))[1])
+check("export_sends_approved", _c == 200 and _b.get("sent") == 1, (_c, _b))
+check("export_skips_unapproved", _b.get("skipped") == 1)
+check("export_reaches_send", len(_sent) == 1)
+_c2, _b2 = _export({"targets": {"narnia": "x"}, "items": [_item_ok]}, send=lambda r: (True, ""))
+check("export_rejects_unknown_target", _c2 == 400 and _b2.get("error") == "unknown_target")
+_c3, _b3 = _export({"targets": {"webhook": "x"}, "items": [_item_no]}, send=lambda r: (True, ""))
+check("export_needs_approval", _c3 == 422 and _b3.get("error") == "nothing_approved")
+_c4, _b4 = _export({"targets": {"webhook": "x"}, "items": [_item_ok]}, send=None)
+check("export_needs_sender", _c4 == 503)
+def _boom(req):
+    raise RuntimeError('адресат недоступен')
+_c5, _b5 = _export({"targets": {"webhook": "x"}, "items": [_item_ok]}, send=_boom)
+check("export_failure_reported", _c5 == 200 and _b5.get("failed") == 1 and _b5.get("sent") == 0)
+_r = _handle("POST", "/api/v1/sessions/" + _sid + "/export", '{"targets":{"webhook":"x"},"items":[]}')
+check("export_route_rejects_empty", _r.status == 400)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

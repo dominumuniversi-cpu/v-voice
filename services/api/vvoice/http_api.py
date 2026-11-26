@@ -22,6 +22,7 @@ from typing import Any
 from .evidence import validate_item
 from .sessions import create_session, is_session_id
 from .digest_store import DigestStore
+from .export_route import export_session
 from .job import analyze
 from .live_sessions import LiveSessions, push_chunk
 from .open_session import open_session
@@ -56,6 +57,8 @@ ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/sessions/{session_id}/analyze": ("POST",),
     # Кусок звука для живого текста. Отдельный путь: ответ содержит только текст, без разбора.
     "/api/v1/sessions/{session_id}/stream": ("POST",),
+    # Отправка одобренных задач наружу (Helper, Jira, Bitrix24, webhook).
+    "/api/v1/sessions/{session_id}/export": ("POST",),
 }
 
 # Шаблонные пути: клиент обращается к /api/v1/sessions/<id>/digest, поэтому точного совпадения мало.
@@ -63,6 +66,7 @@ _TEMPLATED: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/digest$"), "/api/v1/sessions/{session_id}/digest"),
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/analyze$"), "/api/v1/sessions/{session_id}/analyze"),
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/stream$"), "/api/v1/sessions/{session_id}/stream"),
+    (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/export$"), "/api/v1/sessions/{session_id}/export"),
 ]
 
 
@@ -86,7 +90,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            digests: "DigestStore | None" = None,
            recognizer: Any = None,
            call_llm: Any = None,
-           live_sessions: Any = None) -> Response:
+           live_sessions: Any = None,
+           exporter: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -178,6 +183,10 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             return Response(503, {"error": "pipeline_unavailable",
                                   "message": "Сервер не хранит состояние живого потока."})
         code, body = push_chunk(live_sessions, param, pcm, provider_factory=recognizer)
+        return Response(code, body)
+
+    if template == "/api/v1/sessions/{session_id}/export":
+        code, body = export_session(payload, send=exporter)
         return Response(code, body)
 
     if path == "/api/v1/items/validate":
