@@ -234,8 +234,10 @@ class ApiClient {
   /// Почему не через fetchDigest: расшифровка — это файл, а не JSON. Человеку нужен тот же текст,
   /// который он потом откроет в заметках или смонтирует в видео, а не обёртка вокруг него.
   Future<(String? text, String problem)> fetchTranscript(String sessionId, String format) async {
+    // Заголовки обязательны: с включённым замком сервер без токена ответит 401, и человек
+    // увидит «не удалось» вместо своей расшифровки.
     final (code, body) = await transport
-        .get('/api/v1/sessions/' + sessionId + '/transcript?format=' + format);
+        .get('/api/v1/sessions/' + sessionId + '/transcript?format=' + format, headers: _headers);
     if (code != 200) {
       final failed = _safeDecode(body);
       final message = (failed['message'] ?? '').toString();

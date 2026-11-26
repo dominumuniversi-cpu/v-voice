@@ -76,7 +76,12 @@ _TEMPLATED: list[tuple[re.Pattern[str], str]] = [
 
 
 def _route(path: str) -> tuple[str | None, str | None]:
-    """Возвращает (шаблон маршрута, параметр) или (None, None), если пути нет."""
+    """Возвращает (шаблон маршрута, параметр) или (None, None), если пути нет.
+
+    Строка запроса (?format=srt) — это параметры, а не часть пути: без отсечения
+    скачивание расшифровки в любом формате отвечало бы 404.
+    """
+    path = path.split('?', 1)[0]
     if path in ROUTES:
         return path, None
     for pattern, template in _TEMPLATED:

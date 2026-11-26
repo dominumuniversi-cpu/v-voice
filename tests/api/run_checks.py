@@ -1001,6 +1001,9 @@ for _tpl in _ROUTES:
         if _got != _tpl:
             _unresolved.append((_tpl, _got))
 check("every_template_resolves", not _unresolved, _unresolved)
+# Строка запроса — параметры, а не путь: иначе ?format=srt отвечает 404.
+_q1, _q2 = _route_of('/api/v1/sessions/abc123def4567890/transcript?format=srt')
+check("query_string_is_not_path", _q1 == '/api/v1/sessions/{session_id}/transcript' and _q2 == 'abc123def4567890', (_q1, _q2))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
