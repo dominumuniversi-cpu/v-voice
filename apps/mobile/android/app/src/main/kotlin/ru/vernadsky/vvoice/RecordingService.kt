@@ -43,6 +43,7 @@ class RecordingService : Service() {
     private var focusRequest: Any? = null
     private var voiceLost = false
     private var worker: Thread? = null
+    private var paused = false // пауза: микрофон читается, но ни файл, ни сервер не получают звук
     private var running = false
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -57,8 +58,8 @@ class RecordingService : Service() {
         }
         when (intent.action) {
             ACTION_STOP -> { stopRecording(); stopSelf(); return START_NOT_STICKY }
-            ACTION_PAUSE -> { RecordingChannel.emitState("paused"); return START_STICKY }
-            ACTION_RESUME -> { RecordingChannel.emitState("recording"); return START_STICKY }
+            ACTION_PAUSE -> { paused = true; RecordingChannel.emitState("paused"); return START_STICKY }
+            ACTION_RESUME -> { paused = false; RecordingChannel.emitState("recording"); return START_STICKY }
         }
         startForegroundWithNotification()
         startRecording()
@@ -157,6 +158,10 @@ class RecordingService : Service() {
                 if (read > 0) {
                     // Сбой записи на диск (кончилось место) не должен тихо убивать поток:
                     // иначе экран показывает «идёт запись», а файла больше нет.
+                    // Пауза: звук не пишем и никуда не шлём. Микрофон продолжает читаться, поэтому
+                    // возобновление мгновенное, но в файл и на сервер паузный звук не попадает —
+                    // иначе «пауза» была бы надписью, а не действием.
+                    if (paused) continue
                     try {
                         writer?.write(buf, 0, read)
                         writer?.flush()
@@ -182,8 +187,6 @@ class RecordingService : Service() {
                     }
                     // Живой текст: отдаём звук наружу небольшими кусками. Файл при этом пишется
                     // как раньше — разбор после «стоп» не должен пострадать от онлайн-режима.
-                    // Отдельной проверки паузы здесь нет намеренно: сервис не держит состояния паузы,
-                    // а выдумать поле, которого нет, — значит получить ошибку компиляции вместо работы.
                     pendingAudio.write(buf, 0, read)
                     if (pendingAudio.size() >= AUDIO_CHUNK_BYTES) {
                         RecordingChannel.emitAudio(pendingAudio.toByteArray())

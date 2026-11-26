@@ -28,6 +28,11 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
             when (call.method) {
                 "start" -> result.success(start())
                 "stop" -> { context.stopService(Intent(context, RecordingService::class.java)); result.success("ok") }
+                // Пауза обязана реально прекращать запись. Раньше действия ACTION_PAUSE/ACTION_RESUME
+                // только меняли надпись состояния, микрофон продолжал писать — человек думал, что
+                // запись встала, а она шла. Теперь сервис по этим действиям звук не пишет.
+                "pause" -> { sendAction(RecordingService.ACTION_PAUSE); result.success("ok") }
+                "resume" -> { sendAction(RecordingService.ACTION_RESUME); result.success("ok") }
                 "state" -> result.success(state)
                 // «Телефон разрешает нам работать в фоне» — на Xiaomi/Huawei/Oppo ответ часто нет,
                 // и человек об этом не знает, пока не потеряет запись встречи.
@@ -46,6 +51,23 @@ class RecordingChannel(private val context: Context, messenger: BinaryMessenger)
      * микрофонный foreground-сервис из фона, Android 14+ — вообще требование платформы.
      * Возвращаем причину, чтобы приложение показало человеку понятный экран, а не «ничего не произошло».
      */
+    /**
+     * Передаёт действие сервису записи. Без этого вызова команда из Dart никого не достигает.
+     *
+     * Пауза законна и из фона: сервис уже работает, поэтому startService безопасен.
+     * На Android 12+ startForegroundService из фона даёт исключение — не ловим им паузу.
+     */
+    private fun sendAction(action: String) {
+        val intent = Intent(context, RecordingService::class.java).setAction(action)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
+            else context.startService(intent)
+        } catch (e: Exception) {
+            // Сервис не работает — паузе нечего останавливать. Молча: нечего чинить человеку.
+            Log.w(TAG, "action " + action + " not delivered: " + e.message)
+        }
+    }
+
     /** true — система ограничивает фон, запись может оборваться без предупреждения. */
     /** Все записи на телефоне, свежие сверху. Только имя, путь, размер и время — без чтения звука. */
     private fun listRecordings(): List<Map<String, Any>> {

@@ -19,6 +19,13 @@ abstract class RecordingBridge {
   /// не обязаны знать про батарею.
   Future<bool> batteryRestricted() async => false;
 
+  /// Пауза записи. Звук на паузе не пишется и не уходит на сервер.
+  /// По умолчанию пусто: тестовый бридж не обязан уметь паузу, и это видно по отсутствию эффекта.
+  Future<void> pause() async {}
+
+  /// Продолжить с того места, где остановились.
+  Future<void> resume() async {}
+
   /// Записи на телефоне. Пусто по умолчанию: тестовые бриджи не обязаны знать про файлы.
   Future<List<Map<String, Object>>> listRecordings() async => const [];
 
@@ -171,6 +178,23 @@ class RecordingController {
       state = RecordingState.idle;
       lastError = RecordingError.explain(result);
     }
+    _emit();
+  }
+
+  /// Пауза. Состояние меняется только после ответа натива: показать «на паузе», когда запись
+  /// на самом деле идёт, — худшая из ошибок для диктофона.
+  Future<void> pause() async {
+    if (state != RecordingState.recording) return;
+    await bridge.pause();
+    state = RecordingState.paused;
+    _emit();
+  }
+
+  /// Продолжение после паузы.
+  Future<void> resume() async {
+    if (state != RecordingState.paused) return;
+    await bridge.resume();
+    state = RecordingState.recording;
     _emit();
   }
 

@@ -443,11 +443,32 @@ class _ListenScreenState extends State<ListenScreen> {
                 children: [
                   Text(session.clock, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w300, fontFeatures: [FontFeature.tabularFigures()])),
                   const Spacer(),
+                  if (recording || c.state == RecordingState.paused)
+                    OutlinedButton.icon(
+                      // Пауза останавливает и запись, и живой текст: молчащая запись с идущим
+                      // таймером — худший вид обмана в диктофоне.
+                      onPressed: () async {
+                        if (c.state == RecordingState.paused) {
+                          await c.resume();
+                        } else {
+                          await c.pause();
+                        }
+                        if (mounted) setState(() {});
+                      },
+                      icon: Icon(c.state == RecordingState.paused ? Icons.fiber_manual_record : Icons.pause, size: 18),
+                      label: Text(c.state == RecordingState.paused ? 'Продолжить' : 'Пауза'),
+                    ),
                   if (recording)
                     OutlinedButton.icon(
                       onPressed: () => setState(() => session.mark()),
                       icon: const Icon(Icons.bookmark_add_outlined, size: 18),
                       label: const Text('Метка'),
+                    ),
+                  if (c.state == RecordingState.paused)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      // Видимое подтверждение паузы: человек должен отличать «на паузе» от «идёт запись».
+                      child: Text('На паузе', style: TextStyle(fontSize: 12, color: VVTheme.warn)),
                     ),
                 ],
               ),

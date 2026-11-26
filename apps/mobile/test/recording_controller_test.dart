@@ -32,6 +32,18 @@ class FakeBridge implements RecordingBridge {
   final _events = StreamController<Map<String, dynamic>>.broadcast();
   int startCalls = 0;
   int stopCalls = 0;
+  int pauseCalls = 0;
+  int resumeCalls = 0;
+
+  @override
+  Future<void> pause() async {
+    pauseCalls++;
+  }
+
+  @override
+  Future<void> resume() async {
+    resumeCalls++;
+  }
 
   @override
   Stream<Map<String, dynamic>> get events => _events.stream;
@@ -207,5 +219,32 @@ void main() {
     final list = await controller.listRecordings();
     expect(list.length, 1);
     expect(list.first['name'], 'a.wav');
+  });
+
+  test('пауза переводит запись в paused и зовёт мост', () async {
+    final bridge = FakeBridge();
+    final controller = RecordingController(bridge);
+    await controller.start();
+    await controller.pause();
+    expect(controller.state, RecordingState.paused);
+    expect(bridge.pauseCalls, 1);
+  });
+
+  test('продолжение возвращает запись', () async {
+    final bridge = FakeBridge();
+    final controller = RecordingController(bridge);
+    await controller.start();
+    await controller.pause();
+    await controller.resume();
+    expect(controller.state, RecordingState.recording);
+    expect(bridge.resumeCalls, 1);
+  });
+
+  test('пауза в покое ничего не делает', () async {
+    final bridge = FakeBridge();
+    final controller = RecordingController(bridge);
+    await controller.pause();
+    expect(controller.state, RecordingState.idle);
+    expect(bridge.pauseCalls, 0);
   });
 }
