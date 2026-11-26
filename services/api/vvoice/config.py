@@ -20,8 +20,8 @@ from typing import Mapping
 
 # fake — заглушка для сквозных проверок. Допустима только по явному имени и никогда по умолчанию:
 # так выдуманный текст не может случайно оказаться на месте настоящего.
-ASR_PROVIDERS = ('deepgram', 'assemblyai', 'whisper', 'fake')
-LLM_PROVIDERS = ('openai', 'anthropic', 'gigachat', 'local', 'fake')
+ASR_PROVIDERS = ('gigaam', 'speechmatics', 'deepgram', 'assemblyai', 'whisper', 'fake')
+LLM_PROVIDERS = ('deepseek', 'openai', 'anthropic', 'gigachat', 'local', 'fake')
 
 
 @dataclass(frozen=True)

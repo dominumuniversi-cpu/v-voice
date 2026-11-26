@@ -801,6 +801,14 @@ check("health_shows_not_implemented", _h_configured['asr']['implemented'] is Fal
 check("health_can_transcribe_is_honest", _h_configured['can_transcribe'] is False)
 _h_fake = _load({'VV_ASR_PROVIDER': 'fake', 'VV_ASR_KEY': 'k'}).public_health()
 check("health_ready_for_implemented", _h_fake['asr']['ready'] is True, _h_fake['asr'])
+# Документ советует конкретные имена провайдеров. Если человек скопирует их, настройки не должны молча пустеть.
+import re as _re
+_doc = (Path(__file__).resolve().parents[2] / 'docs' / 'ARCHITECTURE' / 'AI-PROVIDERS.md').read_text(encoding='utf-8')
+_doc_asr = set(_re.findall(r'VV_ASR_PROVIDER=([a-z0-9_]+)', _doc))
+_doc_llm = set(_re.findall(r'VV_LLM_PROVIDER=([a-z0-9_]+)', _doc))
+from vvoice.config import ASR_PROVIDERS as _ASR_OK, LLM_PROVIDERS as _LLM_OK
+check("doc_providers_are_accepted", _doc_asr <= set(_ASR_OK) and _doc_llm <= set(_LLM_OK),
+      ('asr', sorted(_doc_asr - set(_ASR_OK)), 'llm', sorted(_doc_llm - set(_LLM_OK))))
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
