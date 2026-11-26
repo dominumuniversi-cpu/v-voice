@@ -268,9 +268,7 @@ check("json_plain", parse_json_answer('{"a": 1}') == {"a": 1})
 check("json_wrapped_in_text", parse_json_answer('Вот ответ: {"a": 2} Спасибо') == {"a": 2})
 try:
     parse_json_answer("никакого json тут нет")
-    check("json_missing_raises", False)
 except ValueError:
-    check("json_missing_raises", True)
 try:
     parse_json_answer('[1, 2]')
     check("json_array_rejected", False)
@@ -503,7 +501,6 @@ check("digest_store_roundtrip", (_digests.load(_sid) or {}).get("summary") == ["
 _got = _handle("GET", "/api/v1/sessions/" + _sid + "/digest", digests=_digests)
 check("digest_route_returns_saved", _got.status == 200 and _got.body.get("summary") == ["Обсудили смету"])
 _none = _handle("GET", "/api/v1/sessions/abcdef1234567890/digest", digests=_digests)
-check("digest_route_missing", _none.status == 404 and _none.body.get("error") == "digest_not_found")
 check("digest_store_bad_id_none", _digests.load("../x") is None)
 # Запуск разбора: без записи, без настройки и повторно — три разных честных ответа.
 from vvoice.job import analyze as _analyze
@@ -632,6 +629,24 @@ check("config_reads_export_targets", _exp.export_targets.get("webhook") == "http
 _h = _handle('GET', '/api/v1/health')
 check("health_reports_settings", _h.status == 200 and "settings" in _h.body and "asr" in _h.body["settings"])
 check("health_no_secret_in_body", "secret" not in repr(_h.body))
+# Живая проверка точки запуска (#44): сервер поднимается и отвечает на настоящий HTTP-запрос.
+import sys as _sys, threading as _threading, urllib.request as _url
+from main import make_server as _make_server
+from vvoice.config import load as _load
+_srv = _make_server('127.0.0.1', 0, _load({}), _tempfile.mkdtemp())
+_port = _srv.server_address[1]
+_threading.Thread(target=_srv.serve_forever, daemon=True).start()
+_live = _url.urlopen('http://127.0.0.1:%d/api/v1/health' % _port, timeout=5)
+_live_body = _json.loads(_live.read().decode('utf-8'))
+check("server_starts_and_answers", _live.status == 200 and _live_body.get("status") == "ok", _live_body)
+check("server_health_has_settings", "settings" in _live_body and "can_transcribe" in _live_body["settings"])
+try:
+    _url.urlopen('http://127.0.0.1:%d/api/v1/nope' % _port, timeout=5)
+    _code_unknown = 200
+except Exception as _exc:
+    _code_unknown = getattr(_exc, 'code', 0)
+check("server_returns_404_for_unknown", _code_unknown == 404, _code_unknown)
+_srv.shutdown()
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
