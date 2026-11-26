@@ -11,6 +11,9 @@ pluginManagement {
 
     repositories {
         google()
+        // Maven Central периодически отвечает 429 Too Many Requests и сборка «падает» не по коду.
+        // Зеркало Google отдаёт те же артефакты и не режется; основной Central остаётся вторым.
+        maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
         mavenCentral()
         gradlePluginPortal()
     }

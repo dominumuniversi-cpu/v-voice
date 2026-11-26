@@ -1,6 +1,9 @@
 allprojects {
     repositories {
         google()
+        // Зеркало перед Central: 429 от Maven Central дважды подряд останавливал сборку APK,
+        // и нативный код оставался непроверенным. Тот же артефакт — от Google.
+        maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
         mavenCentral()
     }
 }
