@@ -22,7 +22,8 @@ class ServerSettings {
     if (text.isEmpty) return 'Адрес сервера не заполнен.';
     // Схема не обязательна: человек пишет «192.168.8.49:8000», и это не ошибка. Дополняет normalize().
     // Отказ здесь заставлял бы знать про http и https — а знать это ему незачем.
-    final uri = Uri.tryParse(text);
+    // Проверяем тот адрес, который реально уйдёт в запросы: «v-voice.ru» без схемы — не ошибка.
+    final uri = Uri.tryParse(normalize(text));
     if (uri == null || uri.host.isEmpty) return 'Похоже, в адресе ошибка: не удалось разобрать домен.';
     if (uri.hasQuery || uri.hasFragment) return 'Уберите знак «?» и «#» из адреса сервера.';
     // Завершающий слэш — не ошибка: normalize() его уберёт. Отказывать здесь значит
