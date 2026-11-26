@@ -24,6 +24,7 @@ from .sessions import create_session, is_session_id
 from .digest_store import DigestStore
 from .job import analyze
 from .live_sessions import LiveSessions, push_chunk
+from .open_session import open_session
 from .storage import AudioStore
 from .provider_probe import presets
 
@@ -47,6 +48,8 @@ ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/items/validate": ("POST",),
     # Приём записи с телефона. Ответ содержит идентификатор сессии для разбора.
     "/api/v1/sessions": ("POST",),
+    # Открыть сессию заранее — до того, как появится запись (для живого текста).
+    "/api/v1/sessions/open": ("POST",),
     # Готовый разбор сессии. Путь шаблонный: id приходит от клиента.
     "/api/v1/sessions/{session_id}/digest": ("GET",),
     # Запуск разбора сохранённой записи. Отдельный путь, потому что действие меняет состояние.
@@ -126,6 +129,10 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
 
         result = probe(provider, api_key, sender or (lambda p, k: (None, "проверка отключена в офлайн-режиме")))
         return Response(200, result.as_dict())
+
+    if path == "/api/v1/sessions/open":
+        code, body = open_session()
+        return Response(code, body)
 
     if path == "/api/v1/sessions":
         status, body, audio = create_session(payload)

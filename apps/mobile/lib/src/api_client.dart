@@ -18,6 +18,44 @@ abstract class HttpTransport {
 class ApiClient {
   ApiClient({required this.transport, required this.baseUrl});
 
+  /// Открывает сессию заранее, до появления записи.
+  ///
+  /// Зачем: живому тексту нужен идентификатор, а он раньше появлялся только при загрузке
+  /// готового файла — то есть живой текст не мог начаться никогда.
+  Future<String?> openSession() async {
+    final (code, body) = await transport.post('/api/v1/sessions/open', {});
+    final data = _safeDecode(body);
+    if (code != 200) {
+      lastLiveProblem = 'Сервер не открыл сессию (код ' + code.toString() + ').';
+      return null;
+    }
+    final id = (data['session_id'] ?? '').toString();
+    return id.isEmpty ? null : id;
+  }
+
+  /// Отправляет кусок звука и возвращает накопленный текст разговора.
+  ///
+  /// Молчаливый отказ при обрыве: живой текст вспомогательный, и падение одного куска
+  /// не должно стирать то, что уже показано человеку.
+  Future<String?> sendLiveChunk(String sessionId, List<int> pcm) async {
+    if (pcm.isEmpty) return null;
+    final (code, body) = await transport.post(
+      '/api/v1/sessions/' + sessionId + '/stream',
+      {'pcm_base64': base64Encode(pcm)},
+    );
+    if (code != 200) {
+      lastLiveProblem = 'Сервер не принял кусок звука (код ' + code.toString() + ').';
+      return null;
+    }
+    final data = _safeDecode(body);
+    final text = (data['text'] ?? '').toString();
+    lastLiveProblem = '';
+    return text.isEmpty ? null : text;
+  }
+
+  /// Почему последний кусок живого текста не прошёл. Пустая строка — всё хорошо.
+  String lastLiveProblem = '';
+
   /// Просит сервер разобрать загруженную запись.
   ///
   /// Почему отдельный шаг: разбор может идти минуты, и держать экран в ожидании одного запроса —

@@ -554,6 +554,23 @@ _no = _handle("POST", "/api/v1/sessions/aaaa1111bbbb2222/stream", '{"pcm_base64"
 check("live_route_needs_recognizer", _no.status == 503)
 _bad = _handle("GET", "/api/v1/sessions/aaaa1111bbbb2222/stream")
 check("live_route_get_forbidden", _bad.status == 405)
+# Открытие сессии заранее: идентификатор есть до записи, и он годится для живого текста.
+from vvoice.open_session import open_session as _open, new_session_id as _new_id
+
+_oc, _ob = _open()
+check("open_session_returns_id", _oc == 200 and len(_ob.get("session_id", "")) == 16)
+check("open_session_id_unique", _new_id() != _new_id())
+check("open_session_id_shape", _open()[1]["session_id"].isalnum())
+_oo = _handle("POST", "/api/v1/sessions/open")
+check("open_route_works", _oo.status == 200 and "session_id" in _oo.body)
+_og = _handle("GET", "/api/v1/sessions/open")
+check("open_route_get_forbidden", _og.status == 405)
+
+# Связка: открыли сессию заранее, прислали кусок, получили текст по тому же id.
+_ls2 = _LS(limit=4)
+_open_id = _oo.body["session_id"]
+_sc, _sb = _push(_ls2, _open_id, b'\x00' * 3200, provider_factory=lambda sid: _FakeAsr())
+check("open_then_stream_works", _sc == 200 and "text" in _sb)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

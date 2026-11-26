@@ -73,6 +73,31 @@ void main() {
     });
   });
 
+  group('живой текст', () {
+    test('сессия открывается до записи', () async {
+      final api = ApiClient(transport: _Fake((200, '{"session_id":"abcdef1234567890"}')), baseUrl: '');
+      expect(await api.openSession(), 'abcdef1234567890');
+    });
+
+    test('кусок звука возвращает накопленный текст', () async {
+      final api = ApiClient(transport: _Fake((200, '{"text":"Я отправлю смету"}')), baseUrl: '');
+      expect(await api.sendLiveChunk('abcdef1234567890', [1, 2, 3]), 'Я отправлю смету');
+      expect(api.lastLiveProblem, isEmpty);
+    });
+
+    test('пустой ответ сервера не затирает показанный текст', () async {
+      final api = ApiClient(transport: _Fake((200, '{"text":""}')), baseUrl: '');
+      expect(await api.sendLiveChunk('abcdef1234567890', [1, 2, 3]), isNull);
+    });
+
+    test('пустой кусок не отправляется', () async {
+      final t = _Fake((200, '{"text":"x"}'));
+      final api = ApiClient(transport: t, baseUrl: '');
+      expect(await api.sendLiveChunk('abcdef1234567890', []), isNull);
+      expect(t.lastBody, isNull);
+    });
+  });
+
   group('чтение записи с диска', () {
     test('пустой путь — ошибка, а не пустая отправка', () async {
       expect(() => readFileBytes(''), throwsA(isA<FormatException>()));
