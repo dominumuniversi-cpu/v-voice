@@ -4,7 +4,7 @@
 /// отбрасывает элементы без непустой цитаты, а не показывает их без доказательства:
 /// человек, который не может проверить, откуда взялась задача, задачи не примет.
 class Digest {
-  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryHidden = 0, this.topic = '', this.rejected = const [], this.costRub, this.sentSeconds, this.budgetRub, this.droppedNoise = 0, this.droppedInvented = 0, this.droppedByVad = 0, this.errors = const []});
+  Digest({required this.summary, required this.decisions, required this.openQuestions, required this.items, required this.participants, required this.model, this.truncated = false, this.summaryMissing = false, this.summaryHidden = 0, this.topic = '', this.rejected = const [], this.costRub, this.sentSeconds, this.budgetRub, this.droppedNoise = 0, this.droppedInvented = 0, this.droppedByVad = 0, this.errors = const []});
 
   final List<String> summary;
   final List<String> decisions;
@@ -18,6 +18,10 @@ class Digest {
   /// Предложения модели, которые не подтвердились дословной цитатой. Человек должен видеть,
   /// почему задач меньше, чем прозвучало, а не думать, что модель промолчала.
   final List<String> rejected;
+
+  /// Модель не выделила ни одного пункта выжимки. Это факт о разборе, а не пустое место:
+  /// «нечего сказать» и «не справилась» выглядят на экране одинаково, если флаг не читать.
+  final bool summaryMissing;
 
   /// Одна строка «о чём был разговор». Пустая, если модель её не дала.
   final String topic;
@@ -77,6 +81,7 @@ class Digest {
       summaryHidden: (json['summary_hidden'] is num) ? (json['summary_hidden'] as num).toInt() : 0,
       topic: (json['topic'] ?? '').toString(),
       rejected: rejectedFrom(json['rejected']),
+      summaryMissing: json['summary_missing'] == true,
       costRub: json['cost_rub'] is num ? (json['cost_rub'] as num).toDouble() : null,
       sentSeconds: json['sent_seconds'] is num ? (json['sent_seconds'] as num).toDouble() : null,
       budgetRub: json['budget_exceeded'] == true && json['budget_rub'] is num

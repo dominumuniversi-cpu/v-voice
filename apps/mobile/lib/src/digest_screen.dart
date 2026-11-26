@@ -194,10 +194,17 @@ class _DigestScreenState extends State<DigestScreen> {
               ),
             ),
           const SizedBox(height: 8),
+          // Пустой список читается по-разному в зависимости от причины: «не было задач» и
+          // «модель предложила, но ни одна фраза не подтвердилась» — разные новости для человека.
           const Text('Задачи', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           if (d.items.isEmpty)
-            const Text('Разбор не нашёл задач с цитатой.', style: TextStyle(color: VVTheme.inkMuted))
+            Text(
+              d.rejected.isNotEmpty
+                  ? 'Найдено ' + d.rejected.length.toString() + ', но ни один пункт не подтвердился дословной цитатой — показать нечего.'
+                  : 'Разбор не нашёл задач с цитатой.',
+              style: const TextStyle(color: VVTheme.inkMuted),
+            )
           else
             ...d.items.map((item) => _ItemCard(item: item, onApprove: () {
                   setState(() => item.approved = true);

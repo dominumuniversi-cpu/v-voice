@@ -230,4 +230,16 @@ void main() {
       expect(meeting('2026-12-04T15:00:00+05:00').missingTimeNote, isEmpty);
     });
   });
+
+  test('модель не выделила выжимку — это видно', () {
+    final d = Digest.fromJson({
+      'summary': [],
+      'summary_missing': true,
+      'decisions': [],
+      'open_questions': [],
+      'items': [],
+    });
+    expect(d.summaryMissing, isTrue);
+    expect(d.summary, isEmpty);
+  });
 }
