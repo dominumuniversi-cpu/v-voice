@@ -176,6 +176,21 @@ class ApiClient {
   }
 
   /// Готовый разбор с сервера. Возвращает null, если сервер не дал выжимку — приложение не выдумывает.
+  /// Расшифровка в выбранном формате: txt, md, srt, vtt. Возвращает текст файла как есть.
+  ///
+  /// Почему не через fetchDigest: расшифровка — это файл, а не JSON. Человеку нужен тот же текст,
+  /// который он потом откроет в заметках или смонтирует в видео, а не обёртка вокруг него.
+  Future<(String? text, String problem)> fetchTranscript(String sessionId, String format) async {
+    final (code, body) = await transport
+        .get('/api/v1/sessions/' + sessionId + '/transcript?format=' + format);
+    if (code != 200) {
+      final failed = _safeDecode(body);
+      final message = (failed['message'] ?? '').toString();
+      return (null, message.isNotEmpty ? message : 'Сервер ответил кодом ' + code.toString() + '.');
+    }
+    return (body, '');
+  }
+
   Future<Digest?> fetchDigest(String sessionId) async {
     final (code, body) = await transport.get('/api/v1/sessions/' + sessionId + '/digest');
     if (code != 200) {

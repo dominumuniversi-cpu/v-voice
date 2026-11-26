@@ -24,7 +24,55 @@ class DigestScreen extends StatefulWidget {
 
 class _DigestScreenState extends State<DigestScreen> {
   bool _sending = false;
+  bool _transcriptBusy = false;
   String _sentMessage = '';
+  /// Показывает расшифровку человеку: сначала выбор формата, потом сам текст.
+  ///
+  /// Форматы именно те, что пригодятся: txt — читать, srt — монтировать видео, md — вставить в заметки.
+  Future<void> _showTranscript(ApiClient api, String sessionId) async {
+    final format = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('В каком виде сохранить?', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            ListTile(title: const Text('Текст (.txt)'), subtitle: const Text('Читать целиком'),
+                onTap: () => Navigator.pop(ctx, 'txt')),
+            ListTile(title: const Text('Субтитры (.srt)'), subtitle: const Text('Для видео и монтажа'),
+                onTap: () => Navigator.pop(ctx, 'srt')),
+            ListTile(title: const Text('Заметки (.md)'), subtitle: const Text('Вставить в редактор'),
+                onTap: () => Navigator.pop(ctx, 'md')),
+          ],
+        ),
+      ),
+    );
+    if (format == null || !mounted) return;
+    setState(() => _transcriptBusy = true);
+    final (text, problem) = await api.fetchTranscript(sessionId, format);
+    if (!mounted) return;
+    setState(() => _transcriptBusy = false);
+    if (text == null) {
+      // Не пустой экран: человек должен понять, почему файла нет.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(problem)));
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Расшифровка · ' + format),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(child: SelectableText(text)),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Закрыть'))],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final d = widget.digest;
@@ -41,6 +89,15 @@ class _DigestScreenState extends State<DigestScreen> {
           _participants(d.participants),
           _section('Решили', d.decisions),
           _section('Осталось неясным', d.openQuestions),
+          if (widget.api != null && widget.sessionId != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: OutlinedButton.icon(
+                onPressed: _transcriptBusy ? null : () => _showTranscript(widget.api!, widget.sessionId!),
+                icon: const Icon(Icons.description_outlined),
+                label: Text(_transcriptBusy ? 'Готовлю файл…' : 'Показать расшифровку'),
+              ),
+            ),
           const SizedBox(height: 8),
           const Text('Задачи', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
