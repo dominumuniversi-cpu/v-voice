@@ -46,11 +46,25 @@ def export_session(
     raw: dict[str, Any],
     *,
     send: Callable[[Any], tuple[bool, str]] | None,
+    configured: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, Any]]:
-    """Отправляет одобренные задачи в указанные цели. Возвращает (код, ответ)."""
+    """Отправляет одобренные задачи в указанные цели. Возвращает (код, ответ).
+
+    Адреса целей берутся из настроек сервера (configured), а не у клиента: телефон не должен знать,
+    где живёт задачник, и не должен уметь отправить задачу сам себе. Значение из запроса допускается
+    только как явная отладка и лишь если настройка не задана.
+    """
     targets_raw = raw.get('targets');
     if not isinstance(targets_raw, dict) or not targets_raw:
         return 400, {'error': 'bad_request', 'message': 'Нужны targets: адреса, куда отправлять.'}
+    # Адрес берём из настроек сервера. То, что прислал клиент, — только имя цели и, в крайнем случае,
+    # временный адрес для отладки; иначе телефон мог бы отправить задачу в самого себя.
+    if configured:
+        resolved = {name: configured[name] for name in targets_raw if name in configured}
+        if not resolved:
+            return 503, {'error': 'export_not_configured',
+                         'message': 'На сервере не заданы адреса целей. Заполните VV_EXPORT_* в настройках сервера.'}
+        targets_raw = resolved
     unknown = [name for name in targets_raw if name not in KNOWN_TARGETS]
     if unknown:
         return 400, {'error': 'unknown_target',

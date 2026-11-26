@@ -92,7 +92,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            call_llm: Any = None,
            live_sessions: Any = None,
            exporter: Any = None,
-           gate: Any = None) -> Response:
+           gate: Any = None,
+           export_targets: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -191,7 +192,7 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         return Response(code, body)
 
     if template == "/api/v1/sessions/{session_id}/export":
-        code, body = export_session(payload, send=exporter)
+        code, body = export_session(payload, send=exporter, configured=export_targets)
         return Response(code, body)
 
     if path == "/api/v1/items/validate":

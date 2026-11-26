@@ -714,6 +714,18 @@ try:
 except ValueError:
     _raised = True
 check("prompt_empty_raises", _raised)
+# Адреса целей берутся из настроек сервера, а не у клиента: телефон не должен знать, где задачник.
+from vvoice.export_route import export_session as _export_session
+_approved_item = [{'id': 'i1', 'kind': 'task', 'title': 'Позвонить', 'evidence_quote': 'позвони в среду', 'approved': True}]
+_sent: list = []
+_def_send = lambda req: (_sent.append(req), (True, ''))[1]
+_code_ok, _body_ok = _export_session({'targets': {'helper': 'http://phone-should-not-decide'}, 'items': _approved_item},
+                                      send=_def_send, configured={'helper': 'https://tasks.example'})
+check("export_uses_server_settings", _code_ok == 200, (_code_ok, _body_ok))
+check("export_ignores_client_address", any('tasks.example' in r.url for r in _sent), [r.url for r in _sent])
+_code_no, _body_no = _export_session({'targets': {'helper': 'http://x'}, 'items': _approved_item},
+                                     send=_def_send, configured={})
+check("export_without_settings_is_honest", _code_no == 503 and _body_no.get('error') == 'export_not_configured', _body_no)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

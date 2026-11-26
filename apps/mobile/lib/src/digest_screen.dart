@@ -108,6 +108,8 @@ class _DigestScreenState extends State<DigestScreen> {
     if (!mounted) return;
     setState(() {
       _sending = false;
+      // problem уже содержит правду о частичном провале (его формирует клиент), поэтому
+      // второй источник того же текста здесь не нужен — только выбор, что показать.
       _sentMessage = problem.isNotEmpty
           ? problem
           : (sent > 0 ? 'Отправлено задач: ' + sent.toString() + '.' : 'Отправлять было нечего.');

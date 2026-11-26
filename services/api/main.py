@@ -45,6 +45,8 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         # Отправка задач наружу появится, когда будут ключи интеграций; пока None —
         # маршрут отвечает 503 и говорит правду, вместо того чтобы делать вид.
         'exporter': None,
+        # Адреса целей — из настроек: телефон не должен знать, где живёт задачник.
+        'export_targets': settings.export_targets,
     }
 
 
