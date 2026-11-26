@@ -1,110 +1,112 @@
 {
- "version": "1.15",
- "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе. v1.2: бэкап аудио запрещён на уровне манифеста (152-ФЗ). 1.9: ограничение фона по батарее (Android). 1.15: пауза записи обязана быть на обеих платформах и действительно останавливать захват.",
- "android": {
-  "files": [
-   "apps/mobile/android/app/src/main/AndroidManifest.xml",
-   "apps/mobile/android/app/src/main/kotlin/ru/vernadsky/vvoice/RecordingService.kt",
-   "apps/mobile/android/app/src/main/kotlin/ru/vernadsky/vvoice/RecordingChannel.kt",
-   "apps/mobile/android/app/src/main/kotlin/ru/vernadsky/vvoice/RecordingPaths.kt"
-  ],
-  "requiredPermissions": [
-   "android.permission.RECORD_AUDIO",
-   "android.permission.FOREGROUND_SERVICE",
-   "android.permission.FOREGROUND_SERVICE_MICROPHONE",
-   "android.permission.POST_NOTIFICATIONS",
-   "android.permission.WAKE_LOCK"
-  ],
-  "requiredSymbols": [
-   "android:foregroundServiceType=\"microphone\"",
-   "FOREGROUND_SERVICE_TYPE_MICROPHONE",
-   "AudioRecord",
-   "ForegroundServiceStartNotAllowedException",
-   "stopWithTask=\"false\"",
-   "emitSaved",
-   "type\" to \"saved",
-   "acquireWakeLock()",
-   "releaseWakeLock()",
-   "disk_full",
-   "batteryRestricted()",
-   "openBatterySettings()",
-   "isIgnoringBatteryOptimizations",
-   "if (intent == null)",
-   "yyyyMMdd-HHmmss",
-   "AUDIOFOCUS_LOSS",
-   "audio_focus_lost",
-   "HEADER_REFRESH_BYTES",
-   "listRecordings",
-   "ACTION_PAUSE",
-   "if (paused) continue",
-   "\"pause\" ->"
-  ],
-  "forbiddenSymbols": [
-   "MediaRecorder.AudioSource.VOICE_CALL"
-  ],
-  "requiredPermissionFlags": [
-   "dataExtractionRules",
-   "fullBackupContent"
-  ],
-  "requiredXmlFiles": [
-   "apps/mobile/android/app/src/main/res/xml/data_extraction_rules.xml",
-   "apps/mobile/android/app/src/main/res/xml/backup_rules.xml"
-  ]
- },
- "ios": {
-  "files": [
-   "apps/mobile/ios/Runner/Info.plist",
-   "apps/mobile/ios/Runner/RecordingEngine.swift",
-   "apps/mobile/ios/Runner/RecordingChannel.swift",
-   "apps/mobile/ios/Runner/AppDelegate.swift"
-  ],
-  "requiredPermissions": [
-   "NSMicrophoneUsageDescription"
-  ],
-  "requiredSymbols": [
-   "UIBackgroundModes",
-   "audio",
-   "AVAudioSession",
-   "AVAudioEngine",
-   "AVAudioFile",
-   "beginBackgroundTask",
-   "RecordingChannel(messenger:",
-   "final class RecordingChannel: NSObject",
-   "interruptionNotification",
-   "routeChangeNotification",
-   "observeSystemEvents()",
-   "disk_full",
-   "func pause()",
-   "isPaused",
-   "case \"pause\":"
-  ],
-  "forbiddenSymbols": [],
-  "requiredPlistKeys": [
-   "NSMicrophoneUsageDescription",
-   "NSLocalNetworkUsageDescription",
-   "UIBackgroundModes",
-   "CFBundleIdentifier",
-   "LSSupportsOpeningDocumentsInPlace"
-  ]
- },
- "mobile_ui": {
-  "files": [
-   "apps/mobile/lib/main.dart",
-   "apps/mobile/lib/src/recording_controller.dart",
-   "apps/mobile/lib/src/digest_screen.dart",
-   "apps/mobile/lib/src/digest_model.dart"
-  ],
-  "requiredSymbols": [
-   "Слушаю",
-   "RecordingError.explain",
-   "RecordingState.recording"
-  ],
-  "forbiddenSymbols": [
-   "showDialog(",
-   "confirm"
-  ],
-  "savedEventConsumers": [
-   "lastSavedPath"
-  ]
- }
+  "version": "1.16",
+  "description": "Контракт нативного моста записи: какие символы и разрешения обязаны быть на каждой платформе. v1.2: бэкап аудио запрещён на уровне манифеста (152-ФЗ). 1.9: ограничение фона по батарее (Android). 1.15: пауза записи обязана быть на обеих платформах и действительно останавливать захват. 1.16: пауза доступна из уведомления (экран заблокирован).",
+  "android": {
+    "files": [
+      "apps/mobile/android/app/src/main/AndroidManifest.xml",
+      "apps/mobile/android/app/src/main/kotlin/ru/vernadsky/vvoice/RecordingService.kt",
+      "apps/mobile/android/app/src/main/kotlin/ru/vernadsky/vvoice/RecordingChannel.kt",
+      "apps/mobile/android/app/src/main/kotlin/ru/vernadsky/vvoice/RecordingPaths.kt"
+    ],
+    "requiredPermissions": [
+      "android.permission.RECORD_AUDIO",
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.WAKE_LOCK"
+    ],
+    "requiredSymbols": [
+      "android:foregroundServiceType=\"microphone\"",
+      "FOREGROUND_SERVICE_TYPE_MICROPHONE",
+      "AudioRecord",
+      "ForegroundServiceStartNotAllowedException",
+      "stopWithTask=\"false\"",
+      "emitSaved",
+      "type\" to \"saved",
+      "acquireWakeLock()",
+      "releaseWakeLock()",
+      "disk_full",
+      "batteryRestricted()",
+      "openBatterySettings()",
+      "isIgnoringBatteryOptimizations",
+      "if (intent == null)",
+      "yyyyMMdd-HHmmss",
+      "AUDIOFOCUS_LOSS",
+      "audio_focus_lost",
+      "HEADER_REFRESH_BYTES",
+      "listRecordings",
+      "ACTION_PAUSE",
+      "if (paused) continue",
+      "\"pause\" ->",
+      "R.string.pause_label",
+      "R.string.resume"
+    ],
+    "forbiddenSymbols": [
+      "MediaRecorder.AudioSource.VOICE_CALL"
+    ],
+    "requiredPermissionFlags": [
+      "dataExtractionRules",
+      "fullBackupContent"
+    ],
+    "requiredXmlFiles": [
+      "apps/mobile/android/app/src/main/res/xml/data_extraction_rules.xml",
+      "apps/mobile/android/app/src/main/res/xml/backup_rules.xml"
+    ]
+  },
+  "ios": {
+    "files": [
+      "apps/mobile/ios/Runner/Info.plist",
+      "apps/mobile/ios/Runner/RecordingEngine.swift",
+      "apps/mobile/ios/Runner/RecordingChannel.swift",
+      "apps/mobile/ios/Runner/AppDelegate.swift"
+    ],
+    "requiredPermissions": [
+      "NSMicrophoneUsageDescription"
+    ],
+    "requiredSymbols": [
+      "UIBackgroundModes",
+      "audio",
+      "AVAudioSession",
+      "AVAudioEngine",
+      "AVAudioFile",
+      "beginBackgroundTask",
+      "RecordingChannel(messenger:",
+      "final class RecordingChannel: NSObject",
+      "interruptionNotification",
+      "routeChangeNotification",
+      "observeSystemEvents()",
+      "disk_full",
+      "func pause()",
+      "isPaused",
+      "case \"pause\":"
+    ],
+    "forbiddenSymbols": [],
+    "requiredPlistKeys": [
+      "NSMicrophoneUsageDescription",
+      "NSLocalNetworkUsageDescription",
+      "UIBackgroundModes",
+      "CFBundleIdentifier",
+      "LSSupportsOpeningDocumentsInPlace"
+    ]
+  },
+  "mobile_ui": {
+    "files": [
+      "apps/mobile/lib/main.dart",
+      "apps/mobile/lib/src/recording_controller.dart",
+      "apps/mobile/lib/src/digest_screen.dart",
+      "apps/mobile/lib/src/digest_model.dart"
+    ],
+    "requiredSymbols": [
+      "Слушаю",
+      "RecordingError.explain",
+      "RecordingState.recording"
+    ],
+    "forbiddenSymbols": [
+      "showDialog(",
+      "confirm"
+    ],
+    "savedEventConsumers": [
+      "lastSavedPath"
+    ]
+  }
 }

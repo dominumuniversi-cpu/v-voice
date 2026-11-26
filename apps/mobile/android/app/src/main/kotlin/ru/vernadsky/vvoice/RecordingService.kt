@@ -58,8 +58,10 @@ class RecordingService : Service() {
         }
         when (intent.action) {
             ACTION_STOP -> { stopRecording(); stopSelf(); return START_NOT_STICKY }
-            ACTION_PAUSE -> { paused = true; RecordingChannel.emitState("paused"); return START_STICKY }
-            ACTION_RESUME -> { paused = false; RecordingChannel.emitState("recording"); return START_STICKY }
+            // Перевыпускаем уведомление: иначе кнопка в шторке навсегда осталась бы «Пауза»,
+            // даже когда запись уже идёт.
+            ACTION_PAUSE -> { paused = true; RecordingChannel.emitState("paused"); startForegroundWithNotification(); return START_STICKY }
+            ACTION_RESUME -> { paused = false; RecordingChannel.emitState("recording"); startForegroundWithNotification(); return START_STICKY }
         }
         startForegroundWithNotification()
         startRecording()
@@ -103,12 +105,22 @@ class RecordingService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        // Пауза прямо из шторки: экран телефона может быть заблокирован, а человеку нужно встать
+        // на паузу сейчас. Без этой кнопки единственный путь — разблокировать и открыть приложение.
+        val pause = PendingIntent.getService(
+            this, 2, Intent(this, RecordingService::class.java).setAction(
+                if (paused) ACTION_RESUME else ACTION_PAUSE
+            ),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val notification: Notification = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.recording_title))
             .setContentText(getString(R.string.recording_text))
             .setSmallIcon(R.drawable.ic_launcher)
             .setOngoing(true)
             .setContentIntent(open)
+            .addAction(Notification.Action.Builder(null, getString(if (paused) R.string.resume else R.string.pause_label), pause).build())
             .addAction(Notification.Action.Builder(null, getString(R.string.stop), stop).build())
             .build()
 
