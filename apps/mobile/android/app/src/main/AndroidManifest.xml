@@ -7,7 +7,6 @@
     - сервис НЕ останавливается с задачей (stopWithTask="false"), иначе блокировка/свёртывание рвёт запись.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
     <!-- Запись микрофона (runtime-разрешение, спрашивается из видимого UI). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Постоянное уведомление о записи: обязательный атрибут юридической честности. -->
@@ -23,6 +22,8 @@
         android:icon="@drawable/ic_launcher"
         android:theme="@style/AppTheme"
         android:allowBackup="false">
+        <!-- Маркер embedding v2: без него Flutter считает проект старым (v1) и отказывается собирать. -->
+        <meta-data android:name="flutterEmbedding" android:value="2" />
 
         <activity
             android:name=".MainActivity"
