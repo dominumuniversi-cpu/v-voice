@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'src/app_config.dart';
 import 'src/consent_model.dart';
+import 'src/consent_store.dart';
+import 'src/prefs_key_value_store.dart' as prefs;
 import 'src/method_channel_bridge.dart';
 import 'src/prefs_server_store.dart';
 import 'src/recording_controller.dart';
@@ -42,6 +44,7 @@ class ListenScreen extends StatefulWidget {
 class _ListenScreenState extends State<ListenScreen> {
   final SessionModel session = SessionModel();
   Timer? _ticker;
+  final ConsentStore consentStore = ConsentStore(store: prefs.PrefsKeyValueStore());
 
   /// Согласие на запись: приложение слушает чужие голоса, и человек должен знать это заранее.
   ConsentModel consent = ConsentModel(
@@ -79,6 +82,7 @@ class _ListenScreenState extends State<ListenScreen> {
       if (accepted != true) return;
       if (!mounted) return;
       setState(() => consent = consent.accept());
+      await consentStore.save(consent);
     }
     await widget.controller.start();
   }
@@ -87,6 +91,11 @@ class _ListenScreenState extends State<ListenScreen> {
   void initState() {
     super.initState();
     widget.controller.bind();
+    // Согласие поднимается из хранилища: спрашивать одно и то же каждый пуск — значит добиться,
+    // чтобы его перестали читать.
+    consentStore.load(consent).then((loaded) {
+      if (mounted) setState(() => consent = loaded);
+    });
     // Тик раз в секунду: время записи — факт, который человек проверяет глазами.
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
