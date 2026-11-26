@@ -35,6 +35,9 @@ jobs:
       - name: transport contract
         run: node tests/native/transport-contract.mjs
 
+      - name: prototype css
+        run: node tests/native/prototype-vars.mjs
+
       - name: node tests
         run: node --test "tests/native/*.test.mjs" "tests/api/*.mjs"
 

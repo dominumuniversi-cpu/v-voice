@@ -93,23 +93,30 @@ class _DigestScreenState extends State<DigestScreen> {
               decoration: BoxDecoration(
                 color: VVTheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE0A030)),
+                border: Border.all(color: VVTheme.warn),
               ),
               child: const Text(
-                'Разговор длиннее, чем помещается в один проход. Разобрано начало — остальное пока не разобрано, '
-                'это не значит, что там ничего не говорили.',
+                'Разобрано только начало: разговор длиннее одного прохода.',
                 style: TextStyle(fontSize: 13, height: 1.45),
               ),
             ),
+          // Заголовок раздела остаётся на месте всегда: пропавший заголовок читается как «здесь ничего нет».
           if (d.summary.isEmpty)
-            // Пустой раздел молча исчезает — и человек не отличит «обсуждать было нечего»
-            // от «модель не справилась». Говорим, что именно произошло.
-            const Padding(
-              padding: EdgeInsets.only(bottom: 20),
-              child: Text(
-                'Модель не выделила главное. Это не значит, что разговор был пустым — '
-                'посмотрите расшифровку и задачи ниже.',
-                style: TextStyle(fontSize: 14, height: 1.45, color: VVTheme.inkMuted),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Коротко', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Text(
+                    // Причина пустоты важнее самой пустоты, и она у нас есть: разбор мог обрезаться.
+                    d.truncated
+                        ? 'В разобранной части модель не выделила главное. Остальное ещё не разобрано.'
+                        : 'Модель не выделила главное. Расшифровка записана — откройте её кнопкой «Показать расшифровку».',
+                    style: const TextStyle(fontSize: 14, height: 1.45, color: VVTheme.inkMuted),
+                  ),
+                ],
               ),
             )
           else

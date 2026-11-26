@@ -1,7 +1,19 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><title>VoiceTranscribator — дизайн-концепция VERN-OS</title>
 <link rel="stylesheet" href="tokens.css">
-<style>body{padding:0}.title{padding:56px 56px 0;color:var(--vt-ink-2);font-size:13px;letter-spacing:2px;text-transform:uppercase}</style>
+<style>
+  /* Палитра объявлена ЗДЕСЬ: раньше разметка ссылалась на var(--vt-*), а сами переменные нигде
+     не были заданы — браузер подставлял пустоту, и часть текста могла стать невидимой. */
+  :root {
+    --vt-bg: #06080C;
+    --vt-surface: #0F1319;
+    --vt-accent: #5B8CFF;
+    --vt-ok: #35D07F;
+    --vt-warn: #FFB020;
+    --vt-ink: #EDF1F7;
+    --vt-ink-2: #C7D0DE;
+    --vt-ink-3: #8C97A8;
+  }body{padding:0}.title{padding:56px 56px 0;color:var(--vt-ink-2);font-size:13px;letter-spacing:2px;text-transform:uppercase}</style>
 </head><body>
 <div class="title">VoiceTranscribator · Концепция A «Deep Focus» · 390×844</div>
 <div class="sheet">

@@ -215,28 +215,53 @@ class _ListenScreenState extends State<ListenScreen> {
     final bridge = widget.controller.bridge;
     final restricted = await bridge.batteryRestricted();
     if (!restricted || !mounted) return true;
-    final go = await showDialog<bool>(
+    final startFromDialog = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Телефон может оборвать запись'),
         content: const Text(
             'Система ограничивает работу приложений в фоне. На Xiaomi, Huawei и части Samsung запись '
-            'может остановиться, когда экран погаснет. Разрешите приложению работу в фоне — тогда '
-            'запись переживёт блокировку.'),
+            'может остановиться, когда экран погаснет.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Позже')),
           TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Всё равно начать'),
+          ),
+          // Главная кнопка — безопасная: ошибиться пальцем в сторону потери записи нельзя.
+          FilledButton(
             onPressed: () async {
               await bridge.openBatterySettings();
-              if (ctx.mounted) Navigator.of(ctx).pop(true);
+              if (!mounted) return;
+              // Настройки не гарантируют разрешение: перечитываем факт, а не верим, что человек нажал.
+              final stillRestricted = await bridge.batteryRestricted();
+              if (!mounted) return;
+              if (stillRestricted) {
+                final anyway = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx2) => AlertDialog(
+                    title: const Text('Разрешение не выдано'),
+                    content: const Text(
+                        'Запись начнётся, но система может остановить её, когда экран погаснет. '
+                        'Можно разрешить позже в настройках телефона.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.of(ctx2).pop(false), child: const Text('Отмена')),
+                      TextButton(onPressed: () => Navigator.of(ctx2).pop(true), child: const Text('Начать всё равно')),
+                    ],
+                  ),
+                );
+                if (anyway != true) return;
+              }
+              if (mounted) await widget.controller.start();
             },
             child: const Text('Разрешить'),
           ),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Всё равно начать')),
         ],
       ),
     );
-    return go == true;
+    // true — человек выбрал «Всё равно начать»: запись стартует ниже, в _startWithConsent.
+    // false — «Позже», отмена после настроек, или запись уже запущена внутри «Разрешить».
+    return startFromDialog == true;
   }
 
   @override
