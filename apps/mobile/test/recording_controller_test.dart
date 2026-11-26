@@ -53,6 +53,31 @@ void main() {
       expect(bridge.startCalls, 1);
     });
 
+    test('уровень микрофона доходит до экрана', () async {
+      await controller.start();
+      bridge.push({'type': 'level', 'value': 0.42});
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.level, closeTo(0.42, 0.001));
+    });
+
+    test('уровень обрезается в границах 0..1', () async {
+      await controller.start();
+      bridge.push({'type': 'level', 'value': 2.5});
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.level, 1.0);
+      bridge.push({'type': 'level', 'value': -0.3});
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.level, 0.0);
+    });
+
+    test('мусор вместо уровня не роняет поток событий', () async {
+      await controller.start();
+      bridge.push({'type': 'level', 'value': 'громко'});
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.level, 0.0);
+      expect(controller.state, RecordingState.recording);
+    });
+
     test('двойное нажатие не создаёт вторую сессию', () async {
       await controller.start();
       await controller.start();
