@@ -52,7 +52,13 @@ class ApiClient {
   /// Готовый разбор с сервера. Возвращает null, если сервер не дал выжимку — приложение не выдумывает.
   Future<Digest?> fetchDigest(String sessionId) async {
     final (code, body) = await transport.get('/api/v1/sessions/' + sessionId + '/digest');
-    if (code != 200) return null;
+    if (code != 200) {
+      // Не молчим: пустой экран без причины человек читает как «приложение не поняло».
+      final failed = _safeDecode(body);
+      final message = (failed['message'] ?? '').toString();
+      lastDigestProblem = message.isNotEmpty ? message : 'Сервер ответил кодом ' + code.toString() + '.';
+      return null;
+    }
     final data = _safeDecode(body);
     if (data.isEmpty) {
       lastDigestProblem = 'Сервер прислал пустой ответ.';
