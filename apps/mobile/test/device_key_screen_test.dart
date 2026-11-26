@@ -11,7 +11,7 @@ void main() {
 
     expect(find.text('Ключ устройства (если сервер с замком)'), findsOneWidget);
 
-    await tester.enterText(find.widgetWithText(TextField, 'Ключ устройства (если сервер с замком)'), 'secret-key-123');
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == 'Ключ устройства (если сервер с замком)'), 'secret-key-123');
     await tester.tap(find.text('Сохранить').last);
     await tester.pumpAndSettle();
 
@@ -23,7 +23,7 @@ void main() {
     final store = MemoryDeviceKeyStore();
     await tester.pumpWidget(MaterialApp(home: SettingsScreen(deviceKeyStore: store, initialDeviceKey: '')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, 'Ключ устройства (если сервер с замком)'), 'abc');
+    await tester.enterText(find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == 'Ключ устройства (если сервер с замком)'), 'abc');
     await tester.tap(find.text('Сохранить').last);
     await tester.pumpAndSettle();
     expect(await store.read(), isNull);
