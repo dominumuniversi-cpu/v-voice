@@ -28,6 +28,7 @@
 | `docs/SPECS/VOICE-TZ.md` | основной ТЗ (FR, AC, out of scope) |
 | `docs/SPECS/LOCAL-RULES.md` | локальные правила проекта (порты, стек, схема БД) |
 | `docs/ARCHITECTURE/ARCHITECTURE.md` | архитектура и конвейер |
+| `docs/ARCHITECTURE/EXPORT-CONTRACT.md` | контракт `vvoice.item.v1` для внешних продуктов (задачник, CRM) |
 | `docs/ARCHITECTURE/AI-PROVIDERS.md` | какие модели/провайдеры подключать и как |
 | `docs/RESEARCH/RESEARCH-2026-11.md` | обзор решений, сравнение сервисов и библиотек |
 | `docs/ROADMAP/ROADMAP.md` | дорожная карта и связь с issues/milestones |

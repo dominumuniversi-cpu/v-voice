@@ -732,6 +732,19 @@ _code_empty, _body_empty = _export_session({'targets': {'helper': ''}, 'items': 
 check("export_empty_address_is_honest", _code_empty == 400 and _body_empty.get('error') == 'empty_address', _body_empty)
 _c_ok, _ = _export_session({'targets': {'helper': ''}, 'items': _approved_item}, send=_def_send, configured={'helper': 'https://tasks.example'})
 check("export_empty_address_works_when_configured", _c_ok == 200, _c_ok)
+# Схема контракта не должна расходиться с тем, что реально отправляется наружу.
+from vvoice.exporters import ApprovedItem as _AI, to_payload as _to_payload
+_schema_path = Path(__file__).resolve().parents[2] / 'docs' / 'ARCHITECTURE' / 'schemas' / 'vvoice.item.v1.json'
+_schema = json.loads(_schema_path.read_text(encoding='utf-8'))
+_probe = _AI(id='i1', session_id='s1', kind='task', title='Позвонить', owner=None, due_at=None,
+             priority='medium', evidence_quote='позвони в среду утром', start_s=1.0, end_s=2.0,
+             approved_by='владелец')
+_req = _to_payload(_probe, 'webhook', 'https://crm.example/hook')
+check("webhook_sends_contract", _req.body.get('schema') == 'vvoice.item.v1')
+_extra = sorted(set(_req.body) - set(_schema['properties']))
+check("webhook_matches_schema", not _extra, _extra)
+_required_missing = [k for k in _schema['required'] if k not in _req.body]
+check("webhook_has_required_fields", not _required_missing, _required_missing)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")

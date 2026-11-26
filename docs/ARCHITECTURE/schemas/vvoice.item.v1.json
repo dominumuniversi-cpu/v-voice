@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://v-voice/schemas/vvoice.item.v1.json",
+  "title": "vvoice.item.v1",
+  "description": "Один подтверждённый человеком элемент разбора разговора. Всё, что приложение знает наверняка, и ничего придуманного.",
+  "type": "object",
+  "required": [
+    "schema",
+    "item_id",
+    "session_id",
+    "kind",
+    "title",
+    "evidence",
+    "approved_by"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "vvoice.item.v1"
+    },
+    "item_id": {
+      "type": "string",
+      "description": "Идентификатор пункта внутри сессии."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Запись, из которой взят пункт. По нему собирается вся цепочка."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "task",
+        "meeting",
+        "reminder",
+        "decision",
+        "question"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "description": "Короткая формулировка, как сказали бы вслух."
+    },
+    "owner": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Исполнитель. null — не называли его в разговоре."
+    },
+    "due_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Срок ISO8601. null — срок не прозвучал."
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "quote",
+        "start_s",
+        "end_s"
+      ],
+      "additionalProperties": false,
+      "description": "Доказательство: дословная цитата и таймкод. Без него задача не должна появляться ни в одной системе.",
+      "properties": {
+        "quote": {
+          "type": "string",
+          "minLength": 12
+        },
+        "start_s": {
+          "type": "number"
+        },
+        "end_s": {
+          "type": "number"
+        }
+      }
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Кто подтвердил отправку. Автоматически не проставляется."
+    }
+  }
+}
