@@ -29,6 +29,9 @@ jobs:
       - name: duplicate imports
         run: node tests/native/import-duplicates.mjs
 
+      - name: test members exist
+        run: node tests/native/test-members.mjs
+
       - name: node tests
         run: node --test "tests/native/*.test.mjs" "tests/api/*.mjs"
 

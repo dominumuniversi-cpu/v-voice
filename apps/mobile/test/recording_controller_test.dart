@@ -151,13 +151,13 @@ void main() {
   test('RecordingController кончившееся место объясняется человеку', () {
     // Проверка на смысл: при переполнении диска человек должен понять, что запись остановлена
     // и что уже записанное сохранено — иначе он будет ждать несуществующий файл.
-    final text = RecordingController.explain('disk_full');
+    final text = RecordingError.explain('disk_full');
     expect(text.contains('место'), isTrue, reason: text);
     expect(text.contains('остановлена'), isTrue, reason: text);
   });
 
   test('RecordingController прерывание звонком объясняется человеку', () {
-    final text = RecordingController.explain('recording_interrupted');
+    final text = RecordingError.explain('recording_interrupted');
     expect(text.contains('прервана'), isTrue, reason: text);
   });
 }
