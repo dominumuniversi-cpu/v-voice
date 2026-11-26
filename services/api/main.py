@@ -22,7 +22,8 @@ from vvoice.digest_store import DigestStore
 from vvoice.http_api import handle
 from vvoice.live_sessions import LiveSessions
 from vvoice.export_sender import send_request
-from vvoice.provider_factory import describe as describe_providers, make_asr_factory
+from vvoice.provider_factory import IMPLEMENTED_LLM, describe as describe_providers, make_asr_factory
+from vvoice.providers.llm_send import make_call_llm
 from vvoice.storage import AudioStore
 from vvoice.vad import VadConfig, VadGate
 
@@ -50,6 +51,10 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
                      if settings.export_targets else None,
         # Адреса целей — из настроек: телефон не должен знать, где живёт задачник.
         'export_targets': settings.export_targets,
+        # Понимание разговора: без модели задачи из встречи не появятся. Раньше сюда ничего
+        # не передавалось, и «осмысленный разбор» не мог работать даже с заполненным ключом.
+        'call_llm': make_call_llm(settings.llm_provider, '', settings.llm_key)
+                    if settings.llm_provider in IMPLEMENTED_LLM and settings.llm_key else None,
         # Пусто — сервер открыт (режим разработки). Задан — без токена не пустим.
         'device_tokens': settings.device_tokens,
     }

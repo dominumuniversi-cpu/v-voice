@@ -51,7 +51,7 @@ def make_asr_factory(settings: Settings) -> Callable[[str], Any] | None:
     return None
 
 
-IMPLEMENTED_LLM: tuple[str, ...] = ()
+IMPLEMENTED_LLM: tuple[str, ...] = ('deepseek', 'anthropic', 'ollama')
 
 
 def _ws_available() -> bool:

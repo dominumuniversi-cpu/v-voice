@@ -1052,6 +1052,14 @@ check("speechmatics_needs_key", _mk(_no_key) is None)
 _with_key = _from_settings({'VV_ASR_PROVIDER': 'speechmatics', 'VV_ASR_KEY': 'k'})
 check("speechmatics_factory_ready", _mk(_with_key) is not None)
 check("speechmatics_listed", _desc(_no_key)['asr_implemented'] is True)
+# Понимание разговора: запрос собирается и ответ разбирается без сети.
+from vvoice.providers.llm import build_request as _llm_req
+from vvoice.providers.llm_send import answer_text as _answer
+_r = _llm_req('deepseek', '', 'система', 'вопрос', 'k')
+check("llm_request_built", _r.url.startswith('https://') and 'model' in _r.body, _r.url)
+check("llm_answer_from_choices", _answer('{\"choices\":[{\"message\":{\"content\":\"да\"}}]}') == 'да')
+check("llm_answer_from_content", _answer('{\"content\":[{\"text\":\"да\"}]}') == 'да')
+check("llm_garbage_is_empty", _answer('не json') == '')
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
