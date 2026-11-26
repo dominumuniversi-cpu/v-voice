@@ -18,15 +18,16 @@
 | **Горячий путь** | **правила задержки и досыла покрыты тестами** | `services/api/vvoice/hotpath.py` |
 | **ASR-адаптер** | **Speechmatics**: протокол разобран и покрыт тестами | `services/api/vvoice/providers/speechmatics.py` |
 | **Интеграции** | **контракт есть**: helper/Jira/Битрикс24/вебхук | `services/api/vvoice/exporters.py` |
+| **LLM-адаптер** | **4 провайдера**: deepseek, anthropic, gigachat, ollama | `services/api/vvoice/providers/llm.py` |
 | **Проверка ключа** | **есть**: кнопка «Проверить» объясняет причину отказа | `services/api/vvoice/provider_probe.py` |
 | **Настройки** | **написаны**: каждая переменная с описанием, проверка перед запуском | `services/api/vvoice/settings.py`, `.env.example` |
 | **Задачник репозитория** | **описан**: метки, вехи, шаблон задачи, PR-шаблон | `docs/SPECS/ISSUE-SPEC.md` |
-| **Проверки** | **19 локальных + 88 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
+| **Проверки** | **19 локальных + 110 серверных в CI** | `npm run check`, `.github/workflows/ci.yml` |
 
 ## Проверено фактом (числа)
 
 - `npm run check` → 19 тестов, 0 падений; `syntax-check` → 12 python-файлов без ошибок.
-- CI на коммите `ab7e2ef`: шаг валидатора — **total=88 passed=88 failed=0**, pytest 18 passed, весь workflow **success**.
+- CI на коммите `8ebe0ab`: шаг валидатора — **total=110 passed=110 failed=0**, pytest 18 passed, весь workflow **success**.
 - Настройки по умолчанию проходят проверку без единой переменной окружения (`zero_config_starts`).
 - Проверка контракта доказуемо ловит поломки: убрали `foregroundServiceType="microphone"` — тест упал.
 - Валидатор отбрасывает выдуманную цитату, короткую цитату, цитату из другой встречи, несуществующего владельца.
