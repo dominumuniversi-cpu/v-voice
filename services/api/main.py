@@ -167,6 +167,13 @@ def main() -> int:
         print('v-voice: слушаю %s:%d — только этот компьютер' % (host, port))
     else:
         print('v-voice: слушаю %s:%d — доступен из сети' % (host, port))
+        # Сервер хранит чужие разговоры. Пускать в сеть без замка нельзя: любой в той же Wi-Fi
+        # прочитает расшифровки. Лучше не подняться и объяснить, чем работать открытым.
+        if not settings.device_tokens:
+            print('v-voice: ОТКАЗ — сервер открыт в сеть, но замка нет. Задайте VV_DEVICE_TOKENS '
+                  '(список ключей устройств через запятую) или слушайте только свой компьютер '
+                  '(VV_HOST=127.0.0.1).')
+            return 2
     make_server(host, port, settings, data_dir).serve_forever()
     return 0
 

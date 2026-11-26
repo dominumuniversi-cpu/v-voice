@@ -978,6 +978,8 @@ check("live_upload_stored", _st3.find('livelysess000001') is not None and _st3.r
 # Обычная сессия по-прежнему защищена: второй файл не затирает первый.
 _r4 = _handle('POST', '/api/v1/sessions', _pay3, store=_st3, live_sessions=_LS(limit=4))
 check("non_live_second_upload_refused", _r4.status == 409, _r4.status)
+_msrc = (Path(__file__).resolve().parents[2] / 'services' / 'api' / 'main.py').read_text(encoding='utf-8')
+check("refuses_open_without_lock", 'ОТКАЗ — сервер открыт в сеть' in _msrc and 'return 2' in _msrc)
 for name, passed, detail in checks:
     if not passed:
         sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
