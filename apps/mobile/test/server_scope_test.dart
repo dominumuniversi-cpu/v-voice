@@ -5,6 +5,32 @@ import 'package:v_voice/src/server_scope.dart';
 import 'package:v_voice/src/server_settings.dart';
 import 'package:v_voice/src/server_store.dart';
 
+/// Читает действующий адрес из контекста — так же, как это делает настоящий экран.
+class _Probe extends StatelessWidget {
+  const _Probe({required this.onRead});
+
+  final void Function(String?) onRead;
+
+  @override
+  Widget build(BuildContext context) {
+    onRead(ServerScope.maybeOf(context)?.serverUrl);
+    return const SizedBox();
+  }
+}
+
+/// Берёт сам scope: нужен для проверки смены адреса.
+class _ScopeGrab extends StatelessWidget {
+  const _ScopeGrab({required this.onGrab});
+
+  final void Function(ServerScope) onGrab;
+
+  @override
+  Widget build(BuildContext context) {
+    onGrab(ServerScope.maybeOf(context)!);
+    return const SizedBox();
+  }
+}
+
 void main() {
   testWidgets('сохранённый адрес поднимается при старте', (tester) async {
     final store = MemoryServerStore('https://my.example');
@@ -12,10 +38,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: ServerScopeLoader(
         store: store,
-        child: (ctx) {
-          seen = ServerScope.maybeOf(ctx)?.serverUrl;
-          return const SizedBox();
-        },
+        child: (_) => _Probe(onRead: (url) => seen = url),
       ),
     ));
     await tester.pumpAndSettle();
@@ -43,10 +66,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: ServerScopeLoader(
         store: store,
-        child: (ctx) {
-          scope = ServerScope.maybeOf(ctx)!;
-          return const SizedBox();
-        },
+        child: (_) => _ScopeGrab(onGrab: (s) => scope = s),
       ),
     ));
     await tester.pumpAndSettle();
