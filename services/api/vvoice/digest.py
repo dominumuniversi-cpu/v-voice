@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Callable
 
 from .assemble import Transcript
-from .evidence import validate_digest
+from .evidence import normalize, validate_digest
 
 MAX_TRANSCRIPT_CHARS = 90_000
 # Краткая выжимка — это краткая. Модель иногда отвечает двумя десятками пунктов, и человек такое
@@ -39,6 +39,39 @@ def _summary_points(raw: dict[str, Any]) -> list[str]:
     """Пункты выжимки в пределах краткости. Лишнее не теряется молча: число скрытых отдаёт ответ."""
     points = [str(s).strip() for s in (raw.get("summary") or []) if str(s).strip()]
     return points[:MAX_SUMMARY_ITEMS]
+
+
+def _utterance_pairs(transcript: Transcript) -> list[tuple[str, str]]:
+    """Реплики как пары «говорящий, текст» — основа для проверки, чей это пункт."""
+    return [(u.speaker, u.text) for u in transcript.utterances]
+
+
+def _drop_foreign_only(
+    lines: list[str],
+    utterances: list[tuple[str, str]],
+    foreign: set[str],
+) -> list[str]:
+    """Убирает строки, которые целиком взяты из реплик чужих голосов.
+
+    Зачем: режим «только участники» раньше резал лишь пункты задач. Выжимка, решения и вопросы —
+    это и есть «суть разговора», и чужие голоса (сосед, телевизор, попутчик) оставались в ней.
+    Строка считается своей, если хоть часть её опирается на своего говорящего: половина правды
+    лучше, чем потеря всего сказанного рядом.
+    """
+    if not foreign or not utterances:
+        return lines
+    kept: list[str] = []
+    for line in lines:
+        normalized = normalize(line)
+        if not normalized:
+            continue
+        own = any(
+            normalize(text) and normalize(text) in normalized and speaker not in foreign
+            for speaker, text in utterances
+        )
+        if own:
+            kept.append(line)
+    return kept
 
 
 def prompt_is_truncated(transcript: Transcript) -> bool:
@@ -79,6 +112,9 @@ def make_digest(
     """Один проход: промпт -> ответ модели -> фильтр цитат. Возвращает безопасный разбор."""
     raw = call_llm(SYSTEM_PROMPT, build_prompt(transcript, previous_summary=previous_summary))
     foreign, seen_foreign = members_only_flag(raw.get("participants") or [])
+    # Действует только когда человек включил режим «только участники»: иначе чужой голос —
+    # такое же свидетельство, как и свой.
+    active_foreign = foreign if members_only else set()
     checked = validate_digest(
         raw,
         transcript.text,
@@ -92,7 +128,7 @@ def make_digest(
         "topic": str(raw.get("topic") or "").strip(),
         # True — разобрана только часть разговора. Молчать об этом значит выдать половину за целое.
         "truncated": prompt_is_truncated(transcript),
-        "summary": _summary_points(raw),
+        "summary": _drop_foreign_only(_summary_points(raw), _utterance_pairs(transcript), active_foreign),
         # Сколько пунктов не показано. Молчаливая обрезка заставила бы человека думать, что он
         # увидел всё главное.
         "summary_hidden": max(0, len(raw.get("summary") or []) - MAX_SUMMARY_ITEMS),
@@ -100,7 +136,10 @@ def make_digest(
         # Тот, кто строит интеграцию, должен уметь отличить «нечего сказать» от «не справилась».
         "summary_missing": not (raw.get("summary") or []),
         "participants": raw.get("participants") or [],
-        "open_questions": [str(s) for s in (raw.get("open_questions") or [])],
+        "open_questions": _drop_foreign_only([str(s) for s in (raw.get("open_questions") or [])], _utterance_pairs(transcript), active_foreign),
+        # Решения читает приложение, а не только экспорт: без фильтра чужая реплика становилась
+        # «тем, о чём договорились».
+        "decisions": _drop_foreign_only([str(s) for s in (raw.get("decisions") or [])], _utterance_pairs(transcript), active_foreign),
         "items": checked["items"],
         "rejected": checked["rejected"],
     }

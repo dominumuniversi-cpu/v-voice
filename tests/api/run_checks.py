@@ -712,6 +712,22 @@ check("prompt_matches_code", _sys_prompt == _prompt_text)
 # Раньше здесь стояла проверка на evidence_quote — плоское поле, которого валидатор не читает:
 # проверка закрепляла ложную схему и мешала её исправить.
 check("prompt_has_schema", "evidence.quote" in _prompt_text and "start_s" in _prompt_text and "summary" in _prompt_text)
+# Режим «только участники» обязан вычищать чужой голос не только из задач, но и из сути разговора.
+try:
+    from vvoice.digest import _drop_foreign_only
+    _utt = [('S1', 'Обсудим смету на ремонт'), ('S3', 'Новости спорта и погода на завтра')]
+    _lines = ['Обсудим смету на ремонт', 'Новости спорта и погода на завтра']
+    check("foreign_voice_out_of_summary",
+          _drop_foreign_only(_lines, _utt, {'S3'}) == ['Обсудим смету на ремонт'],
+          _drop_foreign_only(_lines, _utt, {'S3'}))
+    # Без режима «только участники» ничего не режем: чужой голос — такое же свидетельство.
+    check("foreign_voice_kept_by_default", _drop_foreign_only(_lines, _utt, set()) == _lines)
+    # Строка, где есть и своё, и чужое, остаётся: половина правды лучше потери всего.
+    check("foreign_voice_mixed_line_kept",
+          _drop_foreign_only(['Дмитрий сказал про смету'], [('S1', 'сказал про смету')], {'S3'}) == ['Дмитрий сказал про смету'])
+except ImportError as _exc:
+    check("foreign_voice_out_of_summary", False, str(_exc))
+
 check("prompt_has_one_schema", _prompt_text.count("## Формат ответа") == 1)
 _tmp_empty = Path(_tempfile.mkdtemp()) / "empty.md"
 _tmp_empty.write_text("", encoding="utf-8")
