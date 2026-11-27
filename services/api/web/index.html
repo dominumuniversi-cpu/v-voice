@@ -110,9 +110,27 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 <p class="muted" style="margin:4px 0 0;font-size:12px">Нужен, только если сервер закрыт токеном. Браузер его запомнит — в адресной строке токена не будет.</p>
 <div class="row"><button id="goServer">Перейти</button><button id="forgetToken" class="ghost">Забыть токен</button></div>
 <p class="muted" id="serverMsg" style="margin-top:8px"></p></div>
-<div class="card" id="digest" style="display:none"><h2>Выжимка</h2><ul class="sum" id="summary"></ul>
+<div class="card"><h2>Разговоры</h2>
+<p class="muted" style="margin:0 0 10px">Каждый разговор остаётся здесь: разбор, расшифровка и сам звук. Открывается без повторного разбора.</p>
+<div class="row" style="margin-top:0"><button id="convsToggle" class="ghost small">Показать список</button><button id="convsReload" class="ghost small">Обновить</button></div>
+<div class="conns" id="convs" style="margin-top:10px"></div>
+<p class="muted" id="convsMsg" style="margin:8px 0 0"></p></div>
+<div class="card" id="digest" style="display:none"><h2 id="digestTitle">Выжимка</h2>
+<div class="row" style="margin-top:0" id="digestTools">
+  <button id="digestTranscript" class="ghost small">Показать расшифровку</button>
+  <a id="digestDownload" class="ghost small" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px">Скачать TXT</a>
+  <button id="digestClose" class="ghost small">Закрыть</button>
+</div>
+<p class="muted" id="digestWhen" style="margin:6px 0 10px"></p>
+<audio id="digestAudio" controls style="width:100%;margin-bottom:12px;display:none"></audio>
+<ul class="sum" id="summary"></ul>
 <h2 style="margin-top:16px">Задачи и встречи</h2><div id="items"></div>
-<h2 style="margin-top:16px">Открытые вопросы</h2><ul class="sum" id="questions"></ul></div>
+<h2 style="margin-top:16px">Открытые вопросы</h2><ul class="sum" id="questions"></ul>
+<div id="transcriptBox" style="display:none"><h2 style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">Расшифровка
+<span class="row" style="margin:0;gap:6px"><a class="ghost small" id="trSrt" href="#" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px">SRT</a>
+<a class="ghost small" id="trJson" href="#" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px">JSON</a></span></h2>
+<div id="transcriptText" class="text" style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#faf8f3;padding:10px 12px;border-radius:10px"></div></div>
+</div>
 </main>
 <script>
 const $=(s)=>document.querySelector(s);
@@ -178,7 +196,7 @@ async function upload(b64){
     const r=await fetch(server()+'/api/v1/sessions',{method:'POST',headers:headers(),body:JSON.stringify({audio_base64:b64,title:'Проверка со стенда'})});
     const d=await r.json();
     if(!r.ok){say('Сервер отказал: '+(d.message||d.error||r.status),true);return}
-    sessionId=d.session_id;say('Запись принята. Разбираю…');$('#analyze').disabled=false;
+    sessionId=d.session_id;say('Запись принята. Разбираю…');$('#analyze').disabled=false;loadConvs();
     analyze();
   }catch(e){say('Связь с сервером прервалась: '+e.message+'. Запись осталась в браузере.',true)}
 }
@@ -189,13 +207,12 @@ async function analyze(){
     const r=await fetch(server()+'/api/v1/sessions/'+sessionId+'/analyze',{method:'POST',headers:headers(),body:'{}'});
     const d=await r.json();
     if(!r.ok){say('Разбор не удался: '+(d.message||d.error||r.status),true);$('#analyze').disabled=false;return}
-    render(d);say('Готово.');
+    render(d);say('Готово. Разбор сохранён: открыть его можно в блоке «Разговоры».');$('#digestAudio').style.display='block';$('#digestAudio').src=server()+'/api/v1/sessions/'+sessionId+'/audio?token='+encodeURIComponent(token());loadConvs();
   }catch(e){say('Связь с сервером прервалась при разборе: '+e.message,true);$('#analyze').disabled=false}
 }
 function render(d){
   const box=$('#digest');box.style.display='block';
-  const sum=$('#summary');sum.innerHTML='';
-  (d.summary||[]).forEach(s=>{const li=document.createElement('li');li.textContent=s;sum.appendChild(li)});
+  const sum=$('#summary');sum.innerHTML='';  (d.summary||[]).forEach(s=>{const li=document.createElement('li');li.textContent=s;sum.appendChild(li)});
   if(!(d.summary||[]).length){sum.innerHTML='<li class="muted">'+(d.summary_missing?'Модель не выделила выжимку.':'Выжимки нет.')+'</li>'}
   const items=$('#items');items.innerHTML='';
   (d.items||[]).forEach(it=>{
@@ -210,6 +227,109 @@ function render(d){
   const q=$('#questions');q.innerHTML='';(d.open_questions||[]).forEach(x=>{const li=document.createElement('li');li.textContent=x;q.appendChild(li)});
 }
 $('#start').onclick=start;$('#pause').onclick=togglePause;$('#stop').onclick=stop;$('#analyze').onclick=analyze;
+
+// --- Разговоры: журнал, разбор, расшифровка и звук ------------------------------------------
+// Зачем: после «Готово» разбор уходил в никуда — его нельзя было ни открыть, ни переслушать.
+// Теперь каждый разговор живёт в списке, а карточка собирает всё, что по нему есть.
+let CONVS=[],shown=null;
+function fmtWhen(ts){
+  if(!ts)return '';
+  const d=new Date(ts*1000);
+  return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtDur(s){const m=Math.floor((s||0)/60),sec=(s||0)%60;return m+' мин '+(sec<10?'0':'')+sec+' с'}
+function convsMsg(t,warn){const m=el('convsMsg');m.textContent=t||'';m.className=warn?'text warn':'muted'}
+async function loadConvs(){
+  const box=el('convs');box.innerHTML='<div class="muted">Загружаю журнал…</div>';
+  try{
+    const r=await fetch(server()+'/api/v1/conversations',{headers:headers()});
+    const d=await r.json();
+    if(!r.ok){convsMsg(needToken(d.message||('код '+r.status)),true);box.innerHTML='';return}
+    CONVS=d.items||[];
+    drawConvs(d);
+  }catch(e){box.innerHTML='';convsMsg('Журнал не получен: '+e.message,true)}
+}
+function drawConvs(d){
+  const box=el('convs');box.innerHTML='';
+  if(!CONVS.length){
+    box.innerHTML='<div class="muted">Разговоров пока нет. Нажмите «Слушаю», говорите и остановите запись — разговор появится здесь.</div>';
+    convsMsg('',false);return;
+  }
+  CONVS.forEach(c=>{
+    const row=document.createElement('div');row.className='conn';
+    const body=document.createElement('div');body.className='body';
+    const b=document.createElement('b');b.textContent=c.title||('Разговор '+c.session_id.slice(0,6));
+    body.appendChild(b);
+    const meta=[fmtWhen(c.started)];
+    if(c.duration_s)meta.push(fmtDur(c.duration_s));
+    meta.push(c.ready?'разбор готов':(c.has_audio?'разбора ещё нет':'записи нет'));
+    const s=document.createElement('span');s.textContent=meta.join(' · ');body.appendChild(s);
+    const state=document.createElement('div');state.className='state';
+    const i=document.createElement('i');i.textContent=c.ready?(c.items||0)+' пункт(ов) в разборе':'';
+    if(!c.ready)i.className='paid';state.appendChild(i);body.appendChild(state);
+    row.appendChild(body);
+    const tools=document.createElement('div');tools.className='tools';
+    if(c.ready){const open=document.createElement('button');open.className='small';open.textContent='Открыть';open.onclick=()=>openConv(c.session_id);tools.appendChild(open)}
+    if(c.has_audio){const an=document.createElement('button');an.className='ghost small';an.textContent=c.ready?'Разобрать заново':'Разобрать';an.onclick=()=>analyzeConv(c.session_id);tools.appendChild(an)}
+    row.appendChild(tools);box.appendChild(row);
+  });
+  convsMsg('Всего разговоров: '+CONVS.length+(d&&d.ready!=null?', с разбором: '+d.ready:''),false);
+}
+// Открытие разговора: сперва готовый разбор, расшифровка и звук — без повторного распознавания.
+async function openConv(id){
+  if(!id)return;
+  shown=id;
+  el('digest').style.display='block';
+  el('digestTitle').textContent='Разговор';
+  el('digestWhen').textContent='Открываю…';
+  el('transcriptBox').style.display='none';
+  ['summary','items','questions'].forEach(k=>el(k).innerHTML='');
+  const audio=el('digestAudio');audio.style.display='block';audio.src=server()+'/api/v1/sessions/'+id+'/audio?token='+encodeURIComponent(token());
+  el('digestDownload').href=server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token());
+  el('trSrt').href=server()+'/api/v1/sessions/'+id+'/transcript?format=srt&token='+encodeURIComponent(token());
+  el('trJson').href=server()+'/api/v1/sessions/'+id+'/transcript?format=json&token='+encodeURIComponent(token());
+  try{
+    const r=await fetch(server()+'/api/v1/sessions/'+id+'/digest',{headers:headers()});
+    const d=await r.json();
+    if(!r.ok){
+      el('digestWhen').textContent='Разбора пока нет: '+(d.message||r.status)+'. Запись цела — можно нажать «Разобрать».';
+      return;
+    }
+    render(d);
+    const c=CONVS.find(x=>x.session_id===id)||{};
+    el('digestTitle').textContent=d.title||'Разбор разговора';
+    el('digestWhen').textContent=[fmtWhen(c.started),c.duration_s?fmtDur(c.duration_s):'','запись: '+id.slice(0,8)].filter(Boolean).join(' · ');
+    el('digest').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){el('digestWhen').textContent='Связь прервалась: '+e.message}
+}
+async function analyzeConv(id){
+  convsMsg('Разбираю разговор…',false);
+  try{
+    const r=await fetch(server()+'/api/v1/sessions/'+id+'/analyze',{method:'POST',headers:headers(),body:'{}'});
+    const d=await r.json();
+    if(!r.ok){convsMsg('Разбор не удался: '+(d.message||d.error||r.status),true);return}
+    convsMsg('Разбор готов.',false);
+    await loadConvs();openConv(id);
+  }catch(e){convsMsg('Связь прервалась при разборе: '+e.message,true)}
+}
+async function showTranscript(id){
+  const box=el('transcriptBox'),text=el('transcriptText');
+  if(box.style.display==='block'){box.style.display='none';return}
+  box.style.display='block';text.textContent='Загружаю расшифровку…';
+  try{
+    const r=await fetch(server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token()));
+    if(!r.ok){text.textContent='Расшифровка не открылась: код '+r.status;return}
+    text.textContent=await r.text();
+  }catch(e){text.textContent='Связь прервалась: '+e.message}
+}
+// Обработчики журнала вешаем ПОСЛЕ объявления el: раньше здесь стоял вызов el() до её объявления,
+// и весь скрипт падал с ReferenceError — страница оставалась мёртвой ($('...') ниже по коду).
+function wireJournal(){
+el('convsToggle').onclick=()=>{const b=el('convs');b.style.display=b.style.display==='none'?'grid':'none'};
+el('convsReload').onclick=loadConvs;
+el('digestClose').onclick=()=>{el('digest').style.display='none';el('digestAudio').pause()};
+el('digestTranscript').onclick=()=>showTranscript(shown);
+}
 
 const NAMES={fake:'демо-заглушка',speechmatics:'Speechmatics',deepgram:'Deepgram',assemblyai:'AssemblyAI',
   gigaam:'GigaAM (свой сервер)',deepseek:'DeepSeek',anthropic:'Anthropic',ollama:'Ollama (свой сервер)',
@@ -418,6 +538,7 @@ function serverMsg(t,warn){const el2=el('serverMsg');el2.textContent=t;el2.class
 // Вход без нажатия: токен уже сохранён в браузере — «Перейти» не требуется.
 // Токена нет — сервер может быть открыт, и тогда тоже работаем: закрытый ответит 401,
 // и тогда человек впишет токен в блоке «Сервер».
+
 function needToken(text){
   // Подменяем только настоящий отказ авторизации: сказать «просит токен» при обрыве сети —
   // значит отправить человека менять рабочий токен вместо проверки сети.
@@ -473,7 +594,9 @@ micBanner();
 el('checkLive').onclick=()=>checkLive('');
 // Без токена работаем тоже: сервер может быть открыт в локальной сети, и тогда вход не нужен.
 // Если токен есть в этом браузере — сразу подтягиваем настройки, не заставляя жать «Перейти».
+wireJournal();
 loadConns();
+loadConvs();
 loadSettings();
 // Токена нет, а сервер его спрашивает — подсказываем один раз и ставим курсор в поле токена.
 setTimeout(()=>{

@@ -1,4 +1,4 @@
-﻿"""test_evidence.py без pytest — прогон на чистом Python.
+"""test_evidence.py без pytest — прогон на чистом Python.
 
 Импортирует ровно те же функции валидатора, что и pytest-файл, и проверяет те же утверждения,
 чтобы поведение было проверено уже сейчас. Запуск: python tests/api/run_checks.py
@@ -1133,6 +1133,31 @@ check("every_template_resolves", not _unresolved, _unresolved)
 # Строка запроса — параметры, а не путь: иначе ?format=srt отвечает 404.
 _q1, _q2 = _route_of('/api/v1/sessions/abc123def4567890/transcript?format=srt')
 check("query_string_is_not_path", _q1 == '/api/v1/sessions/{session_id}/transcript' and _q2 == 'abc123def4567890', (_q1, _q2))
+# Журнал разговоров: «Готово» без этого оставляло разбор без места, куда вернуться.
+import tempfile as _tmpmod
+from pathlib import Path as _Path
+from vvoice.digest_store import DigestStore as _DS
+from vvoice.storage import AudioStore as _AS
+_jdir = _Path(_tmpmod.mkdtemp(prefix='vv-journal-'))
+_as, _ds = _AS(_jdir / 'audio'), _DS(_jdir / 'digest')
+_as.save('aaa111bbb222ccc3', b'RIFF' + b'\0' * 32040)
+_ds.save('aaa111bbb222ccc3', {'title': 'Планёрка', 'summary': ['итог'], 'items': [{'title': 'задача'}]})
+_as.save('ddd444eee555fff6', b'RIFF' + b'\0' * 44)
+_jr = _handle('GET', '/api/v1/conversations', '', store=_as, digests=_ds)
+_jitems = {i['session_id']: i for i in _jr.body.get('items', [])}
+check("journal_lists_every_conversation", _jr.status == 200 and set(_jitems) == {'aaa111bbb222ccc3', 'ddd444eee555fff6'},
+      _jr.body.get('items'))
+check("journal_shows_ready_and_title", _jitems.get('aaa111bbb222ccc3', {}).get('ready') is True
+      and _jitems['aaa111bbb222ccc3'].get('title') == 'Планёрка'
+      and _jitems['ddd444eee555fff6'].get('ready') is False
+      and _jitems['ddd444eee555fff6'].get('has_audio') is True, _jitems)
+# Звук разговора отдаётся как audio/wav; нет записи — понятный 404, а не пустое тело.
+_au = _handle('GET', '/api/v1/sessions/aaa111bbb222ccc3/audio', '', store=_as, digests=_ds)
+check("journal_audio_is_wav", _au.status == 200 and _au.headers.get('Content-Type') == 'audio/wav'
+      and len(_au.body if isinstance(_au.body, bytes) else b'') > 44, _au.status)
+_anon = _route_of('/api/v1/sessions/aaa111bbb222ccc3/audio')
+check("audio_route_resolves", _anon[0] == '/api/v1/sessions/{session_id}/audio', _anon)
+_check_conversations_tmp = _jdir
 # Без диаризации спикера нет: выдуманный «Голос 1» приписывал реплики несуществующему участнику.
 from vvoice.assemble import assemble as _assemble
 from vvoice.providers.fake_asr import Segment as _SegLabels

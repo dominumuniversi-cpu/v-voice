@@ -23,6 +23,7 @@ from .evidence import validate_item
 from .models_check import check_models, list_models
 from .sessions import create_session, is_session_id
 from .digest_store import DigestStore
+from .conversations import list_conversations
 from .export_route import export_session
 from .transcript_route import transcript_file
 from .job import analyze
@@ -73,6 +74,11 @@ ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/sessions/{session_id}/export": ("POST",),
     # Скачивание расшифровки в привычном формате: человек уносит разговор с собой.
     "/api/v1/sessions/{session_id}/transcript": ("GET",),
+    # Журнал разговоров: что было, когда и что из этого получилось. Без него «Готово» на экране
+    # означало «разбор где-то есть»: вернуться к нему было нечем.
+    "/api/v1/conversations": ("GET",),
+    # Сам звук записи: человек хочет переслушать разговор, а не только прочитать его.
+    "/api/v1/sessions/{session_id}/audio": ("GET",),
 }
 
 # Шаблонные пути: клиент обращается к /api/v1/sessions/<id>/digest, поэтому точного совпадения мало.
@@ -83,6 +89,7 @@ _TEMPLATED: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/export$"), "/api/v1/sessions/{session_id}/export"),
     # Без этой строки скачивание расшифровки (TXT/SRT/JSON) отвечало 404 на любой запрос.
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/transcript$"), "/api/v1/sessions/{session_id}/transcript"),
+    (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/audio$"), "/api/v1/sessions/{session_id}/audio"),
     # Подключения: одна запись по имени. Без этих строк «Удалить» и «Включить» отвечали бы 404.
     (re.compile(r"^/api/v1/connections/([A-Za-z0-9_-]{1,32})$"), "/api/v1/connections/{conn_id}"),
     (re.compile(r"^/api/v1/connections/([A-Za-z0-9_-]{1,32})/activate$"), "/api/v1/connections/{conn_id}/activate"),
@@ -215,6 +222,23 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
                         {"WWW-Authenticate": "Bearer"})
 
     if method.upper() == "GET":
+        if path == "/api/v1/conversations":
+            # Список собирается из двух каталогов на диске: звук и разбор лежат файлами рядом
+            # с идентификатором сессии. Показываем оба вида — «есть звук» и «готов разбор», —
+            # иначе человек не понимает, откуда пропадает разговор, по которому разбор не запускался.
+            return Response(200, list_conversations(store, digests))
+        if template == "/api/v1/sessions/{session_id}/audio":
+            stored = store.find(param) if store is not None else None
+            if stored is None:
+                return Response(404, {"error": "session_not_found",
+                                      "message": "Записи с таким идентификатором нет."})
+            try:
+                audio = stored.path.read_bytes()
+            except OSError:
+                return Response(500, {"error": "audio_unreadable", "message": "Запись на диске не читается."})
+            return Response(200, audio, {"Content-Type": "audio/wav",
+                                         "Content-Disposition": 'inline; filename="' + param + '.wav"',
+                                         "Cache-Control": "private, max-age=600"})
         if template == "/api/v1/sessions/{session_id}/transcript":
             # Формат — часть пути для человека (?format=srt), по умолчанию TXT.
             from urllib.parse import parse_qs

@@ -188,8 +188,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def _respond(self, status: int, body: Any, headers: dict[str, str] | None = None) -> None:
         # Строка — это файл (расшифровка в TXT/SRT): отдаём байты как есть, иначе человек вместо
-        # субтитров получит JSON-обёртку с тем же текстом внутри. Всё остальное — JSON, как раньше.
-        if isinstance(body, str):
+        # субтитров получит JSON-обёртку с тем же текстом внутри. Байты — это звук записи.
+        # Всё остальное — JSON, как раньше.
+        if isinstance(body, bytes):
+            raw = body
+            default_type = (headers or {}).get('Content-Type', 'application/octet-stream')
+        elif isinstance(body, str):
             raw = body.encode('utf-8')
             default_type = 'text/plain; charset=utf-8'
         else:
@@ -250,9 +254,14 @@ class Handler(BaseHTTPRequestHandler):
                                'message': 'Запись больше допустимого размера.'})
             return
         # Токен устройства приходит заголовком, а не в теле: тело — это звук, и лишний разбор
-        # большого запроса ради одного поля нам не нужен.
-        token = (self.headers.get('Authorization') or '').removeprefix('Bearer ').strip() or None
-        response = handle(method, self.path, raw, auth_token=token, **self.deps)
+        # большого запроса ради одного поля нам не нужен. Для ссылок (прослушать запись, скачать
+        # расшифровку) токен допустим и в строке запроса: браузер не умеет слать заголовок
+        # на <audio> и на обычное скачивание. Открытого пути это не создаёт — токен всё тот же.
+        token = (self.headers.get('Authorization') or '').removeprefix('Bearer ').strip()
+        if not token and '?' in self.path:
+            from urllib.parse import parse_qs
+            token = (parse_qs(self.path.split('?', 1)[1]).get('token') or [''])[0].strip()
+        response = handle(method, self.path, raw, auth_token=token or None, **self.deps)
         self._respond(response.status, response.body, response.headers)
 
     def do_GET(self) -> None:  # noqa: N802 — имена заданы http.server
