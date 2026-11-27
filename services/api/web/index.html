@@ -6,7 +6,7 @@
 :root{--ink:#12161a;--muted:#6b7681;--bg:#f4f1ea;--surface:#fff;--accent:#2f6f5e;--warn:#b4553a;--line:#e3ded3}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
-header{padding:20px 16px 8px}
+header{max-width:720px;margin:0 auto;padding:20px 16px 8px}
 h1{font-size:20px;margin:0 0 4px}
 .lead{color:var(--muted);font-size:14px;margin:0}
 main{max-width:720px;margin:0 auto;padding:16px}
@@ -41,6 +41,8 @@ ul.sum li{margin-bottom:8px}
 .preset span{display:block;font-size:12px;color:#555;margin-top:2px}
 .preset i{font-style:normal;font-size:11px;color:#1a7f37}
 .preset i.paid{color:#8a6d00}
+.field{margin-top:10px}
+.field[hidden]{display:none}
 </style></head><body>
 <header><h1>Умный диктофон</h1>
 <p class="lead">Запись, расшифровка и разбор разговора. Отвечать голосом не будет — только слушает и понимает.</p></header>
@@ -57,18 +59,18 @@ ul.sum li{margin-bottom:8px}
   <div class="muted" style="margin-bottom:6px">Понимание разговора</div>
   <div class="presets" id="llmPresets"></div>
   <div id="llmFields" hidden>
-    <label for="llm_key">Ключ</label>
-    <input id="llm_key" type="password" autocomplete="off" placeholder="вставьте ключ — после сохранения его не будет видно">
-    <label for="llm_model">Модель</label>
-    <input id="llm_model" type="text" autocomplete="off" placeholder="по умолчанию">
-    <label for="llm_base_url">Адрес сервера</label>
-    <input id="llm_base_url" type="text" autocomplete="off" placeholder="нужен для своего Ollama">
+    <div class="field" id="f_llm_key"><label for="llm_key">Ключ</label>
+      <input id="llm_key" type="password" autocomplete="off" placeholder="вставьте ключ — после сохранения его не будет видно"></div>
+    <div class="field" id="f_llm_model"><label for="llm_model">Модель</label>
+      <input id="llm_model" type="text" autocomplete="off" placeholder="по умолчанию"></div>
+    <div class="field" id="f_llm_base_url"><label for="llm_base_url">Адрес сервера</label>
+      <input id="llm_base_url" type="text" autocomplete="off" placeholder="нужен для своего Ollama"></div>
   </div>
   <div class="muted" style="margin:14px 0 6px">Распознавание речи</div>
   <div class="presets" id="asrPresets"></div>
   <div id="asrFields" hidden>
-    <label for="asr_key">Ключ распознавания</label>
-    <input id="asr_key" type="password" autocomplete="off" placeholder="ключ Speechmatics">
+    <div class="field" id="f_asr_key"><label for="asr_key">Ключ распознавания</label>
+      <input id="asr_key" type="password" autocomplete="off" placeholder="ключ Speechmatics"></div>
   </div>
   <div class="row" style="margin-top:12px">
     <button id="save">Сохранить</button>
@@ -203,24 +205,44 @@ function draw(kind){
     box.appendChild(d);
   });
 }
+function updateSaveState(){const s=el('save');if(s)s.disabled=!PICK.llm&&!PICK.asr}
 function fill(kind,p){
-  const f=el(kind+'Fields');f.hidden=!p;
+  updateSaveState();
+  el(kind+'Fields').hidden=!p;
   if(!p)return;
-  if(kind==='llm'){el('llm_model').value=p.model||'';el('llm_base_url').value=p.url||'';
-    el('llm_model').parentElement.hidden=false;
-    el('llm_base_url').parentElement.hidden=p.id!=='ollama-local';
-    el('llm_key').parentElement.hidden=p.provider==='fake'||p.provider==='ollama';}
-  else{el('asr_key').parentElement.hidden=p.provider==='fake';}
+  // Прячем ОБЁРТКУ поля, а не контейнер: раньше скрывался родитель, то есть весь блок сразу.
+  const show=(id,on)=>{const b=el(id);if(b)b.hidden=!on};
+  if(kind==='llm'){
+    el('llm_model').value=p.model||'';el('llm_base_url').value=p.url||'';
+    show('f_llm_key',p.provider!=='fake'&&p.provider!=='ollama');
+    show('f_llm_model',p.provider!=='fake');
+    show('f_llm_base_url',p.id==='ollama-local');
+  } else { show('f_asr_key',p.provider!=='fake'); }
 }
 async function loadPresets(){
-  try{const r=await fetch(server()+'/api/v1/presets');const d=await r.json();
-    PRESETS={llm:d.llm||[],asr:d.asr||[]};draw('llm');draw('asr');}catch(e){}
+  const box=el('llmPresets');
+  box.innerHTML='<div class="muted">Загружаю варианты…</div>';
+  try{
+    const r=await fetch(server()+'/api/v1/presets',{headers:headers()});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.message||('код '+r.status));
+    PRESETS={llm:d.llm||[],asr:d.asr||[]};draw('llm');draw('asr');
+  }catch(e){
+    // Молча пустой блок — это и был баг: человек видел пустоту и не знал, что она значит.
+    box.innerHTML='';
+    const t=document.createElement('div');t.className='text warn';
+    t.textContent='Не удалось получить варианты: '+e.message+'. Проверьте адрес и токен выше.';
+    box.appendChild(t);
+  }
 }
 async function saveSettings(){
   const msg=el('saveMsg');const lp=(PRESETS.llm||[]).find(x=>x.id===PICK.llm)||{};const ap=(PRESETS.asr||[]).find(x=>x.id===PICK.asr)||{};
-  const body={
-    llm_provider:lp.provider||'',llm_key:el('llm_key').value,llm_model:el('llm_model').value,llm_base_url:el('llm_base_url').value,
-    asr_provider:ap.provider||'',asr_key:el('asr_key').value};
+  // Невыбранное не отправляем: пустой провайдер затирал прошлую настройку разбора.
+  const body={};
+  if(lp.provider)Object.assign(body,{llm_provider:lp.provider,llm_key:el('llm_key').value,
+    llm_model:el('llm_model').value,llm_base_url:el('llm_base_url').value});
+  if(ap.provider)Object.assign(body,{asr_provider:ap.provider,asr_key:el('asr_key').value});
+  if(!Object.keys(body).length){msg.textContent='Выберите хотя бы одну связку.';msg.className='text warn';return}
   msg.textContent='Сохраняю…';msg.className='muted';
   try{
     const r=await fetch(server()+'/api/v1/settings',{method:'POST',headers:headers(),body:JSON.stringify(body)});
@@ -240,11 +262,14 @@ async function checkLive(){
     msg.className=d.ok?'muted':'text warn';
   }catch(e){msg.textContent='Связь прервалась: '+e.message;msg.className='text warn'}
 }
+// Порядок: сначала адрес и токен, потом запросы. Иначе первый же запрос уходит по пустому адресу.
+// Адрес — полный путь страницы вместе с префиксом стенда (/voice), его срезать нельзя.
+$('#server').value=location.origin+location.pathname.replace(/\/+$/,'');
+const _q=new URLSearchParams(location.search).get('token');if(_q)$('#token').value=_q;
+el('save').disabled=true;
 el('save').onclick=saveSettings;
 el('checkLive').onclick=checkLive;
 loadPresets();
 loadSettings();
-  
-$('#server').value=location.origin.replace(/\/voice\/?$/,'');
 </script>
 </body></html>
