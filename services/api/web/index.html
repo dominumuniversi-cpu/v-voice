@@ -215,7 +215,7 @@ async function analyze(){
 }
 function render(d){
   const box=$('#digest');box.style.display='block';
-  const sum=$('#summary');sum.innerHTML='';  (d.summary||[]).forEach(s=>{const li=document.createElement('li');li.textContent=s;sum.appendChild(li)});
+  const sum=$('#summary');sum.innerHTML='';  (d.summary||[]).forEach(s=>{const text=clean(s);if(!text)return;const li=document.createElement('li');li.textContent=text;sum.appendChild(li)});
   if(!(d.summary||[]).length){sum.innerHTML='<li class="muted">'+(d.summary_missing?'Модель не выделила выжимку.':'Выжимки нет.')+'</li>'}
   const items=$('#items');items.innerHTML='';
   (d.items||[]).forEach(it=>{
@@ -223,13 +223,13 @@ function render(d){
     // Вид пункта — по-русски: «task» и «meeting» на экране читаются как отладка, а не как ответ.
     const kindName={task:'задача',meeting:'встреча',reminder:'напоминание',note:'заметка'}[it.kind]||'пункт';
     const k=document.createElement('div');k.className='kind';k.textContent=kindName+(it.due?' · '+it.due:'')+(it.assignee?' · '+it.assignee:'');
-    const t=document.createElement('div');t.textContent=it.title||'';
+    const t=document.createElement('div');t.textContent=clean(it.title);
     div.appendChild(k);div.appendChild(t);
-    if(it.evidence&&it.evidence.quote){const q=document.createElement('div');q.className='quote';q.textContent='«'+it.evidence.quote.trim()+'»'+(it.evidence.speaker?' — '+it.evidence.speaker:'');div.appendChild(q)}
+    if(it.evidence&&it.evidence.quote){const q=document.createElement('div');q.className='quote';q.textContent='«'+clean(it.evidence.quote)+'»'+(it.evidence.speaker?' — '+it.evidence.speaker:'');div.appendChild(q)}
     items.appendChild(div);
   });
   if(!(d.items||[]).length){items.innerHTML='<p class="muted">'+(d.rejected&&d.rejected.length?'Найдено '+d.rejected.length+', но ни один пункт не подтвердился цитатой.':'Разбор не нашёл задач с цитатой.')+'</p>'}
-  const q=$('#questions');q.innerHTML='';(d.open_questions||[]).forEach(x=>{const li=document.createElement('li');li.textContent=x;q.appendChild(li)});
+  const q=$('#questions');q.innerHTML='';(d.open_questions||[]).forEach(x=>{const text=clean(x);if(!text)return;const li=document.createElement('li');li.textContent=text;q.appendChild(li)});
 }
 $('#start').onclick=start;$('#pause').onclick=togglePause;$('#stop').onclick=stop;$('#analyze').onclick=analyze;
 
@@ -241,6 +241,8 @@ let CONVS=[],shown=null;
 // строка в style проигрывала им — блок «показывался», оставаясь невидимым.
 function show(node){if(node)node.style.setProperty('display','block','important')}
 function hide(node){if(node)node.style.setProperty('display','none','important')}
+// Убираем ведущее двоеточие без автора: «: текст» — это обрывок, а не ответ.
+function clean(s){return String(s==null?'':s).replace(/^\s*:\s*/,'').replace(/\s+/g,' ').trim()}
 function fmtWhen(ts){
   if(!ts)return '';
   const d=new Date(ts*1000);
@@ -316,12 +318,12 @@ async function openConv(id){
     const r=await fetch(server()+'/api/v1/sessions/'+id+'/digest',{headers:headers()});
     const d=await r.json();
     if(!r.ok){
-      el('digestWhen').textContent='Разбора пока нет: '+(d.message||r.status)+'. Запись цела — можно нажать «Разобрать».';
+      el('digestWhen').textContent='Разбора пока нет: '+String(d.message||r.status).replace(/[.\s]+$/,'')+'. Запись цела — можно нажать «Разобрать».';
       return;
     }
     render(d);
-    el('digestTitle').textContent=d.title||'Разбор разговора';
-    el('digestWhen').textContent=[fmtWhen(c.started),c.duration_s?fmtDur(c.duration_s):'','запись: '+id.slice(0,8)].filter(Boolean).join(' · ');
+    el('digestTitle').textContent=clean(d.title)||c.title||'Разбор разговора';
+    el('digestWhen').textContent=[fmtWhen(c.started),c.duration_s?fmtDur(c.duration_s):'',c.has_audio?'звук сохранён':'звук не сохранился','запись: '+id.slice(0,8)].filter(Boolean).join(' · ');
     el('digest').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){el('digestWhen').textContent='Связь прервалась: '+e.message}
 }
