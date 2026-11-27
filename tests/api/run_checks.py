@@ -1094,6 +1094,29 @@ check('wrong_scheme_refused', _scheme[0] == 400 and 'https://' in (_scheme[1].ge
 _garbage = _cl.add({'kind': 'asr', 'protocol': 'deepgram', 'title': 'мусор', 'base_url': 'не адрес',
                     'key': 'dg-test'})
 check('garbage_address_refused', _garbage[0] == 400, _garbage[1])
+# С ключом адрес тоже обязан быть адресом: раньше мусор сохранялся и всплывал позже невнятной ошибкой.
+_trash = _cl.add({'kind': 'asr', 'protocol': 'deepgram', 'title': 'мусор с ключом',
+                 'base_url': 'не адрес', 'key': 'dg-test'})
+check('garbage_address_with_key_refused', _trash[0] == 400, _trash[1])
+# Полу-схема «http:/host» — не адрес: второй косой черты не хватает.
+_half = _cl.add({'kind': 'asr', 'protocol': 'deepgram', 'title': 'полу-схема',
+                 'base_url': 'http:/api.deepgram.com', 'key': 'dg-test'})
+check('half_scheme_refused', _half[0] == 400 and 'косой' in (_half[1].get('message') or ''), _half[1])
+# Простое имя своего сервера — нормальный адрес, а не мусор.
+_local = _cl.add({'kind': 'asr', 'protocol': 'deepgram', 'title': 'свой сервер',
+                  'base_url': 'localhost:8090', 'key': 'x'})
+# Правка связки с мусорным адресом не должна ни падать, ни оставлять запись наполовину переписанной.
+_patch_id = _local[1]['connection']['id'] if _local[0] == 201 else _cl.all()[0]['id']
+_patch_bad = _cl.update_key(_patch_id, 'new-key', base_url='не адрес')
+check('update_with_garbage_url_refused', _patch_bad[0] == 400, _patch_bad[1])
+_patch_ok = _cl.update_key(_patch_id, 'new-key', base_url='api.deepgram.com/v1')
+check('update_with_bare_url_accepted', _patch_ok[0] == 200
+      and _patch_ok[1]['connection']['base_url'] == 'https://api.deepgram.com/v1', _patch_ok[1].get('connection'))
+check('plain_host_accepted', _local[0] == 201
+      and _local[1]['connection']['base_url'] == 'https://localhost:8090', _local[1].get('connection'))
+if _local[0] == 201:
+    # Убираем за собой: дальше по сценарию первая готовая связка становится рабочей.
+    _cl.remove(_local[1]['connection']['id'])
 # Каждый пресет распознавания обязан нести адрес: без него облако некуда звать, а человек
 # получает «не настроено» вместо «вставьте ключ».
 _asr_presets = [p for p in _BUILTIN if p['kind'] == 'asr']

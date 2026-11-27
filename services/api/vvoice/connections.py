@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 import threading
+from urllib.parse import urlsplit, urlunsplit
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -159,22 +160,34 @@ def _hint(key: str) -> str:
 
 
 def _check_url(url: str, protocol: str = '') -> str:
-    """Адрес провайдера. Схему дописываем, если человек её не написал: «api.deepgram.com» — это
-    обычный адрес, и ругаться на него незачем. Отказ — только когда адрес не адрес вовсе."""
+    """Адрес провайдера. Схему дописываем, если человек её не написал: «api.deepgram.com» — обычный
+    адрес, и ругаться на него незачем. Отказ — только когда это не адрес, и с подсказкой, что писать."""
     url = (url or '').strip()
     if not url:
         return ''
-    if '://' not in url:
-        url = 'wss://' + url if protocol == 'speechmatics' else 'https://' + url
-    if not (url.startswith('http://') or url.startswith('https://')
-            or (protocol == 'speechmatics' and url.startswith('wss://'))):
-        raise ValueError('адрес должен начинаться с http://, https://'
-                         + (' или wss://' if protocol == 'speechmatics' else '')
-                         + ' — остальное мы не сможем открыть')
-    rest = url.split('://', 1)[1].strip('/')
-    if not rest or ' ' in rest or '/' in rest.split(':')[0] and '.' not in rest.split('/')[0]:
-        raise ValueError('это не похоже на адрес сервера: нужен вид «имя.домен», например api.deepgram.com')
-    return url
+    hint = 'это не похоже на адрес сервера: нужен вид «имя.домен», например api.deepgram.com'
+    # Полу-схема — это буквы, двоеточие и косая черта; «localhost:8090» — это имя и порт, а не схема.
+    if re.match(r'^[a-z0-9]+:/(?!/)', url.lower()):
+        raise ValueError('адрес должен начинаться с http:// или https:// — в «' + url.split(':', 1)[0]
+                         + ':/» не хватает второй косой черты. Можно писать и вовсе без схемы: api.deepgram.com')
+    candidate = url if '://' in url else ('wss://' if protocol == 'speechmatics' else 'https://') + url
+    # Порт читаем сами: иначе питоновское сообщение про int уходит человеку по-английски.
+    try:
+        parts = urlsplit(candidate)
+    except ValueError:
+        raise ValueError('не получилось разобрать адрес: скорее всего, в порту не число. ' + hint)
+    allowed = ('http', 'https') + (('wss',) if protocol == 'speechmatics' else ())
+    if parts.scheme not in allowed:
+        raise ValueError('схема «' + parts.scheme + '://» не подойдёт: адрес должен начинаться с http:// или https:// — остальное мы не сможем '
+                         'открыть. Можно писать и вовсе без схемы: api.deepgram.com')
+    # Хост разбираем по частям, а не строкой: «http:/api.deepgram.com» — это уже не адрес, хоть и
+    # начинается похоже, а «localhost» и «voice-app» — обычные имена своего сервера.
+    host = parts.hostname or ''
+    if not host or any(ch.isspace() for ch in host) or '/' in host:
+        raise ValueError(hint)
+    if parts.port is not None and not 0 < parts.port < 65536:
+        raise ValueError('порт в адресе должен быть числом от 1 до 65535.')
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, parts.fragment))
 
 
 @dataclass
@@ -304,6 +317,11 @@ class ConnectionList:
         cost = str(raw.get('cost') or preset.get('cost') or 'условия у провайдера').strip()
         # Без ключа работает только своя модель на нашем сервере. Свой сервер (Ollama) живёт адресом,
         # шлюз OpenAI-совместимый — ключом: без него он ответит отказом, и «работает» было бы ложью.
+        # Адрес проверяем сразу, до любых «а ключ вставлен?»: иначе мусор сохраняется вместе с ключом.
+        try:
+            base_url = _check_url(base_url, protocol)
+        except ValueError as exc:
+            return 400, {'error': 'bad_url', 'message': 'Адрес не принят: ' + str(exc) + '.'}
         if protocol != 'whisper' and not key and not (protocol == 'ollama' and base_url):
             return 400, {'error': 'nothing_set',
                          'message': 'Вставьте ключ провайдера' + (' или укажите адрес' if protocol == 'ollama' else '')
@@ -315,10 +333,6 @@ class ConnectionList:
             return 400, {'error': 'bad_id',
                          'message': 'Имя для ссылки («' + conn_id + '») может содержать только латинские буквы, '
                                     'цифры, дефис и подчёркивание.'}
-        try:
-            base_url = _check_url(base_url, protocol)
-        except ValueError as exc:
-            return 400, {'error': 'bad_url', 'message': 'Адрес не принят: ' + str(exc) + '.'}
         if protocol in ('openai', 'anthropic') and not base_url:
             return 400, {'error': 'need_url',
                          'message': 'Для своего шлюза нужен адрес: без него непонятно, куда отправлять запрос.'}
@@ -348,6 +362,13 @@ class ConnectionList:
             conn = next((c for c in self.items if c.id == conn_id), None)
             if conn is None:
                 return 404, {'error': 'not_found', 'message': 'Такой связки нет.'}
+            # Адрес проверяем до изменений: отказ не должен оставлять связку наполовину переписанной.
+            new_url = conn.base_url
+            if base_url is not None:
+                try:
+                    new_url = _check_url(base_url, conn.protocol)
+                except ValueError as exc:
+                    return 400, {'error': 'bad_url', 'message': 'Адрес не принят: ' + str(exc) + '.'}
             if key:
                 conn.key = key.strip()
             else:
@@ -358,11 +379,7 @@ class ConnectionList:
                 conn.model = model.strip()
             if title is not None:
                 conn.title = title.strip() or conn.title
-            if base_url is not None:
-                try:
-                    conn.base_url = _check_url(base_url, protocol)
-                except ValueError as exc:
-                    return 400, {'error': 'bad_url', 'message': 'Адрес не принят: ' + str(exc) + '.'}
+            conn.base_url = new_url
             return 200, {'connection': conn.public(), 'message': 'Сохранено.'}
 
     def remove(self, conn_id: str) -> tuple[int, dict[str, Any]]:

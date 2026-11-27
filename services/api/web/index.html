@@ -124,7 +124,7 @@ html,body,#digest,#playBox,#transcriptBox,#convs{overflow-anchor:none;-ms-overfl
     </select>
     <select id="cfP"></select>
     <input id="cfT" type="text" placeholder="Название, например «Mistral — мой ключ»">
-    <input id="cfU" type="text" placeholder="Адрес, если нужен свой (https://api.mistral.ai/v1)">
+    <input id="cfU" type="text" placeholder="api.mistral.ai/v1 — http:// можно не писать">
     <input id="cfM" type="text" placeholder="Модель, если нужна своя">
     <input id="cfK" type="password" autocomplete="off" placeholder="Ключ провайдера">
     <span class="muted" id="cfHint" style="font-size:12px"></span>
@@ -133,7 +133,7 @@ html,body,#digest,#playBox,#transcriptBox,#convs{overflow-anchor:none;-ms-overfl
       <button id="cfX" class="ghost small">Отмена</button>
     </div>
   </div>
-  <p class="muted" id="connMsg" style="margin:6px 0 0"></p>
+  <p class="muted" id="connMsg" role="status" aria-live="polite" style="margin:6px 0 0"></p>
   <div class="row" style="margin-top:14px">
     <button id="checkLive" class="ghost" title="Проверяет уже сохранённую связку заново, ничего не меняя">Проверить связку ещё раз</button>
   </div>
@@ -519,7 +519,8 @@ function draw(){
     const edit=document.createElement('button');edit.className='ghost small';edit.textContent='Настроить';
     edit.onclick=()=>openForm(kind,c);tools.appendChild(edit);
     const del=document.createElement('button');del.className='danger small';del.textContent='Удалить';
-    del.onclick=()=>removeConn(kind,c.id);tools.appendChild(del);
+    // Клик на удаление не должен уносить читаемое место на экране: прокрутку браузер трогает сам.
+    del.onclick=ev=>{ev.preventDefault();holdScroll(()=>removeConn(kind,c.id))};
     row.appendChild(tools);
     box.appendChild(row);
   });
@@ -598,7 +599,7 @@ async function activate(kind,id){
     const d=await r.json();
     if(!r.ok){msg('Не получилось: '+(d.message||r.status),true);return}
     msg(d.message||'Готово.',false);
-    await loadConns();loadSettings();
+    await holdScroll(()=>loadConns());loadSettings();
   }catch(e){msg('Связь прервалась: '+e.message,true)}
 }
 async function removeConn(kind,id){
@@ -607,7 +608,7 @@ async function removeConn(kind,id){
     const d=await r.json();
     if(!r.ok){msg('Не получилось: '+(d.message||r.status),true);return}
     msg(d.message||'Удалено.',false);
-    await loadConns();loadSettings();
+    await holdScroll(()=>loadConns());loadSettings();
   }catch(e){msg('Связь прервалась: '+e.message,true)}
 }
 // «Настроить» = та же форма, что и «Добавить», но с уже заполненными полями и записью по id.
@@ -630,8 +631,19 @@ function openForm(kind,conn){
   el('cfDo').textContent=conn?'Сохранить':'Добавить';
   el('cfHint').textContent=conn?(conn.note||''):'Выберите провайдера — модель и адрес подставим сами.';
   if(!conn)applyChoice();
+  // Адрес своего шлюза человек вводит руками — поле подписано обычными словами, и туда же
+  // подсказка, что http:// можно не писать.
+  el('cfU').placeholder='api.mistral.ai/v1 — http:// можно не писать';
+  // Форма могла остаться открытой после отказа — сообщение от прошлого раза не должно висеть над новой попыткой.
+  msg('',false);
   const first=conn?el('cfT'):el('cfP');first.focus();
 }
+// Ответ формы может оказаться ниже экрана: показываем его, не сдвигая то, что человек читает.
+function holdScroll(doIt){
+  const y=window.scrollY;
+  return Promise.resolve(doIt()).then(r=>{if(Math.abs(window.scrollY-y)>2)window.scrollTo(0,y);return r})
+}
+function revealMsg(){const m=el('connMsg');if(m&&m.getBoundingClientRect().bottom>window.innerHeight)m.scrollIntoView({block:'nearest'})}
 async function saveConn(){
   const c=choice();
   const body={kind:el('cfKind').value,protocol:c.protocol,preset:c.preset,title:el('cfT').value.trim(),
@@ -642,11 +654,12 @@ async function saveConn(){
     const url=editing?server()+'/api/v1/connections/'+encodeURIComponent(editing.id):server()+'/api/v1/connections';
     const r=await fetch(url,{method:editing?'PATCH':'POST',headers:headers(),body:JSON.stringify(body)});
     const d=await r.json();
-    if(!r.ok){msg('Не принято: '+(d.message||d.error||r.status),true);return}
+    if(!r.ok){msg('Не принято: '+(d.message||d.error||r.status),true);revealMsg();return}
     msg(editing?'Сохранено.':((d.message||'Добавлено.')+' Нажмите «Работать этой», чтобы сервер начал ею пользоваться.'),false);
+revealMsg();
     el('connForm').hidden=true;editing=null;
     ['T','U','M','K'].forEach(s=>{const f=el('cf'+s);if(f)f.value=''});
-    await loadConns();loadSettings();
+    await holdScroll(()=>loadConns());loadSettings();
   }catch(e){msg('Связь прервалась: '+e.message,true)}
 }
 async function checkLive(prefix){
@@ -695,7 +708,7 @@ async function goServer(){
     if(!r.ok){serverMsg('Сервер ответил кодом '+r.status+'. Проверьте адрес.',true);return}
     serverMsg('Связь есть. Настройки ниже загружены.',false);
     collapseServer();
-    await loadConns();loadSettings();
+    await holdScroll(()=>loadConns());loadSettings();
   }catch(e){serverMsg('Сервер не ответил: '+e.message+'. Проверьте адрес и сеть.',true)}
 }
 el('goServer').onclick=goServer;
