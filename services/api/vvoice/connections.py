@@ -90,9 +90,12 @@ BUILTIN_CONNECTIONS: tuple[dict[str, Any], ...] = (
 )
 
 
+PRESETS_BY_ID: dict[str, dict[str, Any]] = {p['id']: dict(p) for p in BUILTIN_CONNECTIONS}
+
+
 @dataclass
 class Connection:
-    """Одна добавленная связка: где звать, чем платить, какой моделью."""
+    """Одна ЗАВЕДЁННАЯ человеком связка. Пустые заготовки провайдеров здесь не живут — они в каталоге."""
 
     id: str
     kind: str
@@ -101,7 +104,7 @@ class Connection:
     base_url: str = ''
     model: str = ''
     key: str = ''
-    builtin: bool = False
+    preset: str = ''
     note: str = ''
     cost: str = ''
     added: float = 0.0
@@ -111,7 +114,8 @@ class Connection:
         """Что можно показать: ключ — только фактом «есть» и последними четырьмя символами."""
         return {
             'id': self.id, 'kind': self.kind, 'protocol': self.protocol, 'title': self.title,
-            'base_url': self.base_url, 'model': self.model, 'builtin': self.builtin,
+            'base_url': self.base_url, 'model': self.model, 'preset': self.preset,
+            'builtin': bool(self.preset),
             'note': self.note, 'cost': self.cost,
             'key_set': bool(self.key), 'key_hint': _hint(self.key),
         }
@@ -192,38 +196,54 @@ class ConnectionList:
                     'active': dict(self.active),
                     'in_work': in_work,
                     'protocols': {kind: [{'value': v, 'title': t} for v, t in pairs]
-                                  for kind, pairs in PROTOCOLS_BY_KIND.items()}}
+                                  for kind, pairs in PROTOCOLS_BY_KIND.items()},
+                    # Каталог: из него экран формы «Добавить» берёт провайдера, модель и адрес.
+                    # Он не список настроек — ничего не работает, пока человек не нажал «Добавить».
+                    'presets': [dict(p) for p in BUILTIN_CONNECTIONS]}
 
     # --- изменение ----------------------------------------------------------
 
     def seed(self, connection: Connection) -> None:
-        """Добавляет встроенную связку или обновляет её, но НЕ трогает уже введённый ключ."""
-        with self._lock:
-            for c in self.items:
-                if c.id == connection.id:
-                    c.title, c.protocol, c.base_url = connection.title, connection.protocol, connection.base_url
-                    c.model = c.model or connection.model
-                    c.note, c.cost = connection.note, connection.cost
-                    return
-            connection.builtin = True
-            connection.added = time.time()
-            self.items.append(connection)
+        """Заготовка каталога в список не попадает: список — только то, что человек завёл сам.
+
+        Метод оставлен для совместимости с прежним API и намеренно ничего не добавляет.
+        """
+        return None
 
     def add(self, raw: dict[str, Any]) -> tuple[int, dict[str, Any]]:
-        """Добавляет связку. Ошибка — код и текст, который человек может понять без программиста."""
+        """Заводит связку по выбору человека. Пустая заготовка провайдера связкой не считается."""
         kind = str(raw.get('kind') or '').strip().lower()
         if kind not in KINDS:
             return 400, {'error': 'bad_kind', 'message': 'Неизвестный вид связи: ' + (kind or 'пусто')
                                     + '. Ожидается llm (разбор) или asr (распознавание).'}
         protocol = str(raw.get('protocol') or '').strip().lower()
+        # Выбор «готового провайдера» из каталога даёт модель, адрес и пояснение сразу: пустая
+        # заготовка в списке — это то, чего владелец не просил.
+        preset = PRESETS_BY_ID.get(str(raw.get('preset') or '').strip().lower(), {})
+        if preset:
+            protocol = str(preset['protocol'])
+            kind = str(preset['kind'])
         if protocol not in PROTOCOLS:
             return 400, {'error': 'bad_protocol',
                          'message': 'Неизвестный протокол «' + (protocol or 'пусто') + '». Доступно: '
                                     + ', '.join(sorted(PROTOCOLS)) + '.'}
-        title = str(raw.get('title') or '').strip()
+        title = str(raw.get('title') or preset.get('title') or '').strip()
         if not title:
             return 400, {'error': 'bad_title', 'message': 'Дайте связке имя — по нему вы будете её узнавать. '
                                                          'Например: «Mistral (мой ключ)».'}
+        base_url = str(raw.get('base_url') or preset.get('base_url') or '').strip()
+        if '/' not in base_url and '.' in base_url:
+            base_url = preset.get('base_url') or base_url
+        model = str(raw.get('model') or preset.get('model') or '').strip()
+        key = str(raw.get('key') or '').strip()
+        note = str(preset.get('note') or 'добавлено вами')
+        cost = str(raw.get('cost') or preset.get('cost') or 'условия у провайдера').strip()
+        # Связка без ключа, адреса и модели работать не может: её нельзя ни проверить, ни вылечить.
+        # Такую мы не заводим — говорим прямо, чего не хватает.
+        if not key and not base_url and not model and protocol not in ('fake', 'whisper'):
+            return 400, {'error': 'nothing_set',
+                         'message': 'Впишите ключ провайдера или адрес и модель: пустая связка всё равно '
+                                    'не заработает, а в списке будет обещать работу.'}
         conn_id = str(raw.get('id') or '').strip().lower()
         if not conn_id:
             conn_id = self._slug(title)
@@ -232,7 +252,7 @@ class ConnectionList:
                          'message': 'Имя для ссылки («' + conn_id + '») может содержать только латинские буквы, '
                                     'цифры, дефис и подчёркивание.'}
         try:
-            base_url = _check_url(str(raw.get('base_url') or ''))
+            base_url = _check_url(base_url)
         except ValueError as exc:
             return 400, {'error': 'bad_url', 'message': 'Адрес не принят: ' + str(exc) + '.'}
         if protocol in ('openai', 'anthropic') and not base_url:
@@ -242,10 +262,15 @@ class ConnectionList:
             if any(c.id == conn_id for c in self.items):
                 return 409, {'error': 'already_exists', 'id': conn_id,
                              'message': 'Связка с таким именем уже есть. Выберите другое имя.'}
+            # Связка с ключом или адресом готова к работе — сразу и становится рабочей, иначе
+            # человек добавил и не понимает, почему ничего не изменилось. Заглушка whisper/fake
+            # работает и без ключа, поэтому тоже годится; пустую связку мы выше не пропустили.
+            ready = bool(key or base_url or model) or protocol in ('fake', 'whisper')
+            if ready and not self.active.get(kind):
+                self.active[kind] = conn_id
             conn = Connection(id=conn_id, kind=kind, protocol=protocol, title=title, base_url=base_url,
-                              model=str(raw.get('model') or '').strip(), key=str(raw.get('key') or '').strip(),
-                              note='добавлено вами', cost=str(raw.get('cost') or 'условия у провайдера').strip(),
-                              added=time.time())
+                              model=model, key=key, preset=str(raw.get('preset') or '').strip().lower(),
+                              note=note, cost=cost, added=time.time())
             self.items.append(conn)
             # Первая связка вида сразу становится рабочей: иначе человек добавил и «ничего не произошло».
             if not self.active.get(kind):
@@ -278,13 +303,11 @@ class ConnectionList:
             return 200, {'connection': conn.public(), 'message': 'Сохранено.'}
 
     def remove(self, conn_id: str) -> tuple[int, dict[str, Any]]:
-        """Удаляет связку. Встроенную — нельзя: экран без выбора оставит человека без пути назад."""
+        """Удаляет связку, которую завёл человек. Заготовка провайдера остаётся в каталоге."""
         with self._lock:
             conn = next((c for c in self.items if c.id == conn_id), None)
             if conn is None:
                 return 404, {'error': 'not_found', 'message': 'Такой связки нет.'}
-            if conn.builtin:
-                return 409, {'error': 'builtin', 'message': 'Встроенную связку удалить нельзя — иначе не из чего выбирать.'}
             self.items = [c for c in self.items if c.id != conn_id]
             if self.active.get(conn.kind) == conn_id:
                 # Удалили рабочую — вид остаётся без рабочей связки. Подставлять первую попавшуюся

@@ -1,4 +1,4 @@
-"""test_evidence.py без pytest — прогон на чистом Python.
+﻿"""test_evidence.py без pytest — прогон на чистом Python.
 
 Импортирует ровно те же функции валидатора, что и pytest-файл, и проверяет те же утверждения,
 чтобы поведение было проверено уже сейчас. Запуск: python tests/api/run_checks.py
@@ -1067,9 +1067,21 @@ check("lock_lets_own_device_in", _ok.status != 401, _ok.status)
 from vvoice.connections import BUILTIN_CONNECTIONS as _BUILTIN, Connection as _Conn, ConnectionList as _CL
 from vvoice.runtime_settings import RuntimeSettings as _RS
 _cl = _CL()
-for _c in _BUILTIN:
-    _cl.seed(_Conn(**_c))
 _rs = _RS(asr_provider='whisper', llm_provider='fake')
+# Каталог провайдеров — это предложения, а не настройки: сам по себе он в списке не появляется.
+_empty = _handle('GET', '/api/v1/connections', '', connections=_cl).body
+check("catalog_is_not_a_connection_list", _empty.get("items") == [] and len(_empty.get("presets") or []) == len(_BUILTIN),
+      len(_empty.get("presets") or []))
+# Заготовку без ключа, адреса и модели не заводим: иначе в списке обещание работы без работы.
+_blank = _cl.add({'kind': 'llm', 'protocol': 'deepseek', 'title': 'DeepSeek'})
+check("blank_connection_refused", _blank[0] == 400 and _blank[1].get('error') == 'nothing_set', _blank[1])
+# Добавили из каталога — получили модель и адрес провайдера, а не пустую строку.
+_own = _cl.add({'kind': 'llm', 'preset': 'mistral', 'key': 'sk-test'})
+check("preset_fills_model_and_address", _own[0] == 201
+      and _own[1]['connection']['model'] == 'mistral-small-latest', _own[1].get('connection'))
+_cl.add({'kind': 'asr', 'preset': 'speechmatics', 'key': 'sm-test'})
+# Выбор не появляется сам: пока человек не нажал «Работать этой», рабочего подключения нет.
+_cl.active.clear()  # выбор не появляется сам
 # По умолчанию ничего не выбрано: сервер не берёт связку «по привычке» и не отдаёт провайдера
 # из окружения как рабочего — иначе панель обещает работу, которую человек не заказывал.
 _hc0 = _handle('GET', '/api/v1/health', '', settings=_rs, connections=_cl)
@@ -1078,18 +1090,20 @@ check("health_defaults_to_nothing", _hc0.body["settings"]["llm"]["provider"] == 
       and "connection" not in _hc0.body["settings"]["llm"], _hc0.body["settings"]["llm"])
 check("connections_nothing_in_work_by_default",
       _handle('GET', '/api/v1/connections', '', connections=_cl).body.get("in_work") == {})
-_cl.activate('llm', 'mistral')
-_cl.activate('asr', 'speechmatics')
+_cl.activate('llm', _own[1]['connection']['id'])
+_cl.activate('asr', _cl.all()[-1]['id'])
+_own_llm_id = _own[1]['connection']['id']
+_own_asr_id = _cl.all()[-1]['id']
 _hc = _handle('GET', '/api/v1/health', '', settings=_rs, connections=_cl)
 check("health_shows_chosen_llm", _hc.body["settings"]["llm"]["provider"] == "mistral", _hc.body["settings"]["llm"])
-check("health_chosen_has_no_key", _hc.body["settings"]["llm"]["key_set"] is False)
-_cl.activate('llm', 'mistral')
+check("health_chosen_has_key", _hc.body["settings"]["llm"]["key_set"] is True, _hc.body["settings"]["llm"])
+_cl.activate('llm', _own_llm_id)
 _hc2 = _handle('GET', '/api/v1/health', '', settings=_rs, connections=_cl)
 check("health_follows_activation", _hc2.body["settings"]["llm"]["provider"] == "mistral"
       and _hc2.body["settings"]["llm"]["connection"] == "Mistral", _hc2.body["settings"]["llm"])
 _vw = _handle('GET', '/api/v1/connections', '', connections=_cl)
-check("connections_view_in_work", _vw.body.get("in_work", {}).get("llm") == "mistral"
-      and _vw.body.get("in_work", {}).get("asr") == "speechmatics", _vw.body.get("in_work"))
+check("connections_view_in_work", _vw.body.get("in_work", {}).get("llm") == _own_llm_id
+      and _vw.body.get("in_work", {}).get("asr") == _own_asr_id, _vw.body.get("in_work"))
 # Экран «Добавить» берёт список провайдеров по виду связи, а не общий список протоколов.
 _pv = _vw.body.get("protocols") or {}
 check("protocols_are_per_kind", [p["value"] for p in _pv.get("llm", [])][:1] == ["mistral"]
@@ -1098,8 +1112,8 @@ check("protocols_are_per_kind", [p["value"] for p in _pv.get("llm", [])][:1] == 
 # /health под замком и с живой связкой не должен висеть: у view() и active_for() общий замок.
 check("health_with_connections_fast", _hc2.status == 200)
 # Удалили рабочее подключение — вид остаётся без рабочего, а не перескакивает на соседнее.
-_cl.activate('llm', 'fake-demo')
-_rm_own = _cl.add({'kind': 'llm', 'protocol': 'mistral', 'title': 'Удалю'})
+_cl.activate('llm', _own_llm_id)
+_rm_own = _cl.add({'kind': 'llm', 'protocol': 'mistral', 'title': 'Удалю', 'key': 'sk-test'})
 _own_id = _rm_own[1]['connection']['id']
 _cl.activate('llm', _own_id)
 _cl.remove(_own_id)

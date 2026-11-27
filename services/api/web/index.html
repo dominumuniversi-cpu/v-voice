@@ -78,7 +78,7 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 <div class="row"><button id="recheck" class="ghost">Проверить снова</button></div>
 <div class="setup">
   <h3 style="margin:0 0 6px">Мои подключения</h3>
-  <p class="muted" style="margin:0 0 10px">Здесь только то, что вы настроили. Без подключения сервер ничего не получит — запись останется без расшифровки.</p>
+  <p class="muted" style="margin:0 0 10px">Здесь только то, что вы завели сами. Ни одного подключения — значит ни расшифровки, ни разбора: начните с кнопки «Добавить».</p>
   <div class="conns" id="conns"></div>
   <div class="row" style="margin-top:10px"><button id="addConn" class="ghost small">Добавить</button></div>
   <div class="connform" id="connForm" hidden>
@@ -90,7 +90,7 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
     <input id="cfT" type="text" placeholder="Название, например «Mistral — мой ключ»">
     <input id="cfU" type="text" placeholder="Адрес, если нужен свой (https://api.mistral.ai/v1)">
     <input id="cfM" type="text" placeholder="Модель, если нужна своя">
-    <input id="cfK" type="password" autocomplete="off" placeholder="Ключ (если нужен)">
+    <input id="cfK" type="password" autocomplete="off" placeholder="Ключ провайдера">
     <span class="muted" id="cfHint" style="font-size:12px"></span>
     <div class="row" style="margin-top:4px">
       <button id="cfDo" class="small">Добавить</button>
@@ -283,11 +283,35 @@ function draw(){
   });
 }
 function msg(text,warn){const m=el('connMsg');if(!m)return;m.textContent=text||'';m.className=warn?'text warn':'muted'}
-// Форма одна на оба вида: вид выбирается первым полем, протоколы подставляются из сервера.
+// Список в выпадающем поле формы: провайдеры из каталога сервера плюс «свой шлюз».
+// У провайдера из каталога подставляются модель и адрес — человек вводит только ключ.
+const PRESETS={};
 function fillProtocols(){
   const sel=el('cfP'),kind=el('cfKind').value;sel.innerHTML='';
-  const names=(PROTOCOLS[kind]||[]);
-  names.forEach(p=>{const o=document.createElement('option');o.value=p.value;o.textContent=p.title;sel.appendChild(o)});
+  const known=new Set();
+  (PRESETS[kind]||[]).forEach(p=>{
+    const o=document.createElement('option');o.value='preset:'+p.id;o.textContent=p.title+(p.cost?' — '+p.cost:'');
+    sel.appendChild(o);known.add(p.protocol);
+  });
+  ((PROTOCOLS[kind]||[])).forEach(p=>{
+    if(known.has(p.value))return;
+    const o=document.createElement('option');o.value='proto:'+p.value;o.textContent=p.title;sel.appendChild(o);
+  });
+}
+// Что человек выбрал в форме: «готовый провайдер» или собственный протокол.
+function choice(){
+  const v=el('cfP').value||'';
+  const [how,what]=v.split(':');
+  if(how==='preset'){const p=(PRESETS[el('cfKind').value]||[]).find(x=>x.id===what)||{};return {preset:what,protocol:p.protocol||what,preset_data:p}}
+  return {preset:'',protocol:what||''};
+}
+function applyChoice(){
+  const c=choice();
+  el('cfU').value=c.preset_data?(c.preset_data.base_url||''):'';
+  el('cfM').value=c.preset_data?(c.preset_data.model||''):'';
+  const p=c.preset_data||{};
+  el('cfHint').textContent=[p.note||'',p.cost?('Цена: '+p.cost+'.'):''].filter(Boolean).join(' ');
+  if(!editing&&p.title)el('cfT').value=p.title;
 }
 async function loadConns(){
   const box=el('conns');if(box)box.innerHTML='<div class="muted">Загружаю список…</div>';
@@ -297,6 +321,7 @@ async function loadConns(){
     if(!r.ok)throw new Error(d.message||('код '+r.status));
     CONNS={llm:[],asr:[]};INWORK=d.in_work||{};ACTIVE=d.active||{};
     if(d.protocols)PROTOCOLS=d.protocols;
+    (d.presets||[]).forEach(p=>{(PRESETS[p.kind]=PRESETS[p.kind]||[]).push(p)});
     (d.items||[]).forEach(c=>{if(CONNS[c.kind])CONNS[c.kind].push(c)});
     draw();fillProtocols();
   }catch(e){
@@ -331,20 +356,25 @@ function openForm(kind,conn){
   el('connForm').hidden=false;
   el('cfKind').value=conn?conn.kind:'llm';
   fillProtocols();
-  if(conn&&conn.protocol)el('cfP').value=conn.protocol;
+  if(conn){
+    // У заведённой связки показываем её собственный протокол, даже если в каталоге его нет.
+    const opt=[...el('cfP').options].find(o=>o.value==='preset:'+conn.preset||o.value==='proto:'+conn.protocol);
+    if(opt)el('cfP').value=opt.value;
+  }
   el('cfT').value=conn?conn.title:'';
   el('cfU').value=conn?(conn.base_url||''):'';
   el('cfM').value=conn?(conn.model||''):'';
   el('cfK').value='';
-  el('cfK').placeholder=conn&&conn.key_set?'Новый ключ (пусто — стереть прежний)':'Ключ (если нужен)';
+  el('cfK').placeholder=conn&&conn.key_set?'Новый ключ (пусто — стереть прежний)':'Ключ провайдера';
   el('cfDo').textContent=conn?'Сохранить':'Добавить';
-  el('cfHint').textContent=conn?(conn.note||''):'Ключ хранится только в памяти сервера до перезапуска.';
-  el('cfT').focus();
+  el('cfHint').textContent=conn?(conn.note||''):'Выберите провайдера — модель и адрес подставим сами.';
+  if(!conn)applyChoice();
+  const first=conn?el('cfT'):el('cfP');first.focus();
 }
 async function saveConn(){
-  const kind=el('cfKind').value,protocol=el('cfP').value;
-  const body={kind,protocol,title:el('cfT').value.trim(),base_url:el('cfU').value.trim(),
-              model:el('cfM').value.trim(),key:el('cfK').value.trim()};
+  const c=choice();
+  const body={kind:el('cfKind').value,protocol:c.protocol,preset:c.preset,title:el('cfT').value.trim(),
+              base_url:el('cfU').value.trim(),model:el('cfM').value.trim(),key:el('cfK').value.trim()};
   if(!body.title){msg('Впишите название — по нему вы будете узнавать связку.',true);return}
   msg('Сохраняю…',false);
   try{
@@ -352,7 +382,7 @@ async function saveConn(){
     const r=await fetch(url,{method:editing?'PATCH':'POST',headers:headers(),body:JSON.stringify(body)});
     const d=await r.json();
     if(!r.ok){msg('Не принято: '+(d.message||d.error||r.status),true);return}
-    msg(editing?'Сохранено.':((d.message||'Добавлено.')+' Это подключение выбрано рабочим.'),false);
+    msg(editing?'Сохранено.':((d.message||'Добавлено.')+' Нажмите «Работать этой», чтобы сервер начал ею пользоваться.'),false);
     el('connForm').hidden=true;editing=null;
     ['T','U','M','K'].forEach(s=>{const f=el('cf'+s);if(f)f.value=''});
     await loadConns();loadSettings();
@@ -410,7 +440,8 @@ serverMsg(localStorage.getItem('vv_token')?'Токен сохранён в эт�
 el('addConn').onclick=()=>openForm(null);
 el('cfX').onclick=()=>{el('connForm').hidden=true;editing=null};
 el('cfDo').onclick=saveConn;
-el('cfKind').onchange=()=>{fillProtocols();el('cfU').value='';el('cfM').value=''};
+el('cfKind').onchange=()=>{fillProtocols();editing=null;el('cfU').value='';el('cfM').value='';applyChoice()};
+el('cfP').onchange=applyChoice;
 // По http с сетевого адреса микрофон обычно не дают, и тогда всё молчит без причины.
 // Сразу предлагаем адрес, который точно пускает: на Windows — dimas.local, на телефоне — https.
 function micBanner(){

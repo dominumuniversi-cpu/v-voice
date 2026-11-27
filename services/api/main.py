@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from vvoice.config import Settings, load as load_settings, load_env_file
-from vvoice.connections import BUILTIN_CONNECTIONS, Connection, ConnectionList
+from vvoice.connections import ConnectionList
 from vvoice.runtime_settings import RuntimeSettings
 from vvoice.digest_store import DigestStore
 from vvoice.http_api import handle
@@ -44,11 +44,10 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
                               llm_key=settings.llm_key, llm_model=settings.llm_model,
                               llm_base_url=settings.llm_base_url)
 
-    # Список подключений: провайдеры, которые человек добавил сам, и выбранный активный.
-    # Встроенные связки засеиваются при старте — экран должен показывать выбор сразу.
+    # Список подключений: только то, что человек завёл сам, и связка, которую он выбрал рабочей.
+    # Пустых заготовок провайдеров здесь нет — они живут в каталоге (BUILTIN_CONNECTIONS) и
+    # попадают в список, лишь когда человек нажмёт «Добавить».
     connections = ConnectionList()
-    for conn in BUILTIN_CONNECTIONS:
-        connections.seed(Connection(**conn))
 
     def asr_factory(path: str) -> Any:
         """Собирает распознавание на момент вызова: ключ мог поменяться только что."""
