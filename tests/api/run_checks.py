@@ -1202,6 +1202,14 @@ _g = handle("GET", "/api/v1/settings", settings=_rt)
 check("settings_route_get", _g.status == 200 and _g.body['llm']['provider'] == 'deepseek')
 _p = handle("POST", "/api/v1/settings", json.dumps({'llm_provider': 'ollama', 'llm_key': 'x'}), settings=_rt)
 check("settings_route_post", _p.status == 200 and _rt.view()['llm']['provider'] == 'ollama', _p.status)
+# Список моделей: человек не должен вписывать имя по памяти. Для живой связки — каталог,
+# для Ollama — запрос к серверу человека (без адреса честно говорим, что нужен адрес).
+_m_ok = handle("GET", "/api/v1/models", settings=_rt)
+check("models_list_route", _m_ok.status == 200 and 'models' in _m_ok.body, _m_ok.status)
+_m_ollama = RuntimeSettings()
+_m_ollama.update({'llm_provider': 'ollama'})
+_m_o = handle("GET", "/api/v1/models", settings=_m_ollama)
+check("models_list_ollama_needs_address", _m_o.status == 200 and _m_o.body.get('source') == 'none', _m_o.body)
 _n = handle("GET", "/api/v1/settings")
 check("settings_route_without_store", _n.status == 503 and _n.body.get('error') == 'settings_unavailable')
 

@@ -7,6 +7,13 @@
   4. Проверка перед запуском: если выбран провайдер, а ключа нет — понятная ошибка, а не падение в середине встречи.
 
 Модуль намеренно не импортирует FastAPI/pydantic: его можно прогнать простым `python -c` без зависимостей.
+
+
+СОВЕТ ЧЕЛОВЕКУ: сервер читает переменные с префиксом VV_ (VV_ASR_PROVIDER, VV_LLM_PROVIDER,
+VV_LLM_MODEL, VV_LLM_BASE_URL, VV_ASR_MODEL и т.д. — полный список в .env.example). Имена без
+префикса из этого файла (ASR_PROVIDER, LLM_API_KEY…) остались от первых набросков: сервер их
+НЕ читает. Здесь они полезны как описание смысла и проверки значений, но настраивать проект
+по ним — ошибка.
 """
 
 from __future__ import annotations
@@ -23,7 +30,7 @@ DESCRIPTIONS: dict[str, tuple[str, str, str]] = {
     "ASSEMBLYAI_API_KEY": ("Ключ AssemblyAI (предзапись, 0.21 $/час, без стрима)", "", "секрет"),
     "GIGAAM_MODEL": ("Веса GigaAM-v3: ai-sage/GigaAM-v3", "ai-sage/GigaAM-v3", "путь к локальной модели"),
     "GIGAAM_REVISION": ("Вариант GigaAM: ssl|ctc|rnnt|e2e_ctc|e2e_rnnt (e2e_rnnt — с пунктуацией)", "e2e_rnnt", "см. карточку модели"),
-    "LLM_PROVIDER": ("Модель разбора: deepseek, gigachat, anthropic, ollama", "deepseek", "deepseek|gigachat|anthropic|ollama"),
+    "LLM_PROVIDER": ("Модель разбора: deepseek, anthropic, ollama (gigachat описан, но не подключён)", "deepseek", "deepseek|anthropic|ollama"),
     "LLM_MODEL": ("Конкретная модель (для deepseek — deepseek-chat, для ollama — qwen3:8b)", "deepseek-chat", "любая модель провайдера"),
     "LLM_API_KEY": ("Ключ LLM", "", "секрет"),
     "MEMBERS_ONLY": ("Слышим всех, но в задачи берём только реплики участников", "true", "true|false"),

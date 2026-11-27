@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .evidence import validate_item
-from .models_check import check_models
+from .models_check import check_models, list_models
 from .sessions import create_session, is_session_id
 from .digest_store import DigestStore
 from .export_route import export_session
@@ -47,6 +47,7 @@ import re
 ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/health": ("GET",),
     "/api/v1/presets": ("GET",),
+    "/api/v1/models": ("GET",),
     "/api/v1/models/check": ("POST",),
     # Настройка моделей из браузера: меняет работающий сервер, ключ живёт в памяти.
     "/api/v1/settings": ("GET", "POST"),
@@ -184,6 +185,12 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             data = {"presets": presets()}
             data.update(model_presets())
             return Response(200, data)
+
+    if path == "/api/v1/models":
+        # Что можно выбрать для уже сохранённой связки. Для Ollama — живой запрос к серверу человека.
+        if settings is None:
+            return Response(503, {"error": "settings_unavailable"})
+        return Response(200, list_models(settings))
 
     if path == "/api/v1/models/check":
         # Настоящий пробный вызов: «ключ вписан» и «ключ работает» — разные вещи, и человеку

@@ -63,7 +63,9 @@ ul.sum li{margin-bottom:8px}
     <div class="field" id="f_llm_key"><label for="llm_key">Ключ</label>
       <input id="llm_key" type="password" autocomplete="off" placeholder="вставьте ключ — после сохранения его не будет видно"></div>
     <div class="field" id="f_llm_model"><label for="llm_model">Модель</label>
-      <input id="llm_model" type="text" autocomplete="off" placeholder="по умолчанию"></div>
+      <input id="llm_model" type="text" autocomplete="off" placeholder="по умолчанию" list="llmModelList">
+      <datalist id="llmModelList"></datalist>
+      <span class="muted" id="llmModelHint"></span></div>
     <div class="field" id="f_llm_base_url"><label for="llm_base_url">Адрес сервера</label>
       <input id="llm_base_url" type="text" autocomplete="off" placeholder="нужен для своего Ollama"></div>
   </div>
@@ -202,7 +204,7 @@ function draw(kind){
     d.querySelector('b').textContent=p.title;
     d.querySelector('span').textContent=p.note;
     const c=d.querySelector('i');c.textContent=p.cost;if(!p.cost.includes('бесплатно'))c.className='paid';
-    d.onclick=()=>{PICK[kind]=p.id;draw(kind);fill(kind,p)};
+    d.onclick=()=>{PICK[kind]=p.id;draw(kind);fill(kind,p);if(kind==='llm')loadModels();};
     box.appendChild(d);
   });
 }
@@ -271,6 +273,21 @@ if(_q){
   $('#token').value=_q;
   // Токен не должен оставаться в адресной строке: оттуда он уходит в историю и в Referer.
   const u=new URL(location.href);u.searchParams.delete('token');history.replaceState(null,'',u.pathname+u.search);
+}
+async function loadModels(){
+  const hint=el('llmModelHint'),list=el('llmModelList');
+  if(!hint)return;
+  hint.textContent='Смотрю, какие модели есть…';list.innerHTML='';
+  try{
+    const r=await fetch(server()+'/api/v1/models',{headers:headers()});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.message||('код '+r.status));
+    list.innerHTML='';
+    (d.models||[]).forEach(n=>{const o=document.createElement('option');o.value=n;list.appendChild(o)});
+    // Список — подсказка, а не запрет: у человека может быть своя модель.
+    hint.textContent=(d.models&&d.models.length)?('Доступно: '+d.models.length+'. Начните вводить — подскажу.')
+      :(d.message||'Список пуст — впишите имя модели вручную.');
+  }catch(e){hint.textContent='Список моделей не получен: '+e.message;}
 }
 el('save').disabled=true;
 el('save').onclick=saveSettings;

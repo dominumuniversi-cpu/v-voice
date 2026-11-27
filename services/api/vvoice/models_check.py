@@ -42,6 +42,42 @@ def _probe_llm(runtime: Any) -> dict[str, Any]:
         return {'ok': False, 'provider': provider, 'message': str(exc)[:300]}
 
 
+# Список моделей, которые провайдер реально предлагает. Человек не должен вписывать имя по памяти:
+# ошибка в имени выглядит как «модель не ответила», и это дорого стоит во время встречи.
+_KNOWN = {
+    'deepseek': ['deepseek-chat', 'deepseek-reasoner'],
+    'anthropic': ['claude-sonnet-4-5', 'claude-haiku-4-5', 'claude-opus-4-1'],
+    'ollama': [],
+    'fake': [],
+}
+
+
+def list_models(runtime: Any) -> dict[str, Any]:
+    """Что можно выбрать. Для Ollama — настоящий запрос к серверу: там модели живут у человека."""
+    chosen = runtime.llm()
+    provider = chosen['provider']
+    if provider == 'ollama':
+        base = chosen['base_url'].rstrip('/').removesuffix('/api/chat')
+        if not base:
+            return {'provider': 'ollama', 'models': [], 'source': 'none',
+                    'message': 'Укажите адрес Ollama — список моделей берётся с вашего сервера.'}
+        try:
+            import json as _json
+            import urllib.request
+            with urllib.request.urlopen(base + '/api/tags', timeout=6) as resp:
+                data = _json.loads(resp.read().decode('utf-8'))
+            names = [m.get('name', '') for m in data.get('models', []) if m.get('name')]
+            return {'provider': 'ollama', 'models': names, 'source': 'live',
+                    'message': '' if names else 'Сервер ответил, но моделей в нём нет: скачайте модель на сервере.'}
+        except Exception as exc:
+            return {'provider': 'ollama', 'models': [], 'source': 'error',
+                    'message': 'Не удалось спросить Ollama: ' + str(exc)[:200]}
+    models = _KNOWN.get(provider, [])
+    return {'provider': provider, 'models': models,
+            'source': 'catalog' if models else 'none',
+            'message': '' if models else 'Для этой связки список моделей не ведётся — впишите имя вручную.'}
+
+
 def check_models(runtime: Any) -> dict[str, Any]:
     """Живой диагноз: 200 с ok=true только если модель действительно ответила."""
     return _probe_llm(runtime)
