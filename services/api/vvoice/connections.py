@@ -287,8 +287,9 @@ class ConnectionList:
                 return 409, {'error': 'builtin', 'message': 'Встроенную связку удалить нельзя — иначе не из чего выбирать.'}
             self.items = [c for c in self.items if c.id != conn_id]
             if self.active.get(conn.kind) == conn_id:
-                rest = [c for c in self.items if c.kind == conn.kind]
-                self.active[conn.kind] = rest[0].id if rest else ''
+                # Удалили рабочую — вид остаётся без рабочей связки. Подставлять первую попавшуюся
+                # нельзя: человек не выбирал её, и сервер молча пошёл бы звать чужого провайдера.
+                self.active[conn.kind] = ''
             return 200, {'removed': conn_id, 'active': dict(self.active),
                          'message': 'Связка «' + conn.title + '» удалена.'}
 

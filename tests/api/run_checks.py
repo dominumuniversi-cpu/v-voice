@@ -1097,6 +1097,15 @@ check("protocols_are_per_kind", [p["value"] for p in _pv.get("llm", [])][:1] == 
       and "whisper" not in [p["value"] for p in _pv.get("llm", [])], _pv)
 # /health под замком и с живой связкой не должен висеть: у view() и active_for() общий замок.
 check("health_with_connections_fast", _hc2.status == 200)
+# Удалили рабочее подключение — вид остаётся без рабочего, а не перескакивает на соседнее.
+_cl.activate('llm', 'fake-demo')
+_rm_own = _cl.add({'kind': 'llm', 'protocol': 'mistral', 'title': 'Удалю'})
+_own_id = _rm_own[1]['connection']['id']
+_cl.activate('llm', _own_id)
+_cl.remove(_own_id)
+check("removal_leaves_kind_without_work", _cl.view()['in_work'].get('llm') is None
+      and _handle('GET', '/api/v1/health', '', settings=_rs, connections=_cl).body["settings"]["llm"]["ready"] is False,
+      _cl.view()['in_work'])
 # Маршрут, объявленный в ROUTES и не попавший в шаблоны, отвечает 404 на каждый запрос:
 # так молча не работало скачивание расшифровки.
 from vvoice.http_api import _route as _route_of
