@@ -75,14 +75,17 @@ def run_session(
     audio_path — где лежит сама запись. Без него файл провайдеру не отдать: раньше здесь стояла
     строка "segment.wav", которой на диске нет, и любой файловый провайдер падал на «нет файла».
     """
-    # Файловый проход звук не отправляет: провайдер сам получит всю запись один раз ниже.
-    # Раньше сюда уходили те же участки речи, что и в файл, — тишина между фразами выпадала,
-    # а распознавание шло дважды.
+    # Звук отдаётся распознаванию РОВНО ОДИН РАЗ. Фабрика провайдера уже могла получить
+    # расшифровку (она зовёт transcribe_file при сборке), и тогда второй поход в сеть был бы
+    # двойной оплатой и обрывом: облако второй раз тот же файл не принимает.
+    # Если провайдер пришёл без расшифровки — просим её здесь, и это единственный поход.
     state = SessionState()
-    try:
-        final_segments: list[Segment] = provider.transcribe_file(audio_path or "segment.wav")
-    except Exception as exc:  # провайдер речи упал: у нас нет ни одной реплики
-        raise AsrFailure(str(exc)) from exc
+    final_segments: list[Segment] = list(getattr(provider, "segments", None) or [])
+    if not final_segments:
+        try:
+            final_segments = list(provider.transcribe_file(audio_path or "segment.wav"))
+        except Exception as exc:  # провайдер речи упал: у нас нет ни одной реплики
+            raise AsrFailure(str(exc)) from exc
     transcript: Transcript = assemble(final_segments)
     digest = make_digest(transcript, call_llm, members_only=members_only)
     return {

@@ -14,6 +14,18 @@ import io
 import wave
 from dataclasses import dataclass
 
+# Предел файла до похода в сеть: самый строгий из вендорских (OpenAI — 25 МБ на запрос).
+LIMIT_BYTES = 24 * 1024 * 1024
+
+
+class WavRejected(ValueError):
+    """Файл не годится для отправки. Текст — для человека, а не для лога."""
+
+
+def too_big(size: int, limit: int = LIMIT_BYTES) -> bool:
+    """Проверка размера до чтения: заведомо большой файл не тянем в память."""
+    return size > limit
+
 
 @dataclass
 class WavInfo:
@@ -26,10 +38,15 @@ class WavInfo:
     duration_s: float
 
 
-def read_wav(data: bytes) -> WavInfo:
+def read_wav(data: bytes, limit: int = LIMIT_BYTES) -> WavInfo:
     """Разбирает WAV целиком. Ошибка — понятная человеку строка, а не IndexError."""
+    if too_big(len(data), limit):
+        # Предел в мегабайтах; у маленьких пределов (тесты) десятичная дробь честнее нуля.
+        mbytes = limit / (1024 * 1024)
+        shown = str(int(mbytes)) if mbytes >= 1 else '%.3f' % mbytes
+        raise WavRejected('запись больше ' + shown + ' МБ: провайдер такой файл не примет')
     if len(data) < 12 or data[0:4] != b'RIFF' or data[8:12] != b'WAVE':
-        raise ValueError('это не WAV-запись: провайдер принимает наш формат .wav')
+        raise WavRejected('это не WAV-запись: провайдер принимает наш формат .wav')
     try:
         with wave.open(io.BytesIO(data), 'rb') as handle:
             channels = handle.getnchannels()
@@ -38,9 +55,9 @@ def read_wav(data: bytes) -> WavInfo:
             frames = handle.getnframes()
             pcm = handle.readframes(frames)
     except (wave.Error, EOFError) as exc:
-        raise ValueError('WAV не читается: ' + str(exc)) from exc
+        raise WavRejected('WAV не читается: ' + str(exc)) from exc
     if not pcm:
-        raise ValueError('в записи нет звука: файл пустой')
+        raise WavRejected('в записи нет звука: файл пустой')
     return WavInfo(pcm=pcm, sample_rate=rate, channels=channels, width=width,
                    duration_s=round(frames / float(rate or 1), 3))
 

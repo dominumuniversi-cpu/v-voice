@@ -20,6 +20,8 @@ from typing import Any
 
 from vvoice.config import Settings, load as load_settings, load_env_file
 from vvoice.connections import ConnectionList
+from vvoice.connections_file import ConnectionFiles
+from vvoice.settings_file import SettingsFile
 from vvoice.runtime_settings import RuntimeSettings
 from vvoice.digest_store import DigestStore
 from vvoice.http_api import handle
@@ -54,15 +56,23 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
     # Стартуем с того, что задано в окружении: иначе сервер запускается с пустыми настройками
     # и первое же открытие экрана стирает рабочую связку из .env. Что человек поменял в браузере,
     # живёт дольше одного запроса, но не дольше процесса: ключ никто не сохраняет на диск.
-    runtime = RuntimeSettings(asr_provider=settings.asr_provider, asr_key=settings.asr_key,
-                              asr_model=settings.asr_model, llm_provider=settings.llm_provider,
-                              llm_key=settings.llm_key, llm_model=settings.llm_model,
-                              llm_base_url=settings.llm_base_url)
+    # Значения из файла важнее окружения: окружение — точка старта, а ключ человек ввёл на
+    # экране настроек, и перезапуск контейнера не должен его стирать.
+    saved = SettingsFile(data_dir / "settings.json").load()
+    runtime = RuntimeSettings(**{
+        'asr_provider': settings.asr_provider, 'asr_key': settings.asr_key,
+        'asr_model': settings.asr_model, 'llm_provider': settings.llm_provider,
+        'llm_key': settings.llm_key, 'llm_model': settings.llm_model,
+        'llm_base_url': settings.llm_base_url, **saved})
 
     # Список подключений: только то, что человек завёл сам, и связка, которую он выбрал рабочей.
     # Пустых заготовок провайдеров здесь нет — они живут в каталоге (BUILTIN_CONNECTIONS) и
     # попадают в список, лишь когда человек нажмёт «Добавить».
     connections = ConnectionList()
+    # Заведённые ранее связки возвращаем с диска: пересборка контейнера не должна стирать ключи,
+    # которые человек ввёл в настройках приложения.
+    conn_files = ConnectionFiles(data_dir / "connections.json")
+    connections.restore(conn_files.load(), conn_files.load_active())
 
     def asr_factory(path: str) -> Any:
         """Собирает распознавание на момент вызова: ключ мог поменяться только что."""
@@ -77,14 +87,14 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
             provider = PROTOCOL_TO_ASR.get(conn.protocol, conn.protocol)
             live = _with(settings, asr_provider=provider, asr_key=conn.key or settings.asr_key,
                          asr_model=conn.model or settings.asr_model,
-                         asr_base_url=conn.base_url or settings.asr_base_url)
+                         asr_base_url=conn.base_url or _own_asr_url(settings, provider))
             return make_asr_factory(live)(path)
         chosen = runtime.asr()
         provider = chosen['provider']
         live = (settings if not provider else
                 _with(settings, asr_provider=provider, asr_key=chosen['key'] or settings.asr_key,
                       asr_model=chosen['model'] or settings.asr_model,
-                      asr_base_url=chosen.get('base_url') or settings.asr_base_url))
+                      asr_base_url=chosen.get('base_url') or _own_asr_url(settings, provider)))
         return make_asr_factory(live)(path)
 
     def _live_asr(settings: Settings, connections: Any) -> Any:
@@ -134,6 +144,8 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
 
     return {
         'settings': runtime,
+        'settings_file': SettingsFile(data_dir / "settings.json"),
+        'connections_file': conn_files,
         'asr_env': (settings.asr_provider or '').strip().lower(),
         'llm_env': (settings.llm_provider or '').strip().lower(),
         'connections': connections,
@@ -168,6 +180,19 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         'asr_price_per_hour': settings.asr_price_per_hour,
         'budget_per_meeting': settings.budget_per_meeting,
     }
+
+
+def _own_asr_url(settings: Settings, provider: str) -> str:
+    """Адрес распознавания из окружения — только своему провайдеру.
+
+    VV_ASR_BASE_URL описывает ОДИН сервис. Раньше он подставлялся любому провайдеру, и связка
+    Deepgram уходила на адрес Speechmatics: звук не туда, деньги мимо. Чужой адрес не берём.
+    """
+    stored = (getattr(settings, 'asr_base_url', '') or '').strip()
+    owner = (getattr(settings, 'asr_provider', '') or '').strip().lower()
+    if stored and provider and owner == provider:
+        return stored
+    return ''
 
 
 def _make_understanding(settings: Any) -> Any:

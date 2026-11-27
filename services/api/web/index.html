@@ -239,7 +239,10 @@ function render(d){
     items.appendChild(div);
   });
   if(!(d.items||[]).length){items.innerHTML='<p class="muted">'+(d.rejected&&d.rejected.length?'Найдено '+d.rejected.length+', но ни один пункт не подтвердился цитатой.':'Разбор не нашёл задач с цитатой.')+'</p>'}
-  const q=$('#questions');q.innerHTML='';(d.open_questions||[]).forEach(x=>{const text=clean(x);if(!text)return;const li=document.createElement('li');li.textContent=text;q.appendChild(li)});
+  // Вопрос приходит либо строкой, либо объектом {text: "..."}: печатать объект целиком — значит
+  // показать человеку фигурные скобки вместо вопроса.
+  const q=$('#questions');q.innerHTML='';(d.open_questions||[]).forEach(x=>{const text=clean(x&&typeof x==='object'?(x.text||x.title||''):x);if(!text)return;const li=document.createElement('li');li.textContent=text;q.appendChild(li)});
+  if(!q.children.length){q.innerHTML='<li class="muted">Разбор не нашёл открытых вопросов.</li>'}
 }
 $('#start').onclick=start;$('#pause').onclick=togglePause;$('#stop').onclick=stop;$('#analyze').onclick=analyze;
 
@@ -303,8 +306,12 @@ function drawConvs(d){
 }
 // Открытие разговора: карточка стоит сразу под записью, поэтому запись слышна сразу, а текст и
 // разбор подгружаются в неё же. Страница никуда не прыгает: человек остаётся там, где нажал.
+function hasText(id){const c=CONVS.find(x=>x.session_id===id);return !!(c&&c.has_transcript)}
+// Открытие не двигает страницу: карточка стоит выше строки, и раскрытие само тянет прокрутку к
+// кнопке. Человек остаётся там, где нажал — это правило «действие не перебрасывает».
 async function openConv(id){
   if(!id)return;
+  const keepY=window.scrollY;
   if(!CONVS.length)await loadConvs();
   const c=CONVS.find(x=>x.session_id===id)||{};
   shown=id;
@@ -332,6 +339,7 @@ async function openConv(id){
     note(c.has_audio
       ? 'Разбора пока нет: запись на месте, звук можно слушать. Нажмите «Разобрать» — текст и выжимка появятся здесь же.'
       : 'У этой записи нет файла звука: вероятно, она пришла с ошибкой загрузки. Разобрать её нечем.');
+    window.scrollTo(0,keepY);
     return;
   }
   // Исходный текст показываем сами: человек ищет его первым, и лишнее нажатие здесь только мешает.
@@ -346,6 +354,7 @@ async function openConv(id){
     render(d);
     el('digestTitle').textContent=clean(d.topic)||clean(d.title)||c.title||'Разбор разговора';
   }catch(e){note('Связь прервалась при чтении разбора: '+e.message)}
+  window.scrollTo(0,keepY);
 }
 function note(text){const n=el('digestNote');if(!text){hide(n);n.textContent='';return}n.textContent=text;show(n)}
 function markRow(id){
@@ -396,7 +405,9 @@ async function deleteConv(id){
     if(!r.ok){convsMsg('Удалить не удалось: '+(d.message||('код '+r.status)),true);return}
     closeCard();
     await loadConvs();
-    convsMsg('Удалён разговор '+(c.title||id.slice(0,6))+'. Если ошиблись — он в корзине сервера, скажите, вернём.',false);
+    // Что имено удалено — по названию: «Удалён разговор запись 7fe4c0» звучит как ошибка.
+    const gone=clean(c.title)||('запись '+id.slice(0,8));
+    convsMsg('Удалено: '+gone+'. Записи и разбора больше нет.',false);
   }catch(e){convsMsg('Связь прервалась при удалении: '+e.message,true)}
 }
 function closeCard(){
@@ -417,8 +428,7 @@ el('digestClose').onclick=closeCard;
 el('digestDelete').onclick=()=>deleteConv(shown);
 // Настройки провайдеров спрятаны под кнопкой: его дело — записывать и читать, а не настраивать.
 el('setupToggle').onclick=()=>{const s=el('setup');const open=s.hidden;s.hidden=!open;el('setupToggle').textContent=open?'Скрыть настройку':'Настроить провайдеров'};
-el('digestTranscript').onclick=()=>showTranscript(shown);
-// Если настройки ещё не заведены вовсе — сразу раскрываем: иначе человек не поймёт, где их взять.if(!Object.keys(CONNS).some(k=>CONNS[k].length))wireSetupOpen();
+el('digestTranscript').onclick=()=>{if(!hasText(shown)){note('Расшифровки у этой записи нет: распознавание не дало ни одной реплики. Можно послушать звук или разобрать заново.');return}showTranscript(shown)};
 }
 
 const NAMES={speechmatics:'Speechmatics',deepgram:'Deepgram',assemblyai:'AssemblyAI',
@@ -678,7 +688,10 @@ function collapseServer(message){
   if(summary){summary.hidden=false;}
   document.getElementById('serverSummaryText').textContent=message||('Сервер: '+server()+(token()?' · вход выполнен':' · без токена'));
 }
-document.getElementById('serverChange').onclick=expandServer;
+// Одна кнопка и туда, и обратно: человек может передумать и вернуть свёрнутый вид.
+document.getElementById('serverChange').onclick=()=>{const form=document.getElementById('token');
+  const open=!!form&&form.getClientRects().length>0;
+  if(open)collapseServer();else expandServer();};
 function expandServer(){
   ['server','token','tokenForm'].forEach(id=>{const n=document.getElementById(id);if(n)n.hidden=false});
   const summary=document.getElementById('serverSummary');
@@ -721,6 +734,9 @@ wireJournal();
 loadConns();
 loadConvs();
 loadSettings();
+// Настройки не заведены вовсе — раскрываем сами: иначе человек не поймёт, где их взять.
+// Проверка стоит ПОСЛЕ объявления CONNS и после загрузки списка, иначе список ещё пуст.
+setTimeout(()=>{if(!Object.keys(CONNS).some(k=>CONNS[k]&&CONNS[k].length))wireSetupOpen()},1500);
 // Токена нет, а сервер его спрашивает — подсказываем один раз и ставим курсор в поле токена.
 setTimeout(()=>{
   const s=el('settings').textContent||'';

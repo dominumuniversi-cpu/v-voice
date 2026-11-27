@@ -22,11 +22,17 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from .fake_asr import Segment
-from .wav_tools import read_wav
+from .wav_tools import LIMIT_BYTES, WavRejected, read_wav
 
 TIMEOUT_S = 300.0
 POLL_S = 3.0
 POLL_LIMIT_S = 900.0
+class CloudError(RuntimeError):
+    """Отказ облака с кодом. Отличаем свой отказ от чужого: по коду экран выбирает слова."""
+
+    def __init__(self, code: int, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def _post_json(url: str, payload: dict[str, Any] | None, headers: dict[str, str]) -> dict[str, Any]:
@@ -51,15 +57,16 @@ def _read(request: urllib.request.Request) -> dict[str, Any]:
             detail = str(data.get('message') or data.get('error') or data.get('detail') or '')
         except Exception:  # noqa: BLE001 — тело ошибки не обязано быть JSON
             detail = ''
-        raise RuntimeError('облако отказало (' + str(exc.code) + ')' + (': ' + detail if detail else '')) from exc
+        raise CloudError(exc.code, 'облако отказало (' + str(exc.code) + ')'
+                         + (': ' + detail if detail else '')) from exc
     except urllib.error.URLError as exc:
-        raise RuntimeError('облако недоступно: ' + str(exc.reason)) from exc
+        raise CloudError(0, 'облако недоступно: ' + str(exc.reason)) from exc
     if not raw.strip():
         return {}
     try:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise RuntimeError('облако ответило не JSON: ' + raw[:120]) from exc
+        raise CloudError(0, 'облако ответило не JSON вместо расшифровки') from exc
 
 
 def _speaker(value: Any) -> str | None:
@@ -121,7 +128,7 @@ class DeepgramAsr:
 
     def transcribe_file(self, path: str) -> list[Segment]:
         with open(path, 'rb') as handle:
-            audio = handle.read()
+            audio = handle.read(LIMIT_BYTES + 1)
         read_wav(audio)  # понятная ошибка до похода в сеть
         url = (self.base_url.rstrip('/') + '/listen?model=' + urllib.parse.quote(self.model)
                + '&language=' + urllib.parse.quote(self.language) + '&smart_format=true&diarize=true&punctuate=true')
@@ -136,7 +143,23 @@ class DeepgramAsr:
 # --- AssemblyAI ---------------------------------------------------------------------------
 
 def assemblyai_segments(data: dict[str, Any]) -> list[Segment]:
-    """Ответ AssemblyAI: слова с временем в миллисекундах -> фразы."""
+    """Ответ AssemblyAI: реплики (utterances) или слова с временем в миллисекундах -> фразы."""
+    # Если задачник просил разметку говорящих, вендор отдаёт готовые utterances — берём их:
+    # так границы фраз и голоса приходят от сервиса, а не из нашего склеивания по паузам.
+    utterances = data.get('utterances') or []
+    if utterances:
+        out: list[Segment] = []
+        for utter in utterances:
+            if not isinstance(utter, dict):
+                continue
+            text = str(utter.get('text') or '').strip()
+            if not text:
+                continue
+            out.append(Segment(start_s=float(utter.get('start') or 0) / 1000.0,
+                               end_s=float(utter.get('end') or 0) / 1000.0,
+                               text=text, speaker=_speaker(utter.get('speaker'))))
+        if out:
+            return out
     words: list[Segment] = []
     for word in data.get('words') or []:
         text = str(word.get('text') or '').strip()
@@ -165,7 +188,7 @@ class AssemblyAiAsr:
 
     def transcribe_file(self, path: str) -> list[Segment]:
         with open(path, 'rb') as handle:
-            audio = handle.read()
+            audio = handle.read(LIMIT_BYTES + 1)
         read_wav(audio)
         headers = {'Authorization': self.api_key}
         upload = urllib.request.Request(self.base_url.rstrip('/') + '/upload', data=audio,
@@ -225,7 +248,7 @@ class OpenAiWhisperAsr:
 
     def transcribe_file(self, path: str) -> list[Segment]:
         with open(path, 'rb') as handle:
-            audio = handle.read()
+            audio = handle.read(LIMIT_BYTES + 1)
         read_wav(audio)
         boundary = '----vvoice' + base64.b16encode(str(time.time()).encode())[:12].decode()
         parts: list[bytes] = []
@@ -247,18 +270,31 @@ class OpenAiWhisperAsr:
 
 # --- Gladia -------------------------------------------------------------------------------
 
+
 def gladia_segments(data: dict[str, Any]) -> list[Segment]:
-    """Gladia v2: utterances с временем в секундах и номером голоса."""
+    """Gladia: transcription.utterances со временем в миллисекундах и номером голоса."""
     out: list[Segment] = []
     result = data.get('result') or {}
-    utterances = result.get('transcription') or result.get('utterances') or []
+    transcription = result.get('transcription') or {}
+    # Полный ответ несёт объект transcription, упрощённый — только перечень utterances.
+    utterances = (transcription.get('utterances') if isinstance(transcription, dict) else None) \
+        or result.get('utterances') or []
     for utter in utterances:
+        if not isinstance(utter, dict):
+            continue
+        # Время у Gladia в миллисекундах, у остальных — в секундах: приводим к секундам сразу.
         text = str(utter.get('text') or '').strip()
         if not text:
             continue
-        out.append(Segment(start_s=float(utter.get('start') or 0.0), end_s=float(utter.get('end') or 0.0),
+        out.append(Segment(start_s=_ms(utter.get('start')), end_s=_ms(utter.get('end')),
                            text=text, speaker=_speaker(utter.get('speaker'))))
     return out
+
+
+def _ms(value: Any) -> float:
+    """Миллисекунды Gladia -> секунды. Число меньше минуты считаем секундами, чтобы не терять старые ответы."""
+    number = float(value or 0.0)
+    return number / 1000.0 if number > 60 else number
 
 
 @dataclass
@@ -278,15 +314,19 @@ class GladiaAsr:
 
     def transcribe_file(self, path: str) -> list[Segment]:
         with open(path, 'rb') as handle:
-            audio = handle.read()
+            audio = handle.read(LIMIT_BYTES + 1)
         read_wav(audio)
         headers = {'x-gladia-key': self.api_key}
         started = _post_json(self.base_url.rstrip('/') + '/pre-recorded', {
             'audio': 'data:audio/wav;base64,' + base64.b64encode(audio).decode('ascii'),
             'language_config': {'languages': [self.language], 'code_switching': False}}, headers)
-        poll_url = str(started.get('result_url') or '')
+        # Документация Gladia: POST возвращает id и status=queued, готовый результат — по
+        # /pre-recorded/{id}. Поле result_url оставляем запасным: если вендор его пришлёт, он главнее.
+        job_id = str(started.get('id') or '')
+        poll_url = str(started.get('result_url') or (self.base_url.rstrip('/') + '/pre-recorded/' + job_id
+                                                    if job_id else ''))
         if not poll_url:
-            raise RuntimeError('Gladia не выдала адрес результата: ' + str(started)[:120])
+            raise CloudError(0, 'Gladia не выдала номер задачи распознавания')
         deadline = time.monotonic() + self.poll_limit_s
         while time.monotonic() < deadline:
             job = _get_json(poll_url, headers)

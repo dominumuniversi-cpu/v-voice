@@ -93,6 +93,7 @@ BUILTIN_CONNECTIONS: tuple[dict[str, Any], ...] = (
              '127.0.0.1 — это сам контейнер.'},
     # --- распознавание речи ------------------------------------------------------------------
     {'id': 'whisper-local', 'kind': 'asr', 'protocol': 'whisper', 'title': 'Своё распознавание (Whisper)',
+     'base_url': 'http://voice-asr:8090', 'model': 'small',
      'cost': 'бесплатно, работает на нашем железе',
      'note': 'Открытая модель на процессоре рядом с сервером: ни ключа, ни оплаты за минуты. '
              'Качество ниже, чем у GigaAM-v3 (ему нужна видеокарта, которой у нас нет).'},
@@ -205,6 +206,30 @@ class ConnectionList:
                     return c
         return None
 
+    def snapshot(self) -> dict[str, Any]:
+        """Всё состояние связок для записи на диск. Ключи здесь есть — наружу этот снимок не отдаётся."""
+        with self._lock:
+            return {'items': [{'id': c.id, 'kind': c.kind, 'protocol': c.protocol, 'title': c.title,
+                               'base_url': c.base_url, 'model': c.model, 'key': c.key,
+                               'preset': c.preset, 'note': c.note, 'cost': c.cost, 'added': c.added}
+                              for c in self.items],
+                    'active': dict(self.active)}
+
+    def restore(self, items: list[dict[str, Any]], active: dict[str, str]) -> None:
+        """Возвращает связки с диска при старте. Мусор пропускаем: файл мог править человек."""
+        with self._lock:
+            for raw in items:
+                try:
+                    conn = Connection(**{name: raw[name] for name in
+                                         ('id', 'kind', 'protocol', 'title', 'base_url', 'model', 'key',
+                                          'preset', 'note', 'cost', 'added') if name in raw})
+                except (TypeError, ValueError):
+                    continue
+                self.items.append(conn)
+            for kind, conn_id in active.items():
+                if any(c.id == conn_id and c.kind == kind for c in self.items):
+                    self.active[kind] = conn_id
+
     def view(self) -> dict[str, Any]:
         """Всё, что нужно экрану: список, активные и что из этого работает без ключа."""
         with self._lock:
@@ -270,9 +295,9 @@ class ConnectionList:
         key = str(raw.get('key') or '').strip()
         note = str(preset.get('note') or 'добавлено вами')
         cost = str(raw.get('cost') or preset.get('cost') or 'условия у провайдера').strip()
-        # Свой шлюз и Ollama живут адресом, всё остальное без ключа молчит.
-        needs_key = protocol not in ('whisper', 'ollama', 'openai')
-        if needs_key and not key and not (protocol == 'openai' and base_url):
+        # Без ключа работает только своя модель на нашем сервере. Свой сервер (Ollama) живёт адресом,
+        # шлюз OpenAI-совместимый — ключом: без него он ответит отказом, и «работает» было бы ложью.
+        if protocol != 'whisper' and not key and not (protocol == 'ollama' and base_url):
             return 400, {'error': 'nothing_set',
                          'message': 'Вставьте ключ провайдера' + (' или укажите адрес' if protocol == 'ollama' else '')
                                     + ': без него связка не заработает, а в списке будет обещать работу.'}
@@ -296,7 +321,7 @@ class ConnectionList:
                              'message': 'Связка с таким именем уже есть. Выберите другое имя.'}
             # Готовность считаем по СВОИМ значениям человека, а не по модели из каталога:
             # модель из каталога стоит у всех, а без ключа провайдер не ответит.
-            # Заглушка и своё распознавание работают без ключа, свой сервер — по адресу.
+            # Своё распознавание работает без ключа, свой сервер — по адресу.
             ready = bool(key) or protocol == 'whisper' or (protocol == 'ollama' and bool(base_url))
             if ready and not self.active.get(kind):
                 self.active[kind] = conn_id
@@ -304,8 +329,9 @@ class ConnectionList:
                               model=model, key=key, preset=str(raw.get('preset') or '').strip().lower(),
                               note=note, cost=cost, added=time.time())
             self.items.append(conn)
-            # Первая связка вида сразу становится рабочей: иначе человек добавил и «ничего не произошло».
-            if not self.active.get(kind):
+            # Первая ГОТОВАЯ связка вида сразу становится рабочей: иначе человек добавил и «ничего не
+            # произошло». Неготовая ждёт ключа, а не изображает работу.
+            if ready and not self.active.get(kind):
                 self.active[kind] = conn_id
             return 201, {'connection': conn.public(), 'active': dict(self.active),
                          'message': 'Связка «' + title + '» добавлена.'}

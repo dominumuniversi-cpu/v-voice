@@ -103,9 +103,27 @@ def members_only_flag(participants: list[dict]) -> tuple[set[str], bool]:
     return foreign, bool(foreign)
 
 
+def _question_text(value) -> str:
+    """Вопрос из ответа модели. Модель шлёт и строку, и объект {text}: str(dict) дал бы
+    "{'text': ...}" прямо на экране — так и случилось на живой записи."""
+    if isinstance(value, dict):
+        return str(value.get("text") or value.get("question") or value.get("title") or "")
+    return str(value or "")
+
+
 def _lead_colon(value) -> str:
     """Убирает ведущее двоеточие: «: текст» — остаток от пустого автора, а не начало фразы."""
     return re.sub(r"^\s*:\s*", "", str(value or "")).strip()
+
+
+def _clean_item(item: dict) -> dict:
+    """Пункт разбора без ведущего двоеточия: и заголовок, и цитата."""
+    clean = dict(item)
+    clean["title"] = _lead_colon(clean.get("title"))
+    evidence = clean.get("evidence")
+    if isinstance(evidence, dict):
+        clean["evidence"] = dict(evidence, quote=_lead_colon(evidence.get("quote")))
+    return clean
 
 
 def make_digest(
@@ -116,6 +134,12 @@ def make_digest(
     members_only: bool = False,
 ) -> dict:
     """Один проход: промпт -> ответ модели -> фильтр цитат. Возвращает безопасный разбор."""
+    # Пустую расшифровку модели не отдаём: она честно «разбирает» служебные строки промпта,
+    # и человек получает выжимку из инструкции («Разбери разговор и верни JSON») вместо отказа.
+    if not str(transcript.text or "").strip():
+        return {"topic": "", "summary": [], "items": [], "decisions": [], "open_questions": [],
+                "truncated": False, "summary_missing": True, "empty_transcript": True,
+                "rejected": [], "participants": []}
     raw = call_llm(SYSTEM_PROMPT, build_prompt(transcript, previous_summary=previous_summary))
     foreign, seen_foreign = members_only_flag(raw.get("participants") or [])
     # Действует только когда человек включил режим «только участники»: иначе чужой голос —
@@ -144,10 +168,13 @@ def make_digest(
         # Тот, кто строит интеграцию, должен уметь отличить «нечего сказать» от «не справилась».
         "summary_missing": not (raw.get("summary") or []),
         "participants": raw.get("participants") or [],
-        "open_questions": [_lead_colon(s) for s in _drop_foreign_only([str(s) for s in (raw.get("open_questions") or [])], _utterance_pairs(transcript), active_foreign) if _lead_colon(s)],
+        "open_questions": [_lead_colon(s) for s in _drop_foreign_only(
+        [_question_text(q) for q in (raw.get("open_questions") or []) if _question_text(q)],
+        _utterance_pairs(transcript), active_foreign) if _lead_colon(s)],
         # Решения читает приложение, а не только экспорт: без фильтра чужая реплика становилась
         # «тем, о чём договорились».
         "decisions": [_lead_colon(s) for s in _drop_foreign_only([str(s) for s in (raw.get("decisions") or [])], _utterance_pairs(transcript), active_foreign) if _lead_colon(s)],
-        "items": checked["items"],
+        # Пункты тоже чистятся: «: я отправлю смету» во главе задачи читается как сбой модели.
+        "items": [_clean_item(it) for it in checked["items"]],
         "rejected": checked["rejected"],
     }

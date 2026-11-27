@@ -184,6 +184,14 @@ def _with_cost(body: Any, price_per_hour: float, budget: float = 0.0) -> Any:
     return body
 
 
+def _save_connections(connections: Any, connections_file: Any) -> None:
+    """Записывает список связок на диск после правки. Нет файла — молча живём в памяти."""
+    if connections_file is None or connections is None:
+        return
+    snapshot = connections.snapshot()
+    connections_file.save(snapshot['items'], snapshot['active'])
+
+
 def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            store: "AudioStore | None" = None,
            digests: "DigestStore | None" = None,
@@ -199,6 +207,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            device_tokens: Any = None,
            settings: Any = None,
            connections: Any = None,
+           settings_file: Any = None,
+           connections_file: Any = None,
            asr_env: str = '',
            llm_env: str = '') -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
@@ -310,6 +320,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             if not isinstance(payload, dict):
                 return _bad_request("Нужен объект: kind, protocol, title, base_url, model, key")
         code, body = connections.add(payload)
+        if code == 201:
+            _save_connections(connections, connections_file)
         return Response(code, body)
 
     if template == "/api/v1/connections/{conn_id}":
@@ -317,6 +329,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             return Response(503, {"error": "connections_unavailable"})
         if method.upper() == "DELETE":
             code, body = connections.remove(param)
+            if code == 200:
+                _save_connections(connections, connections_file)
             return Response(code, body)
         payload = {}
         if raw_body.strip():
@@ -329,6 +343,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             None if "model" not in payload else str(payload.get("model") or ""),
             None if "base_url" not in payload else str(payload.get("base_url") or ""),
             None if "title" not in payload else str(payload.get("title") or ""))
+        if code == 200:
+            _save_connections(connections, connections_file)
         return Response(code, body)
 
     if template == "/api/v1/connections/{conn_id}/activate":
@@ -344,6 +360,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         if kind not in ("llm", "asr"):
             return _bad_request("Укажите kind: llm (разбор) или asr (распознавание).")
         code, body = connections.activate(kind, param)
+        if code == 200:
+            _save_connections(connections, connections_file)
         return Response(code, body)
 
     if path == "/api/v1/settings":
@@ -363,6 +381,10 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         code, body = settings.update(payload)
         if code != 200:
             body["message"] = str(body.get("message", ""))
+        elif settings_file is not None:
+            # Сохраняем СРАЗУ: ключ, введённый в настройках, принадлежит приложению, и первый же
+            # перезапуск контейнера не должен его стереть. На диск уходит, наружу — нет.
+            settings_file.save(settings.snapshot())
         return Response(code, body)
 
     payload: dict[str, Any] = {}

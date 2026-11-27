@@ -43,6 +43,17 @@ def explain_digest_failure(exc: BaseException) -> dict[str, str]:
     # str() у сетевых ошибок бывает пустым, а причина — в типовом имени класса (ConnectionError).
     raw = scrub(str(exc) or type(exc).__name__)
     low = (raw + " " + type(exc).__name__).lower()
+    # Отказ облака приходит с кодом: по коду слова точнее, чем по тексту («облако отказало (401)»).
+    code = int(getattr(exc, "code", 0) or 0)
+    if code in (401, 403):
+        return {"message": "Сервис отклонил ключ. Запись сохранена; проверьте ключ на экране настроек.",
+                "kind": "provider", "detail": raw[:300]}
+    if code == 429:
+        return {"message": "У сервиса кончился лимит или он просит подождать. Запись сохранена, разбор можно повторить позже.",
+                "kind": "network", "detail": raw[:300]}
+    if code >= 500 or (code == 0 and "облако" in raw):
+        return {"message": "Сервис распознавания не ответил. Проверьте интернет; запись сохранена, разбор можно повторить.",
+                "kind": "network", "detail": raw[:300]}
     if any(w in low for w in ("timeout", "timed out", "connection", "connect", "closed", "dns",
                               "unreachable", "network", "ssl", "reset")):
         kind = "network"
@@ -66,6 +77,7 @@ def explain_digest_failure(exc: BaseException) -> dict[str, str]:
     # Техническое описание тоже отдаём, но уже вычищенное: оно помогает в задаче-баге.
     # Полная трасса — только в журнал сервера: по одной строке «нет атрибута» виновника не найти,
     # и такой сбой уходил в задачу без ответа, где именно он случился.
-    if kind == "internal":
+    # Трассу печатаем только для СВОИХ сбоев: отказ вендора — это не наш баг, и журнал от него пухнет.
+    if kind == "internal" and not hasattr(exc, "code"):
         traceback.print_exception(type(exc), exc, exc.__traceback__)
     return {"message": message, "kind": kind, "detail": raw[:300]}

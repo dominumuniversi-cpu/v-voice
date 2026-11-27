@@ -51,15 +51,27 @@ LLM_PRESETS: tuple[Preset, ...] = (
            '', '', 'бесплатно', 'Показывает весь путь, но текст выдуман. Для проверки экранов.'),
 )
 
-# Пресеты ASR. Пока в коде есть только Speechmatics и заглушка — и это записано честно.
+# Пресеты ASR: ровно то, что умеет код. Заглушки здесь нет — её нельзя предлагать вместо сервиса.
+# Облачные распознаватели живут и в каталоге связок (connections.BUILTIN_CONNECTIONS), здесь — короткий
+# перечень для /api/v1/presets; держать их в согласии обязательно.
 ASR_PRESETS: tuple[Preset, ...] = (
     Preset('speechmatics', 'asr', 'speechmatics', 'Speechmatics (русский, по ключу)',
            '', '', 'платно, есть пробный период',
            'Ключ — в личном кабинете portal.speechmatics.com. Понимает русский потоково. '
            'Бесплатного режима у сервиса нет: после пробного периода расшифровка только по оплате. '
            'Полностью бесплатное распознавание требует своего движка на нашем сервере — этого здесь пока нет.'),
-    Preset('fake-demo', 'asr', 'fake', 'Демо-заглушка (без сети)',
-           '', '', 'бесплатно', 'Расшифровка выдумана, но весь путь проходит целиком.'),
+    Preset('deepgram', 'asr', 'deepgram', 'Deepgram (русский, по ключу)',
+           'https://api.deepgram.com/v1', 'nova-3', '200 $ на пробу, дальше по минутам',
+           'Ключ — в консоли Deepgram. Хорошо держит русскую речь, отвечает за секунды.'),
+    Preset('assemblyai', 'asr', 'assemblyai', 'AssemblyAI (по ключу)',
+           'https://api.assemblyai.com/v2', 'universal', 'бесплатные часы на пробу',
+           'Ключ — в личном кабинете AssemblyAI. Задача ставится в очередь, готовый текст приходит опросом.'),
+    Preset('openai-asr', 'asr', 'openai_asr', 'OpenAI Whisper API (по ключу)',
+           'https://api.openai.com/v1', 'whisper-1', 'платно по минутам',
+           'Тот же Whisper, но платный и только файлом: живой текст во время записи не даёт.'),
+    Preset('gladia', 'asr', 'gladia', 'Gladia (много языков, по ключу)',
+           'https://api.gladia.io/v2', '', 'бесплатные часы на пробу',
+           'Ключ — в консоли Gladia. Запись загружается, готовый текст забирается по номеру задачи.'),
     Preset('whisper-local', 'asr', 'whisper', 'Своё распознавание (бесплатно, на нашем сервере)',
            '', '', 'бесплатно, работает на нашем железе',
            'Открытая модель Whisper на процессоре рядом с сервером: ни ключа, ни оплаты за минуты. '
@@ -96,6 +108,14 @@ class RuntimeSettings:
     llm_model: str = ''
     llm_base_url: str = ''
     _lock: Any = field(default_factory=threading.Lock, repr=False)
+
+    def snapshot(self) -> dict[str, str]:
+        """Всё выбранное человеком — для записи в файл настроек. Ключи здесь есть; наружу снимок не идёт."""
+        with self._lock:
+            return {'asr_provider': self.asr_provider, 'asr_key': self.asr_key,
+                    'asr_model': self.asr_model, 'llm_provider': self.llm_provider,
+                    'llm_key': self.llm_key, 'llm_model': self.llm_model,
+                    'llm_base_url': self.llm_base_url}
 
     def asr(self) -> dict[str, str]:
         with self._lock:

@@ -74,6 +74,9 @@ def list_conversations(audio: AudioStore | None, digests: DigestStore | None) ->
         entry = by_id.setdefault(session_id, {"session_id": session_id, "started": when, "size": 0,
                                               "duration_s": 0, "has_audio": False, "ready": False})
         entry["ready"] = digest is not None
+        # Есть ли что показать текстом. Разбор без реплик — это «разбор готов», но исходного
+        # текста нет, и кнопки скачивания вели в 409: экран должен знать разницу заранее.
+        entry["has_transcript"] = bool(digest) and bool(str(digest.get("transcript") or "").strip())
         entry["title"] = _title(digest, session_id)
         if digest:
             entry["items"] = len(digest.get("items") or [])
