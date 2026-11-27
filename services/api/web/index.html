@@ -65,7 +65,7 @@ ul.sum li{margin-bottom:8px}
   .conn .tools{flex-basis:100%}
   .conn .tools button{flex:0 1 auto;padding:8px 12px;min-height:32px}
 }
-#digestTools{gap:8px;flex-wrap:wrap}#digestTools>*{flex:0 1 auto;white-space:nowrap;min-height:32px;height:32px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;font-weight:400;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:none;color:var(--ink);font-size:12px}
+#digestTools{gap:8px;flex-wrap:wrap}#digestTools>button.danger{color:#b3261e;border-color:#e6b8b4}#digestTools>*{flex:0 1 auto;white-space:nowrap;min-height:32px;height:32px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;font-weight:400;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:none;color:var(--ink);font-size:12px}
 button.small{padding:6px 10px;font-size:12px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center}
 button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 .connform{display:grid;gap:8px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
@@ -718,7 +718,8 @@ function expandServer(){
   ['server','serverField','token','tokenField','tokenForm'].forEach(id=>{const n=document.getElementById(id);if(n)n.hidden=false});
   // Строку-подпись оставляем: кнопка «Сменить» живёт внутри неё, и без строки свернуть форму нечем.
   const change=document.getElementById('serverChange');if(change)change.textContent='Свернуть';
-  serverMsg('',false);
+  // Подсказку не стираем: пустая строка каждый раз укорачивала карточку на её высоту, и
+  // содержимое под кнопкой дёргалось. Текст тот же, что был до раскрытия.
 }
 // Стартовая подсказка в блоке «Сервер»: молчащее поле токена человек читает как «оно обязательное».
 serverMsg(localStorage.getItem('vv_token')?'Токен сохранён в этом браузере.':'Токен не задан: если сервер открыт, нажимать «Перейти» не нужно.',false);
