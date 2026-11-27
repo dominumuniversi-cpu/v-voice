@@ -75,6 +75,20 @@ def _make_understanding(settings: Any) -> Any:
     return None
 
 
+def _strip_prefix(path: str) -> str:
+    """Снимает префикс стенда /voice, чтобы маршруты не зависели от того, где живёт сервис.
+
+    Локально сервер отвечает на /api/v1/health, за nginx — на /voice/api/v1/health.
+    Один и тот же код не должен знать, куда его поставили.
+    """
+    for prefix in ('/voice',):
+        if path == prefix:
+            return '/'
+        if path.startswith(prefix + '/'):
+            return path[len(prefix):]
+    return path
+
+
 def _safe_path(path: str) -> str:
     """Путь для лога без query-строки.
 
@@ -118,7 +132,35 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError('too_large')
         return self.rfile.read(length).decode('utf-8', errors='replace')
 
+    def _serve_page(self) -> bool:
+        """Отдаёт веб-экран стенда на /voice/ и /voice.
+
+        Токен здесь не проверяется намеренно: страница — это поле ввода, без неё человек
+        не сможет ввести токен вовсе. Защищены только данные, то есть /api/v1/*.
+        """
+        path = _safe_path(self.path)
+        if path not in ('/voice', '/voice/', '/voice/index.html'):
+            return False
+        page = Path(__file__).resolve().parent / 'web' / 'index.html'
+        if not page.exists():
+            self._respond(404, {'error': 'no_page', 'message': 'Веб-экран не найден в образе.'})
+            return True
+        body = page.read_bytes()
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        # Страницу не кэшируем: стенд обновляется, и старый экран путает больше, чем экономит.
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(body)
+        return True
+
     def _dispatch(self, method: str) -> None:
+        if method == 'GET' and self._serve_page():
+            return
+        # Стенд живёт под /voice/ за nginx, и префикс приходит внутри пути. Без снятия
+        # /voice/api/v1/health превратится в 404, хотя сервер здоров.
+        self.path = _strip_prefix(self.path)
         try:
             raw = self._read_body()
         except ValueError:

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Умный диктофон</title>
+<style>
+:root{--ink:#12161a;--muted:#6b7681;--bg:#f4f1ea;--surface:#fff;--accent:#2f6f5e;--warn:#b4553a;--line:#e3ded3}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:20px 16px 8px}
+h1{font-size:20px;margin:0 0 4px}
+.lead{color:var(--muted);font-size:14px;margin:0}
+main{max-width:720px;margin:0 auto;padding:16px}
+.card{background:var(--surface);border-radius:18px;padding:18px;margin-bottom:16px;box-shadow:0 4px 18px rgba(18,22,26,.06)}
+.rec{display:flex;align-items:center;gap:14px}
+.dot{width:14px;height:14px;border-radius:50%;background:#c9c2b4;flex:0 0 auto}
+.dot.live{background:var(--accent);animation:pulse 1.4s infinite}
+.dot.paused{background:var(--muted)}
+.dot.lost{background:var(--warn)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.timer{font-variant-numeric:tabular-nums;font-size:26px;font-weight:600}
+button{border:0;border-radius:999px;padding:13px 22px;font-size:15px;cursor:pointer;background:var(--ink);color:#fff}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px}
+.text{color:var(--muted);font-size:14px;min-height:48px;margin-top:10px;white-space:pre-wrap}
+.warn{color:var(--warn)}
+h2{font-size:17px;margin:0 0 12px}
+ul.sum{padding-left:20px;margin:0}
+ul.sum li{margin-bottom:8px}
+.item{border-top:1px solid var(--line);padding:12px 0}
+.item:first-of-type{border-top:0}
+.kind{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--accent)}
+.quote{border-left:3px solid var(--line);padding-left:10px;color:var(--muted);font-size:14px;margin-top:6px}
+.muted{color:var(--muted);font-size:14px}
+</style></head><body>
+<header><h1>Умный диктофон</h1>
+<p class="lead">Запись, расшифровка и разбор разговора. Отвечать голосом не будет — только слушает и понимает.</p></header>
+<main>
+<div class="card"><div class="rec"><div class="dot" id="dot"></div><div class="timer" id="timer">00:00</div></div>
+<div class="text" id="live">Микрофон выключен. Нажмите «Слушаю».</div>
+<div class="row"><button id="start">Слушаю</button><button id="pause" class="ghost" disabled>Пауза</button><button id="stop" class="ghost" disabled>Стоп</button><button id="analyze" class="ghost" disabled>Разобрать</button></div></div>
+<div class="card"><h2>Сервер</h2>
+<label for="server">Адрес</label><input id="server" placeholder="https://192.168.8.49/voice">
+<label for="token" style="margin-top:10px">Токен устройства</label><input id="token" placeholder="из настроек сервера"></div>
+<div class="card" id="digest" style="display:none"><h2>Выжимка</h2><ul class="sum" id="summary"></ul>
+<h2 style="margin-top:16px">Задачи и встречи</h2><div id="items"></div>
+<h2 style="margin-top:16px">Открытые вопросы</h2><ul class="sum" id="questions"></ul></div>
+</main>
+<script>
+const $=(s)=>document.querySelector(s);
+let media=null,rec=null,chunks=[],t0=0,tick=null,paused=false,sessionId=null;
+const server=()=>$('#server').value.replace(/\/+$/,'');
+const token=()=>$('#token').value.trim();
+function headers(){const h={'Content-Type':'application/json'};const t=token();if(t)h['Authorization']='Bearer '+t;return h}
+function setDot(cls){$('#dot').className='dot '+(cls||'')}
+function fmt(ms){const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function say(t,warn){const el=$('#live');el.textContent=t;el.className='text'+(warn?' warn':'')}
+async function start(){
+  try{media=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}})}
+  catch(e){say('Микрофон недоступен: '+e.message+'. На телефоне нужен https или localhost.',true);return}
+  // WAV собираем сами: браузеры дают webm/ogg, а сервер ждёт 16 кГц моно PCM.
+  chunks=[];paused=false;t0=Date.now();
+  const ctx=new AudioContext({sampleRate:16000});
+  const src=ctx.createMediaStreamSource(media);
+  const node=ctx.createScriptProcessor(4096,1,1);
+  node.onaudioprocess=(e)=>{if(paused)return;chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)))};
+  src.connect(node);node.connect(ctx.destination);
+  rec={ctx,node,src};
+  setDot('live');$('#start').disabled=true;$('#pause').disabled=false;$('#stop').disabled=false;
+  say('Слушаю. Говорите — текст появится после «Стоп».');
+  tick=setInterval(()=>{$('#timer').textContent=fmt(Date.now()-t0)},250);
+}
+function togglePause(){
+  paused=!paused;setDot(paused?'paused':'live');$('#pause').textContent=paused?'Продолжить':'Пауза';
+  say(paused?'Пауза: сейчас ничего не записывается.':'Слушаю.');
+}
+function stop(){
+  clearInterval(tick);if(rec){rec.node.disconnect();rec.src.disconnect();rec.ctx.close()}
+  if(media)media.getTracks().forEach(t=>t.stop());
+  setDot('');$('#start').disabled=false;$('#pause').disabled=true;$('#stop').disabled=true;$('#pause').textContent='Пауза';
+  const rate=16000;let len=0;chunks.forEach(c=>len+=c.length);
+  const buf=new ArrayBuffer(44+len*2);const v=new DataView(buf);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  ws(0,'RIFF');v.setUint32(4,36+len*2,true);ws(8,'WAVE');ws(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);
+  v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,'data');
+  v.setUint32(40,len*2,true);
+  let off=44;chunks.forEach(c=>{for(let i=0;i<c.length;i++){const s=Math.max(-1,Math.min(1,c[i]));v.setInt16(off,s<0?s*0x8000:s*0x7fff,true);off+=2}});
+  const bytes=new Uint8Array(buf);let bin='';for(let i=0;i<bytes.length;i+=8192)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+8192));
+  upload(btoa(bin));
+}
+async function upload(b64){
+  say('Отправляю запись…');$('#analyze').disabled=true;
+  try{
+    const r=await fetch(server()+'/api/v1/sessions',{method:'POST',headers:headers(),body:JSON.stringify({audio_base64:b64,title:'Проверка со стенда'})});
+    const d=await r.json();
+    if(!r.ok){say('Сервер отказал: '+(d.message||d.error||r.status),true);return}
+    sessionId=d.session_id;say('Запись принята. Разбираю…');$('#analyze').disabled=false;
+    analyze();
+  }catch(e){say('Связь с сервером прервалась: '+e.message+'. Запись осталась в браузере.',true)}
+}
+async function analyze(){
+  if(!sessionId)return;
+  $('#analyze').disabled=true;say('Разбираю разговор…');
+  try{
+    const r=await fetch(server()+'/api/v1/sessions/'+sessionId+'/analyze',{method:'POST',headers:headers(),body:'{}'});
+    const d=await r.json();
+    if(!r.ok){say('Разбор не удался: '+(d.message||d.error||r.status),true);$('#analyze').disabled=false;return}
+    render(d);say('Готово.');
+  }catch(e){say('Связь с сервером прервалась при разборе: '+e.message,true);$('#analyze').disabled=false}
+}
+function render(d){
+  const box=$('#digest');box.style.display='block';
+  const sum=$('#summary');sum.innerHTML='';
+  (d.summary||[]).forEach(s=>{const li=document.createElement('li');li.textContent=s;sum.appendChild(li)});
+  if(!(d.summary||[]).length){sum.innerHTML='<li class="muted">'+(d.summary_missing?'Модель не выделила выжимку.':'Выжимки нет.')+'</li>'}
+  const items=$('#items');items.innerHTML='';
+  (d.items||[]).forEach(it=>{
+    const div=document.createElement('div');div.className='item';
+    const k=document.createElement('div');k.className='kind';k.textContent=(it.kind||'задача')+(it.due?' · '+it.due:'');
+    const t=document.createElement('div');t.textContent=it.title||'';
+    div.appendChild(k);div.appendChild(t);
+    if(it.evidence&&it.evidence.quote){const q=document.createElement('div');q.className='quote';q.textContent='«'+it.evidence.quote+'»';div.appendChild(q)}
+    items.appendChild(div);
+  });
+  if(!(d.items||[]).length){items.innerHTML='<p class="muted">'+(d.rejected&&d.rejected.length?'Найдено '+d.rejected.length+', но ни один пункт не подтвердился цитатой.':'Разбор не нашёл задач с цитатой.')+'</p>'}
+  const q=$('#questions');q.innerHTML='';(d.open_questions||[]).forEach(x=>{const li=document.createElement('li');li.textContent=x;q.appendChild(li)});
+}
+$('#start').onclick=start;$('#pause').onclick=togglePause;$('#stop').onclick=stop;$('#analyze').onclick=analyze;
+$('#server').value=location.origin.replace(/\/voice\/?$/,'');
+</script>
+</body></html>

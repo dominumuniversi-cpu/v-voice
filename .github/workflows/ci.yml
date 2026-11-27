@@ -131,5 +131,12 @@ jobs:
             sleep 30
           done
           exit 1
+      # APK выгружается артефактом: человеку нужна ссылка на скачивание, а не инструкция по сборке.
+      - name: upload apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: v-voice-debug-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
       # iOS собирается только на macOS: на Linux нет toolchain Apple. Отдельная задача в бэклоге (#35).
 

@@ -31,6 +31,7 @@
 | `docs/ARCHITECTURE/EXPORT-CONTRACT.md` | контракт `vvoice.item.v1` для внешних продуктов (задачник, CRM) |
 | `docs/ARCHITECTURE/AI-PROVIDERS.md` | какие модели/провайдеры подключать и как |
 | `docs/RESEARCH/RESEARCH-2026-11.md` | обзор решений, сравнение сервисов и библиотек |
+| `docs/ARCHITECTURE/STAND.md` | стенд /voice/ на DIMAS: адрес, токен, пересборка, ловушки nginx |
 | `docs/ARCHITECTURE/LIVE-RUN.md` | живой прогон без ключей (демо-режим), порт, токен, маршрут, ожидаемое |
 | `docs/ROADMAP/ROADMAP.md` | дорожная карта и связь с issues/milestones |
 | `docs/UI/DESIGN.md` | UI-канон, дизайн-концепции, шаблоны |
