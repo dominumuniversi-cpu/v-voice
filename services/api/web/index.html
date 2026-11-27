@@ -311,7 +311,7 @@ function drawConvs(d){
 }
 // Открытие разговора: карточка стоит сразу под записью, поэтому запись слышна сразу, а текст и
 // разбор подгружаются в неё же. Страница никуда не прыгает: человек остаётся там, где нажал.
-function hasText(id){const c=CONVS.find(x=>x.session_id===id);return !!(c&&c.has_transcript)}
+
 // Открытие не двигает страницу: карточка стоит выше строки, и раскрытие само тянет прокрутку к
 // кнопке. Человек остаётся там, где нажал — это правило «действие не перебрасывает».
 async function openConv(id){
@@ -333,8 +333,7 @@ async function openConv(id){
     el('audioName').textContent='Файл записи: '+id+'.wav — его же скачивание в плеере сохранит под этим именем.';
   }else{audio.pause();audio.removeAttribute('src');hide(box)}
   // Только про расшифровку: если сервер её не прислал, спрашиваем сам разбор, а не прячем кнопки.
-  // Имя переменной не должно повторять имя функции: объявление внутри функции перекрывало её
-  // до самого конца, и вызов hasText(id) падал с «hasText is not a function» — рамка текста не раскрывалась.
+  // Имя переменной не повторяет имя функции: когда-то оно его перекрывало, и вызов падал.
   const withText=c.has_transcript===undefined?!!(c.digest&&c.digest.transcript):c.has_transcript===true;
   // Скачивать нечего, а посмотреть — можно: у записи без реплик остаётся кнопка с честной подсказкой.
   ['trSrt','trJson','digestDownload'].forEach(k=>{withText?show(el(k)):hide(el(k))});
@@ -363,9 +362,9 @@ async function openConv(id){
     }
     render(d);
     el('digestTitle').textContent=clean(d.topic)||clean(d.title)||c.title||'Разбор разговора';
-  }catch(e){note('Связь прервалась при чтении разбора: '+e.message)}
+  }catch(e){hide(el('transcriptBox'));note('Разбор не собрался: '+e.message+'. Запись цела — можно посмотреть текст и послушать звук.')}
 }
-function note(text){const n=el('digestNote');if(!text){hide(n);n.textContent='';return}n.textContent=text;show(n)}
+
 function markRow(id){
   document.querySelectorAll('#convs .conn').forEach(r=>r.classList.toggle('on',r.dataset.sid===id));
 }
@@ -472,6 +471,11 @@ async function loadSettings(){
 document.getElementById('recheck').onclick=loadSettings;
 let CONNS={llm:[],asr:[]},INWORK={llm:'',asr:''},PROTOCOLS={};
 const el=id=>document.getElementById(id);
+// Эти три — на уровне скрипта, а не внутри функции: их зовут и карточка разговора, и обработчики
+// ниже. Локальные копии перекрывались и падали («hasText is not a function»), причём молча —
+// секции разбора просто оставались пустыми.
+function hasText(id){const c=CONVS.find(x=>x.session_id===id);return !!(c&&c.has_transcript)}
+function note(text){const n=el('digestNote');if(!text){hide(n);n.textContent='';return}n.textContent=text;show(n)}
 const KINDNAME={llm:'понимание',asr:'речь'};
 // Список подключений: одна строка на то, что человек настроил. Пометка «работает» — по серверу,
 // а не по догадке экрана: в работу идёт связка из раздела in_work.
