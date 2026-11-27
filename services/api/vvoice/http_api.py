@@ -53,6 +53,10 @@ ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/settings": ("GET", "POST"),
     # Настройка моделей из браузера. Отдельная ручка, потому что меняет работающий сервер.
 
+    # Список подключений: добавить провайдера, выбрать активного, удалить.
+    "/api/v1/connections": ("GET", "POST"),
+    "/api/v1/connections/{conn_id}": ("PATCH", "DELETE"),
+    "/api/v1/connections/{conn_id}/activate": ("POST",),
     "/api/v1/probe": ("POST",),
     "/api/v1/items/validate": ("POST",),
     # Приём записи с телефона. Ответ содержит идентификатор сессии для разбора.
@@ -79,6 +83,9 @@ _TEMPLATED: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/export$"), "/api/v1/sessions/{session_id}/export"),
     # Без этой строки скачивание расшифровки (TXT/SRT/JSON) отвечало 404 на любой запрос.
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/transcript$"), "/api/v1/sessions/{session_id}/transcript"),
+    # Подключения: одна запись по имени. Без этих строк «Удалить» и «Включить» отвечали бы 404.
+    (re.compile(r"^/api/v1/connections/([A-Za-z0-9_-]{1,32})$"), "/api/v1/connections/{conn_id}"),
+    (re.compile(r"^/api/v1/connections/([A-Za-z0-9_-]{1,32})/activate$"), "/api/v1/connections/{conn_id}/activate"),
 ]
 
 
@@ -138,6 +145,7 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            budget_per_meeting: float = 0.0,
            device_tokens: Any = None,
            settings: Any = None,
+           connections: Any = None,
            asr_env: str = '',
            llm_env: str = '') -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
@@ -210,6 +218,56 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             return Response(503, {"error": "settings_unavailable", "message": "Нечего проверять."})
         return Response(200, check_models(settings))
 
+
+    if path == "/api/v1/connections":
+        if connections is None:
+            return Response(503, {"error": "connections_unavailable",
+                                  "message": "Сервер не хранит список подключений."})
+        if method.upper() == "GET":
+            return Response(200, connections.view())
+        payload: dict[str, Any] = {}
+        if raw_body.strip():
+            try:
+                payload = json.loads(raw_body)
+            except json.JSONDecodeError as exc:
+                return _bad_request("Тело запроса не JSON: " + exc.msg)
+            if not isinstance(payload, dict):
+                return _bad_request("Нужен объект: kind, protocol, title, base_url, model, key")
+        code, body = connections.add(payload)
+        return Response(code, body)
+
+    if template == "/api/v1/connections/{conn_id}":
+        if connections is None:
+            return Response(503, {"error": "connections_unavailable"})
+        if method.upper() == "DELETE":
+            code, body = connections.remove(param)
+            return Response(code, body)
+        payload = {}
+        if raw_body.strip():
+            try:
+                payload = json.loads(raw_body)
+            except json.JSONDecodeError as exc:
+                return _bad_request("Тело запроса не JSON: " + exc.msg)
+        code, body = connections.update_key(
+            param, str(payload.get("key") or ""),
+            None if "model" not in payload else str(payload.get("model") or ""),
+            None if "base_url" not in payload else str(payload.get("base_url") or ""))
+        return Response(code, body)
+
+    if template == "/api/v1/connections/{conn_id}/activate":
+        if connections is None:
+            return Response(503, {"error": "connections_unavailable"})
+        payload = {}
+        if raw_body.strip():
+            try:
+                payload = json.loads(raw_body)
+            except json.JSONDecodeError as exc:
+                return _bad_request("Тело запроса не JSON: " + exc.msg)
+        kind = str((payload or {}).get("kind") or "").strip().lower()
+        if kind not in ("llm", "asr"):
+            return _bad_request("Укажите kind: llm (разбор) или asr (распознавание).")
+        code, body = connections.activate(kind, param)
+        return Response(code, body)
 
     if path == "/api/v1/settings":
         if settings is None:

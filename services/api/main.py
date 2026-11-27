@@ -18,12 +18,14 @@ from pathlib import Path
 from typing import Any
 
 from vvoice.config import Settings, load as load_settings, load_env_file
+from vvoice.connections import BUILTIN_CONNECTIONS, Connection, ConnectionList
 from vvoice.runtime_settings import RuntimeSettings
 from vvoice.digest_store import DigestStore
 from vvoice.http_api import handle
 from vvoice.live_sessions import LiveSessions
 from vvoice.export_sender import send_request
-from vvoice.provider_factory import IMPLEMENTED_LLM, describe as describe_providers, make_asr_factory
+from vvoice.provider_factory import (IMPLEMENTED_LLM, PROTOCOL_TO_ASR, PROTOCOL_TO_LLM,
+                                     describe as describe_providers, make_asr_factory)
 from vvoice.providers.llm_send import make_call_llm
 from vvoice.storage import AudioStore
 from vvoice.vad import VadConfig, VadGate
@@ -42,8 +44,20 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
                               llm_key=settings.llm_key, llm_model=settings.llm_model,
                               llm_base_url=settings.llm_base_url)
 
+    # Список подключений: провайдеры, которые человек добавил сам, и выбранный активный.
+    # Встроенные связки засеиваются при старте — экран должен показывать выбор сразу.
+    connections = ConnectionList()
+    for conn in BUILTIN_CONNECTIONS:
+        connections.seed(Connection(**conn))
+
     def asr_factory(path: str) -> Any:
         """Собирает распознавание на момент вызова: ключ мог поменяться только что."""
+        conn = connections.active_for('asr')
+        if conn is not None:
+            provider = PROTOCOL_TO_ASR.get(conn.protocol, conn.protocol)
+            live = _with(settings, asr_provider=provider, asr_key=conn.key or settings.asr_key,
+                         asr_model=conn.model or settings.asr_model)
+            return make_asr_factory(live)(path)
         chosen = runtime.asr()
         provider = chosen['provider']
         live = (settings if not provider else
@@ -63,6 +77,13 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
 
     def llm_factory() -> Any:
         """Понимание собирается в момент разбора: человек мог сменить модель минуту назад."""
+        conn = connections.active_for('llm')
+        if conn is not None:
+            provider = PROTOCOL_TO_LLM.get(conn.protocol, conn.protocol)
+            live = _with(settings, llm_provider=provider, llm_key=conn.key,
+                         llm_model=conn.model or settings.llm_model,
+                         llm_base_url=conn.base_url or settings.llm_base_url)
+            return _make_understanding(live)
         chosen = runtime.llm()
         provider = chosen['provider']
         live = (settings if not provider else
@@ -75,6 +96,7 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         'settings': runtime,
         'asr_env': (settings.asr_provider or '').strip().lower(),
         'llm_env': (settings.llm_provider or '').strip().lower(),
+        'connections': connections,
         'store': AudioStore(data_dir / 'audio'),
         'digests': DigestStore(data_dir / 'digests'),
         'live_sessions': LiveSessions(),
@@ -185,6 +207,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def _read_body(self) -> str:
+        """Тело запроса строкой. Длина берётся из заголовка: потоковое чтение до конца здесь не нужно."""
         length = int(self.headers.get('Content-Length') or 0)
         if length <= 0:
             return ''
@@ -238,6 +261,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         self._dispatch('POST')
+
+    # Список подключений меняется по-настоящему: ключ, адрес и удаление — это PATCH и DELETE.
+    # Без этих двух методов сервер отвечал 501, и кнопки «Сменить ключ» и «Удалить» не работали бы.
+    def do_PATCH(self) -> None:  # noqa: N802
+        self._dispatch('PATCH')
+
+    def do_DELETE(self) -> None:  # noqa: N802
+        self._dispatch('DELETE')
 
     def log_message(self, fmt: str, *args: Any) -> None:
         # Тело запроса в лог не попадает никогда: там аудио и ключи.

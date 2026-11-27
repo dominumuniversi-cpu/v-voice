@@ -19,13 +19,17 @@ from urllib.parse import urlsplit
 from dataclasses import dataclass
 from typing import Any
 
-SUPPORTED = ("deepseek", "anthropic", "gigachat", "ollama")
+SUPPORTED = ("deepseek", "anthropic", "gigachat", "ollama", "openai", "zai", "mistral")
 
 DEFAULT_MODELS = {
     "deepseek": "deepseek-chat",
     "anthropic": "claude-sonnet-4-5",
     "gigachat": "GigaChat-2-Max",
     "ollama": "qwen3:8b",
+    # z.ai и Mistral — обычные OpenAI-совместимые чаты, различаются адресом и именем модели.
+    "openai": "gpt-4o-mini",
+    "zai": "glm-4.6",
+    "mistral": "mistral-small-latest",
 }
 
 ENDPOINTS = {
@@ -33,6 +37,9 @@ ENDPOINTS = {
     "anthropic": "https://api.anthropic.com/v1/messages",
     "gigachat": "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
     "ollama": "http://127.0.0.1:11434/api/chat",
+    "openai": "https://api.openai.com/v1/chat/completions",
+    "zai": "https://api.z.ai/api/paas/v4/chat/completions",
+    "mistral": "https://api.mistral.ai/v1/chat/completions",
 }
 
 
@@ -47,7 +54,12 @@ class LlmRequest:
 
 
 def _endpoint_for(provider: str, base_url: str) -> str:
-    """Адрес запроса: хост из настроек + путь провайдера. Полный URL с путём оставляем как есть."""
+    """Адрес запроса: базовый адрес из настроек + путь ручки провайдера.
+
+    Пустой адрес — у провайдера по умолчанию. Базовый адрес («http://1.2.3.4:11434» или
+    «http://10.0.0.5:8000/v1») дополняем путём ручки. Полный адрес ручки, который уже на неё
+    кончается, оставляем как есть: иначе получалось «/api/chat/api/chat» и «/v1/v1/chat».
+    """
     default = ENDPOINTS[provider]
     if not base_url:
         return default
@@ -55,10 +67,14 @@ def _endpoint_for(provider: str, base_url: str) -> str:
     if '://' not in url:
         url = 'http://' + url
     url = url.rstrip('/')
-    parsed = urlsplit(url)
-    if parsed.path and parsed.path != '/':
-        return url  # человек дал полный адрес ручки — не трогаем
-    return url + urlsplit(default).path
+    base_path = urlsplit(url).path or ''
+    path = urlsplit(default).path
+    # Человек мог дать адрес «.../v1», и полный путь уже содержит «/v1»: тогда лишний не добавляем.
+    if path.startswith(base_path) and base_path:
+        return url + path[len(base_path):]
+    if url.endswith(path):
+        return url
+    return url + path
 
 
 def build_request(provider: str, model: str, system: str, user: str, api_key: str, base_url: str = '') -> LlmRequest:
@@ -72,7 +88,7 @@ def build_request(provider: str, model: str, system: str, user: str, api_key: st
     # Раньше он подставлялся как есть, и Ollama получал POST на корень вместо /api/chat.
     url = _endpoint_for(provider, (base_url or '').strip())
 
-    if provider in ("deepseek", "gigachat"):
+    if provider in ("deepseek", "gigachat", "zai", "mistral"):
         body = {
             "model": model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -80,6 +96,19 @@ def build_request(provider: str, model: str, system: str, user: str, api_key: st
             "response_format": {"type": "json_object"},
         }
         headers = {"Content-Type": "application/json", "Authorization": "Bearer " + api_key}
+        return LlmRequest(url, headers, body)
+
+    if provider == "openai":
+        # Свой шлюз: адрес известен только из настроек, поэтому без него — понятная ошибка,
+        # а не молчаливый запрос на api.openai.com без ключа и без модели.
+        body = {
+            "model": model,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            "temperature": 0.1,
+        }
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = "Bearer " + api_key
         return LlmRequest(url, headers, body)
 
     if provider == "anthropic":

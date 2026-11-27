@@ -44,6 +44,21 @@ ul.sum li{margin-bottom:8px}
 .preset i.paid{color:#8a6d00}
 .field{margin-top:10px;padding:0 4px}
 .field[hidden]{display:none}
+/* Список подключений: строка на провайдера, активная помечена точкой и рамкой. */
+.conns{display:grid;gap:8px}
+.conn{display:flex;align-items:flex-start;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+.conn.on{border-color:#1a7f37;box-shadow:0 0 0 2px rgba(26,127,55,.15)}
+.conn .body{flex:1;min-width:0}
+.conn b{display:block;font-size:14px}
+.conn span{display:block;font-size:12px;color:#555;margin-top:2px;overflow-wrap:anywhere}
+.conn i{font-style:normal;font-size:12px;color:#1a7f37}
+.conn i.paid{color:#8a6d00}
+.conn .tools{display:flex;gap:6px;flex-shrink:0}
+button.small{padding:6px 10px;font-size:12px;border-radius:8px}
+button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
+.connform{display:grid;gap:8px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
+.connform[hidden]{display:none}
+.connform input,.connform select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit}
 </style></head><body>
 <header><h1>Умный диктофон</h1>
 <p class="lead">Запись, расшифровка и разбор разговора. Отвечать голосом не будет — только слушает и понимает.</p></header>
@@ -55,28 +70,46 @@ ul.sum li{margin-bottom:8px}
 <div id="settings" class="muted">Проверяю…</div>
 <div class="row"><button id="recheck" class="ghost">Проверить снова</button></div>
 <div class="setup">
-  <h3 style="margin:0 0 6px">Подключить модели</h3>
-  <p class="muted" style="margin:0 0 14px">Выберите готовую связку — адрес и модель подставятся сами. Ключ нужен только платным.</p>
+  <h3 style="margin:0 0 6px">Подключения</h3>
+  <p class="muted" style="margin:0 0 10px">Список провайдеров. Активная связка — та, которой сервер работает сейчас. Можно добавить любого провайдера по адресу.</p>
   <div class="muted" style="margin-bottom:6px">Понимание разговора</div>
-  <div class="presets" id="llmPresets"></div>
-  <div id="llmFields" hidden>
-    <div class="field" id="f_llm_key"><label for="llm_key">Ключ</label>
-      <input id="llm_key" type="password" autocomplete="off" placeholder="вставьте ключ — после сохранения его не будет видно"></div>
-    <div class="field" id="f_llm_model"><label for="llm_model">Модель</label>
-      <input id="llm_model" type="text" autocomplete="off" placeholder="по умолчанию" list="llmModelList">
-      <datalist id="llmModelList"></datalist>
-      <span class="muted" id="llmModelHint"></span></div>
-    <div class="field" id="f_llm_base_url"><label for="llm_base_url">Адрес сервера</label>
-      <input id="llm_base_url" type="text" autocomplete="off" placeholder="нужен для своего Ollama"></div>
+  <div class="conns" id="llmConns"></div>
+  <button class="ghost small" id="llmAdd" style="margin-top:8px">+ Добавить провайдера</button>
+  <div class="connform" id="llmForm" hidden>
+    <input id="llmT" type="text" placeholder="Название, например «Mistral — мой ключ»">
+    <select id="llmP">
+      <option value="openai">OpenAI-совместимый (свой адрес)</option>
+      <option value="zai">Z.AI (GLM)</option>
+      <option value="mistral">Mistral</option>
+      <option value="deepseek">DeepSeek</option>
+      <option value="anthropic">Claude (Anthropic)</option>
+      <option value="ollama">Ollama (свой сервер)</option>
+    </select>
+    <input id="llmU" type="text" placeholder="Адрес, например https://api.mistral.ai/v1">
+    <input id="llmM" type="text" placeholder="Модель, например mistral-small-latest">
+    <span class="muted" id="llmModelHint" style="font-size:12px"></span>
+    <input id="llmK" type="password" autocomplete="off" placeholder="Ключ (если нужен)">
+    <button id="llmDo" class="small">Добавить</button>
+    <button id="llmX" class="ghost small">Отмена</button>
   </div>
-  <div class="muted" style="margin:14px 0 6px">Распознавание речи</div>
-  <div class="presets" id="asrPresets"></div>
-  <div id="asrFields" hidden>
-    <div class="field" id="f_asr_key"><label for="asr_key">Ключ распознавания</label>
-      <input id="asr_key" type="password" autocomplete="off" placeholder="ключ Speechmatics"></div>
+  <p class="muted" id="llmMsg" style="margin:6px 0 0"></p>
+
+  <div class="muted" style="margin:16px 0 6px">Распознавание речи</div>
+  <div class="conns" id="asrConns"></div>
+  <button class="ghost small" id="asrAdd" style="margin-top:8px">+ Добавить провайдера</button>
+  <div class="connform" id="asrForm" hidden>
+    <input id="asrT" type="text" placeholder="Название, например «Speechmatics — мой ключ»">
+    <select id="asrP">
+      <option value="speechmatics">Speechmatics (облако)</option>
+      <option value="whisper">Своя модель на нашем сервере</option>
+    </select>
+    <input id="asrK" type="password" autocomplete="off" placeholder="Ключ (если нужен)">
+    <button id="asrDo" class="small">Добавить</button>
+    <button id="asrX" class="ghost small">Отмена</button>
   </div>
-  <div class="row" style="margin-top:12px">
-    <button id="save">Сохранить и проверить</button>
+  <p class="muted" id="asrMsg" style="margin:6px 0 0"></p>
+
+  <div class="row" style="margin-top:14px">
     <button id="checkLive" class="ghost" title="Проверяет уже сохранённую связку заново, ничего не меняя">Проверить связку ещё раз</button>
   </div>
   <p class="muted" id="saveMsg" style="margin-top:8px"></p>
@@ -194,88 +227,121 @@ async function loadSettings(){
   }catch(e){box.textContent='Сервер не ответил: '+e.message}
 }
 document.getElementById('recheck').onclick=loadSettings;
-let PRESETS={llm:[],asr:[]},PICK={llm:'',asr:''};
+let CONNS={llm:[],asr:[]},ACTIVE={llm:'',asr:''};
 const el=id=>document.getElementById(id);
+// Список подключений: одна строка на провайдера. Активная — та, которой сервер работает сейчас.
 function draw(kind){
-  const box=el(kind+'Presets');box.innerHTML='';
-  (PRESETS[kind]||[]).forEach(p=>{
-    const d=document.createElement('div');d.className='preset'+(PICK[kind]===p.id?' on':'');
-    d.innerHTML='<b></b><span></span><i></i>';
-    d.querySelector('b').textContent=p.title;
-    d.querySelector('span').textContent=p.note;
-    const c=d.querySelector('i');c.textContent=p.cost;if(!p.cost.includes('бесплатно'))c.className='paid';
-    d.onclick=()=>{PICK[kind]=p.id;draw(kind);fill(kind,p);if(kind==='llm')loadModels();};
-    box.appendChild(d);
+  const box=el(kind+'Conns');if(!box)return;box.innerHTML='';
+  const list=CONNS[kind]||[];
+  if(!list.length){box.innerHTML='<div class="muted">Пока пусто — нажмите «Добавить провайдера».</div>';return}
+  list.forEach(c=>{
+    const row=document.createElement('div');row.className='conn'+(ACTIVE[kind]===c.id?' on':'');
+    const body=document.createElement('div');body.className='body';
+    const b=document.createElement('b');b.textContent=c.title;body.appendChild(b);
+    const where=[];
+    if(c.model)where.push('модель: '+c.model);
+    if(c.base_url)where.push(c.base_url);
+    if(c.key_set)where.push('ключ задан '+c.key_hint);else where.push('ключ не задан');
+    const s=document.createElement('span');s.textContent=where.join(' · ');body.appendChild(s);
+    if(c.note){const n=document.createElement('span');n.textContent=c.note;body.appendChild(n)}
+    const cost=document.createElement('i');cost.textContent=(c.cost||'');if((c.cost||'').indexOf('бесплатно')<0)cost.className='paid';body.appendChild(cost);
+    row.appendChild(body);
+    const tools=document.createElement('div');tools.className='tools';
+    if(ACTIVE[kind]!==c.id){
+      const use=document.createElement('button');use.className='small';use.textContent='Работать этой';
+      use.onclick=()=>activate(kind,c.id);tools.appendChild(use);
+    }else{
+      const tag=document.createElement('span');tag.className='muted';tag.textContent='активна';
+      tag.style.cssText='font-size:12px;align-self:center';tools.appendChild(tag);
+    }
+    const key=document.createElement('button');key.className='ghost small';key.textContent=c.key_set?'Сменить ключ':'Ввести ключ';
+    key.onclick=()=>askKey(kind,c);tools.appendChild(key);
+    if(!c.builtin){
+      const del=document.createElement('button');del.className='danger small';del.textContent='Удалить';
+      del.onclick=()=>removeConn(kind,c.id);tools.appendChild(del);
+    }
+    row.appendChild(tools);
+    box.appendChild(row);
   });
 }
-function updateSaveState(){const s=el('save');if(s)s.disabled=!PICK.llm&&!PICK.asr}
-function fill(kind,p){
-  updateSaveState();
-  el(kind+'Fields').hidden=!p;
-  if(!p)return;
-  // Прячем ОБЁРТКУ поля, а не контейнер: раньше скрывался родитель, то есть весь блок сразу.
-  const show=(id,on)=>{const b=el(id);if(b)b.hidden=!on};
-  if(kind==='llm'){
-    el('llm_model').value=p.model||'';el('llm_base_url').value=p.url||'';
-    show('f_llm_key',p.provider!=='fake'&&p.provider!=='ollama');
-    show('f_llm_model',p.provider!=='fake');
-    show('f_llm_base_url',p.id==='ollama-local');
-  } else { show('f_asr_key',p.provider!=='fake'); }
-}
-async function loadPresets(){
-  const box=el('llmPresets');
-  box.innerHTML='<div class="muted">Загружаю варианты…</div>';
+function msg(kind,text,warn){const m=el(kind+'Msg');if(!m)return;m.textContent=text;m.className=warn?'text warn':'muted'}
+async function loadConns(){
+  ['llm','asr'].forEach(k=>{const b=el(k+'Conns');if(b)b.innerHTML='<div class="muted">Загружаю список…</div>'});
   try{
-    const r=await fetch(server()+'/api/v1/presets',{headers:headers()});
+    const r=await fetch(server()+'/api/v1/connections',{headers:headers()});
     const d=await r.json();
     if(!r.ok)throw new Error(d.message||('код '+r.status));
-    PRESETS={llm:d.llm||[],asr:d.asr||[]};draw('llm');draw('asr');
+    CONNS={llm:[],asr:[]};ACTIVE=d.active||{};
+    (d.items||[]).forEach(c=>{if(CONNS[c.kind])CONNS[c.kind].push(c)});
+    draw('llm');draw('asr');
   }catch(e){
-    // Молча пустой блок — это и был баг: человек видел пустоту и не знал, что она значит.
-    box.innerHTML='';
-    const t=document.createElement('div');t.className='text warn';
-    t.textContent='Не удалось получить варианты: '+e.message+'. Проверьте адрес и токен выше.';
-    box.appendChild(t);
+    // Пустой блок без объяснения — это и был прежний баг: человек не понимал, что тут должно быть.
+    ['llm','asr'].forEach(k=>{const b=el(k+'Conns');if(b)b.innerHTML='';});
+    msg('llm','Не удалось получить список: '+e.message+'. Проверьте адрес и токен выше.',true);
   }
 }
-async function saveSettings(){
-  const msg=el('saveMsg');const lp=(PRESETS.llm||[]).find(x=>x.id===PICK.llm)||{};const ap=(PRESETS.asr||[]).find(x=>x.id===PICK.asr)||{};
-  // Невыбранное не отправляем: пустой провайдер затирал прошлую настройку разбора.
-  const body={};
-  // Пустое поле ключа НЕ отправляем: иначе сервер поймёт это как «стереть ключ», и второе
-  // сохранение любой настройки выключало бы разбор. Пустое поле — «оставить как было».
-  const field=(obj,id,on)=>{const v=el(id).value.trim();if(on&&v)obj[id]=v};
-  if(lp.provider){
-    body.llm_provider=lp.provider;
-    field(body,'llm_key',true);field(body,'llm_model',true);
-    // Адрес отправляем всегда для Ollama (пустой — значит стереть), иначе только непустой.
-    body.llm_base_url=el('llm_base_url').value.trim();
-  }
-  if(ap.provider){body.asr_provider=ap.provider;field(body,'asr_key',true);}
-  if(!Object.keys(body).length){msg.textContent='Выберите хотя бы одну связку.';msg.className='text warn';return}
-  msg.textContent='Сохраняю…';msg.className='muted';
+async function activate(kind,id){
+  msg(kind,'Включаю…',false);
   try{
-    const r=await fetch(server()+'/api/v1/settings',{method:'POST',headers:headers(),body:JSON.stringify(body)});
+    const r=await fetch(server()+'/api/v1/connections/'+encodeURIComponent(id)+'/activate',{method:'POST',headers:headers(),body:JSON.stringify({kind})});
     const d=await r.json();
-    if(!r.ok){msg.textContent='Не принято: '+(d.message||d.error||r.status);msg.className='text warn';return}
-    el('llm_key').value='';el('asr_key').value='';
-    msg.textContent=(d.problems&&d.problems.length)?('Сохранено, но пока не всё: '+d.problems.join(' ')):'Сохранено. Ключ живёт до перезапуска сервера.';
-    msg.className=((d.problems&&d.problems.length)?'text warn':'muted');
-    loadSettings();
-    // Кнопка обещает «Сохранить и проверить» — проверяем сразу, своим ответом, а не следующей кнопкой.
-    const ready=d.settings&&d.settings.llm&&d.settings.llm.ready;
-    if(ready){await checkLive('Проверяю связку… ');}
-  }catch(e){msg.textContent='Связь прервалась: '+e.message;msg.className='text warn'}
+    if(!r.ok){msg(kind,'Не получилось: '+(d.message||r.status),true);return}
+    msg(kind,d.message||'Готово.',false);
+    await loadConns();loadSettings();
+  }catch(e){msg(kind,'Связь прервалась: '+e.message,true)}
 }
+async function removeConn(kind,id){
+  try{
+    const r=await fetch(server()+'/api/v1/connections/'+encodeURIComponent(id),{method:'DELETE',headers:headers()});
+    const d=await r.json();
+    if(!r.ok){msg(kind,'Не получилось: '+(d.message||r.status),true);return}
+    msg(kind,d.message||'Удалено.',false);
+    await loadConns();loadSettings();
+  }catch(e){msg(kind,'Связь прервалась: '+e.message,true)}
+}
+async function askKey(kind,c){
+  const v=prompt('Ключ для «'+c.title+'». Пустое поле — оставить прежний:','');
+  if(v===null)return;
+  msg(kind,'Сохраняю ключ…',false);
+  try{
+    const r=await fetch(server()+'/api/v1/connections/'+encodeURIComponent(c.id),{method:'PATCH',headers:headers(),body:JSON.stringify({key:v.trim()})});
+    const d=await r.json();
+    if(!r.ok){msg(kind,'Не получилось: '+(d.message||r.status),true);return}
+    msg(kind,'Ключ сохранён. Он живёт до перезапуска сервера.',false);
+    await loadConns();
+  }catch(e){msg(kind,'Связь прервалась: '+e.message,true)}
+}
+async function addConn(kind){
+  const title=el(kind+'T').value.trim(),protocol=el(kind+'P').value;
+  const body={kind,protocol,title};
+  if(el(kind+'U'))body.base_url=el(kind+'U').value.trim();
+  if(el(kind+'M'))body.model=el(kind+'M').value.trim();
+  if(el(kind+'K'))body.key=el(kind+'K').value.trim();
+  msg(kind,'Добавляю…',false);
+  try{
+    const r=await fetch(server()+'/api/v1/connections',{method:'POST',headers:headers(),body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok){msg(kind,'Не принято: '+(d.message||d.error||r.status),true);return}
+    msg(kind,(d.message||'Добавлено.')+' Теперь выберите её кнопкой «Работать этой».',false);
+    el(kind+'Form').hidden=true;
+    ['T','U','M','K'].forEach(s=>{const f=el(kind+s);if(f)f.value=''});
+    await loadConns();
+  }catch(e){msg(kind,'Связь прервалась: '+e.message,true)}
+}
+['llm','asr'].forEach(kind=>{
+  const add=el(kind+'Add'),form=el(kind+'Form'),x=el(kind+'X'),doit=el(kind+'Do');
+  if(add)add.onclick=()=>{form.hidden=!form.hidden};
+  if(x)x.onclick=()=>{form.hidden=true};
+  if(doit)doit.onclick=()=>addConn(kind);
+});
 async function checkLive(prefix){
-  const msg=el('saveMsg');const keep=typeof prefix==='string'?prefix:'';
-  msg.textContent=keep+'Стучусь в модель…';msg.className='muted';
+  const m=el('saveMsg');const keep=typeof prefix==='string'?prefix:'';
+  m.textContent=keep+'Стучусь в модель…';m.className='muted';
   try{const r=await fetch(server()+'/api/v1/models/check',{method:'POST',headers:headers(),body:'{}'});
     const d=await r.json();
-    // Приставку «сохранено, но…» не затираем: иначе предупреждение о пустой половине исчезнет.
-    msg.textContent=keep+(d.ok?('Связь есть. '+d.message):('Связи нет: '+d.message));
-    msg.className=d.ok?'muted':'text warn';
-  }catch(e){msg.textContent='Связь прервалась: '+e.message;msg.className='text warn'}
+    m.textContent=keep+(d.ok?('Связь есть. '+d.message):('Связи нет: '+d.message));
+    m.className=d.ok?'muted':'text warn';
+  }catch(e){m.textContent='Связь прервалась: '+e.message;m.className='text warn'}
 }
 // Порядок: сначала адрес и токен, потом запросы. Иначе первый же запрос уходит по пустому адресу.
 // Адрес — полный путь страницы вместе с префиксом стенда (/voice), его срезать нельзя.
@@ -287,24 +353,21 @@ if(_q){
   const u=new URL(location.href);u.searchParams.delete('token');history.replaceState(null,'',u.pathname+u.search);
 }
 async function loadModels(){
-  const hint=el('llmModelHint'),list=el('llmModelList');
+  // Подсказку моделей показываем рядом с полем «Модель» в форме добавления: список живой
+  // только у Ollama, у остальных — известный каталог. Ошибку тоже говорим, а не молчим.
+  const hint=el('llmModelHint');
   if(!hint)return;
-  hint.textContent='Смотрю, какие модели есть…';list.innerHTML='';
+  hint.textContent='Смотрю, какие модели есть…';
   try{
     const r=await fetch(server()+'/api/v1/models',{headers:headers()});
     const d=await r.json();
     if(!r.ok)throw new Error(d.message||('код '+r.status));
-    list.innerHTML='';
-    (d.models||[]).forEach(n=>{const o=document.createElement('option');o.value=n;list.appendChild(o)});
-    // Список — подсказка, а не запрет: у человека может быть своя модель.
-    hint.textContent=(d.models&&d.models.length)?('Доступно: '+d.models.length+'. Начните вводить — подскажу.')
+    hint.textContent=(d.models&&d.models.length)?('Известные модели: '+d.models.slice(0,6).join(', ')+'.')
       :(d.message||'Список пуст — впишите имя модели вручную.');
   }catch(e){hint.textContent='Список моделей не получен: '+e.message;}
 }
-el('save').disabled=true;
-el('save').onclick=saveSettings;
 el('checkLive').onclick=()=>checkLive('');
-loadPresets();
+loadConns();
 loadSettings();
 </script>
 </body></html>

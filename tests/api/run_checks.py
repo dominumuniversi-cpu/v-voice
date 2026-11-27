@@ -252,10 +252,22 @@ check("ollama_no_key", "Authorization" not in ol.headers)
 check("ollama_json_format", ol.body["format"] == "json")
 check("ollama_local_url", "127.0.0.1" in ol.url)
 try:
-    build_request("openai", "m", "s", "u", "k")
+    build_request("no-such-provider", "m", "s", "u", "k")
     check("unknown_llm_rejected", False)
 except ValueError:
     check("unknown_llm_rejected", True)
+# Свой шлюз: адрес из настроек, а не зашитый api.openai.com. Полный адрес ручки не дублируется,
+# базовый адрес («.../v1») дополняется путём — иначе получалось «/v1/v1/chat/completions».
+_ow = build_request("openai", "my-model", "s", "u", "", "http://10.0.0.5:8000/v1/chat/completions")
+check("openai_uses_custom_url", _ow.url == "http://10.0.0.5:8000/v1/chat/completions", _ow.url)
+_ow_base = build_request("openai", "my-model", "s", "u", "", "http://10.0.0.5:8000/v1")
+check("openai_base_url_gets_path", _ow_base.url == "http://10.0.0.5:8000/v1/chat/completions", _ow_base.url)
+_ow2 = build_request("openai", "my-model", "s", "u", "")
+check("openai_without_key_has_no_auth", "Authorization" not in _ow2.headers)
+_mi = build_request("mistral", "", "s", "u", "k")
+check("mistral_request", _mi.url == "https://api.mistral.ai/v1/chat/completions" and _mi.body["model"] == "mistral-small-latest")
+_za = build_request("zai", "", "s", "u", "k")
+check("zai_request", _za.url == "https://api.z.ai/api/paas/v4/chat/completions" and _za.body["model"] == "glm-4.6")
 
 check("extract_openai_style", extract_text("deepseek", {"choices": [{"message": {"content": "{}"}}]}) == "{}")
 check("extract_anthropic_blocks", extract_text("anthropic", {"content": [{"type": "text", "text": "{}"}]}) == "{}")
@@ -1041,8 +1053,10 @@ check("refuses_open_without_lock", 'ОТКАЗ — сервер открыт в 
 from vvoice.http_api import ROUTES as _ROUTES
 _leaks = []
 for _tpl in _ROUTES:
-    _path = _tpl.replace('{session_id}', 'abc123def4567890')
-    _r = _handle('GET' if 'GET' in _ROUTES[_tpl] else 'POST', _path, '{}', device_tokens=('key-one', 'key-two'), auth_token=None)
+    _path = (_tpl.replace('{session_id}', 'abc123def4567890')
+                 .replace('{conn_id}', 'deepseek'))
+    _m = next((m for m in ('GET', 'POST', 'PATCH', 'DELETE') if m in _ROUTES[_tpl]), _ROUTES[_tpl][0])
+    _r = _handle(_m, _path, '{}', device_tokens=('key-one', 'key-two'), auth_token=None)
     if _r.status != 401:
         _leaks.append((_path, _r.status))
 check("lock_covers_every_route", not _leaks, _leaks)
@@ -1183,9 +1197,9 @@ from vvoice.runtime_settings import RuntimeSettings  # noqa: E402
 
 _rt = RuntimeSettings()
 check("settings_starts_empty", _rt.view()['asr']['provider'] == '' and _rt.view()['llm']['provider'] == '')
-_c, _b = _rt.update({'llm_provider': 'openai', 'llm_key': 'k'})
-# OpenAI описан в документе как кандидат, но в коде его нет. Человек не должен сохранить
-# провайдера, который потом молча не заработает.
+_c, _b = _rt.update({'llm_provider': 'no-such-provider', 'llm_key': 'k'})
+# Неизвестный провайдер не должен сохраняться: человек не должен получить связку, которая
+# потом молча не заработает. Свои шлюзы добавляются протоколом openai, а не выдуманным именем.
 check("settings_rejects_unimplemented", _c == 400 and _b.get('error') == 'provider_not_implemented', _b.get('message', '')[:60])
 _c2, _b2 = _rt.update({'llm_provider': 'deepseek'})
 # Сохранение без ключа допустимо (ключ может прийти из окружения), но проблемы названы явно.

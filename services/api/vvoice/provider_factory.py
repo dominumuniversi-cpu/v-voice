@@ -68,7 +68,18 @@ def make_asr_factory(settings: Settings) -> Callable[[str], Any] | None:
     return None
 
 
-IMPLEMENTED_LLM: tuple[str, ...] = ('fake', 'deepseek', 'anthropic', 'ollama')
+IMPLEMENTED_LLM: tuple[str, ...] = ('fake', 'deepseek', 'anthropic', 'ollama', 'openai', 'zai', 'mistral')
+
+# Протокол из списка связок -> провайдер в терминах адаптера. Отдельная карта нужна потому, что
+# для человека «Z.AI» и «Mistral» — разные сервисы, а для кода это один и тот же OpenAI-чат.
+PROTOCOL_TO_LLM: dict[str, str] = {
+    'deepseek': 'deepseek', 'anthropic': 'anthropic', 'ollama': 'ollama', 'fake': 'fake',
+    'zai': 'zai', 'mistral': 'mistral', 'openai': 'openai',
+}
+# Протокол -> провайдер распознавания.
+PROTOCOL_TO_ASR: dict[str, str] = {
+    'speechmatics': 'speechmatics', 'whisper': 'whisper', 'fake': 'fake',
+}
 
 
 def _ws_available() -> bool:
