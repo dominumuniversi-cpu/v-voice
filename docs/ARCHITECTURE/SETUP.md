@@ -8,8 +8,8 @@
 | Что | Зачем | Где взять |
 |---|---|---|
 | Python 3.12 | сервис написан на стандартной библиотеке | python.org |
-| Ключ распознавания речи | превращать голос в текст | Deepgram или AssemblyAI регистрируют ключ бесплатно на пробу |
-| Ключ модели | превращать текст в задачи и выжимку | OpenAI, Anthropic, GigaChat или локальная модель |
+| Ключ распознавания речи | превращать голос в текст | **Speechmatics** — единственный, что уже подключён в коде (Deepgram/AssemblyAI пока задачи, а не настройки) |
+| Ключ модели | превращать текст в задачи и выжимку | DeepSeek, Anthropic или Ollama — эти три уже подключены |
 | Адрес задачника | куда отправлять одобренные задачи | тот же Helper, что уже работает |
 
 ## Шаг 1. Каталог и файл настроек
@@ -23,11 +23,11 @@ copy .env.example .env          # Windows
 ## Шаг 2. Заполнить .env
 
 ```
-VV_ASR_PROVIDER=deepgram
+VV_ASR_PROVIDER=speechmatics
 VV_ASR_KEY=<ключ распознавания>
 VV_ASR_PRICE_PER_HOUR=
 VV_BUDGET_PER_MEETING=
-VV_LLM_PROVIDER=openai
+VV_LLM_PROVIDER=deepseek
 VV_LLM_KEY=<ключ модели>
 VV_EXPORT_HELPER_URL=https://helper.vernadsky-npc.ru
 ```

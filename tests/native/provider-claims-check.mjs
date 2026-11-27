@@ -9,6 +9,9 @@ import fs from 'node:fs';
 
 const factory = fs.readFileSync('services/api/vvoice/provider_factory.py', 'utf8');
 const doc = fs.readFileSync('docs/ARCHITECTURE/AI-PROVIDERS.md', 'utf8');
+// SETUP.md — та страница, по которой человек настраивает сервер. Ошибка там дороже: он выполнит
+// её буквально и получит «реализации нет» уже с купленным ключом.
+const setup = fs.readFileSync('docs/ARCHITECTURE/SETUP.md', 'utf8');
 const problems = [];
 
 const asr = /IMPLEMENTED_ASR[^=]*=\s*\(([^)]*)\)/.exec(factory);
@@ -33,6 +36,23 @@ for (const name of ['Deepgram', 'AssemblyAI', 'GigaAM']) {
   const nearby = doc.split('\n').filter((l) => l.toLowerCase().includes(name.toLowerCase())).join(' ');
   const covered = /реализации нет|кода у них пока нет|есть в списке допустимых имён/i.test(doc);
   if (nearby && !covered) problems.push(name + ' описан, но нигде не сказано, что кода нет');
+}
+
+// 4. SETUP.md не должен советовать провайдера, которого нет в коде.
+const notImplemented = ['deepgram', 'assemblyai', 'gigaam', 'whisper', 'openai', 'gigachat'];
+for (const name of notImplemented) {
+  // Упоминание допустимо, если им же объясняют, что этого пока нет: «Deepgram/AssemblyAI — задачи».
+  const lines = setup.split('\n').filter((l) => l.toLowerCase().includes(name));
+  const honest = lines.length > 0 && lines.every((l) => /пока задачи|нет в коде|не реализов|не подключ/i.test(l));
+  if (lines.length > 0 && !honest) {
+    problems.push('SETUP.md советует ' + name + ', которого нет в IMPLEMENTED_ASR/IMPLEMENTED_LLM');
+  }
+}
+// 5. И наоборот: тот, что есть, должен быть назван.
+for (const name of clean(asr[1])) {
+  if (name !== 'fake' && !setup.toLowerCase().includes(name)) {
+    problems.push('SETUP.md не называет рабочий провайдер ' + name);
+  }
 }
 
 if (problems.length) {
