@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import os
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,20 @@ from vvoice.storage import AudioStore
 from vvoice.vad import VadConfig, VadGate
 
 MAX_BODY_BYTES = 12 * 1024 * 1024  # запись приходит base64, запас на JSON-обёртку
+
+
+class _SilentStream:
+    """Провайдер живого потока, который честно ничего не слышит.
+
+    Нужен для своего распознавания: Whisper принимает только целый файл. Молчать в живом
+    тексте лучше, чем показывать выдуманные слова; запись всё равно разберётся после «Стоп».
+    """
+
+    def stream(self, chunk: bytes) -> list:
+        return []
+
+    def transcribe_file(self, path: str) -> list:
+        raise RuntimeError('своё распознавание работает по целому файлу, а не по кускам')
 
 
 def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
@@ -51,18 +66,44 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
 
     def asr_factory(path: str) -> Any:
         """Собирает распознавание на момент вызова: ключ мог поменяться только что."""
+        # Живой текст приходит кусками и зовёт фабрику на каждый кусок. Распознавание файла там
+        # не нужно вовсе: раньше whisper-клиент на каждый кусок гнал в модель пустой путь, сервис
+        # отвечал «нет такого файла», и живой текст не работал никогда. Для живого потока отдаём
+        # провайдера без файла; файловый проход пошлёт звук ровно один раз.
+        if not path or not os.path.exists(path):
+            return _live_asr(settings, connections)
         conn = connections.active_for('asr')
         if conn is not None:
             provider = PROTOCOL_TO_ASR.get(conn.protocol, conn.protocol)
             live = _with(settings, asr_provider=provider, asr_key=conn.key or settings.asr_key,
-                         asr_model=conn.model or settings.asr_model)
+                         asr_model=conn.model or settings.asr_model,
+                         asr_base_url=conn.base_url or settings.asr_base_url)
             return make_asr_factory(live)(path)
         chosen = runtime.asr()
         provider = chosen['provider']
         live = (settings if not provider else
                 _with(settings, asr_provider=provider, asr_key=chosen['key'] or settings.asr_key,
-                      asr_model=chosen['model'] or settings.asr_model))
+                      asr_model=chosen['model'] or settings.asr_model,
+                      asr_base_url=chosen.get('base_url') or settings.asr_base_url))
         return make_asr_factory(live)(path)
+
+    def _live_asr(settings: Settings, connections: Any) -> Any:
+        """Распознавание для живого потока: умеет куски, но не файл.
+
+        Настоящий стриминг сегодня есть у Speechmatics. Своё распознавание (Whisper) и
+        провайдеры «загрузим файл целиком» в живом потоке честно молчат: придуманный текст
+        хуже отсутствия текста, а запись всё равно разберётся после «Стоп».
+        """
+        conn = connections.active_for('asr')
+        protocol = conn.protocol if conn is not None else (settings.asr_provider or '').strip().lower()
+        key = (conn.key if conn is not None else '') or settings.asr_key
+        if protocol == 'speechmatics' and (key or '').strip():
+            from .vvoice.providers.speechmatics import SpeechmaticsAsr
+            from .vvoice.providers.ws_connect import connect_websocket
+            client = SpeechmaticsAsr(connect=connect_websocket, api_key=key.strip())
+            client.open()
+            return client
+        return _SilentStream()
 
     def _call_understanding(system: str, user: str) -> dict:
         """Вызов модели так, как его ждёт разбор. Нечем звать — говорим причину, а не падаем TypeError."""

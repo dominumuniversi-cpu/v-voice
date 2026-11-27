@@ -9,6 +9,7 @@ URL с ключом в query, «'NoneType' object is not subscriptable» и тр
 """
 
 import re
+import traceback
 
 # Всё, что похоже на ключ в URL или в заголовке: ?key=..., api_key=..., Bearer ....
 _SECRET_PATTERN = re.compile(
@@ -39,15 +40,18 @@ def explain_digest_failure(exc: BaseException) -> dict[str, str]:
     network — нет связи с моделью/распознаванием; provider — сервис ответил отказом;
     internal — ошибка на нашей стороне, человеку делать нечего.
     """
-    raw = scrub(str(exc))
-    low = raw.lower()
-    if any(w in low for w in ("timeout", "timed out", "connection", "connect", "dns", "unreachable")):
+    # str() у сетевых ошибок бывает пустым, а причина — в типовом имени класса (ConnectionError).
+    raw = scrub(str(exc) or type(exc).__name__)
+    low = (raw + " " + type(exc).__name__).lower()
+    if any(w in low for w in ("timeout", "timed out", "connection", "connect", "closed", "dns",
+                              "unreachable", "network", "ssl", "reset")):
         kind = "network"
         message = (
             "Не удалось связаться с моделью или сервисом распознавания. "
             "Проверьте интернет; запись сохранена, разбор можно повторить."
         )
-    elif any(w in low for w in ("unauthorized", "401", "403", "invalid api key", "authentication")):
+    elif any(w in low for w in ("unauthorized", "401", "403", "invalid api key", "api key", "authentication",
+                                "permission", "quota", "billing", "balance")):
         kind = "provider"
         message = (
             "Сервис отклонил ключ. Запись сохранена; ключ задаётся на сервере, "
@@ -60,4 +64,8 @@ def explain_digest_failure(exc: BaseException) -> dict[str, str]:
             "разбор можно повторить."
         )
     # Техническое описание тоже отдаём, но уже вычищенное: оно помогает в задаче-баге.
+    # Полная трасса — только в журнал сервера: по одной строке «нет атрибута» виновника не найти,
+    # и такой сбой уходил в задачу без ответа, где именно он случился.
+    if kind == "internal":
+        traceback.print_exception(type(exc), exc, exc.__traceback__)
     return {"message": message, "kind": kind, "detail": raw[:300]}

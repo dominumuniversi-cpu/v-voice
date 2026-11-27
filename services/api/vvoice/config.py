@@ -25,7 +25,7 @@ from typing import Mapping
 # Только то, что действительно собрано в provider_factory. Остальные (gigaam, deepgram, assemblyai) —
 # кандидаты на будущее; держать их здесь значит обещать подключение, которого нет.
 # whisper — своя модель на нашем сервере (services/asr), без ключей и оплаты за минуты.
-ASR_PROVIDERS = ('speechmatics', 'whisper', 'fake')
+ASR_PROVIDERS = ('speechmatics', 'whisper', 'deepgram', 'assemblyai', 'openai_asr', 'gladia', 'fake')
 LLM_PROVIDERS = ('deepseek', 'anthropic', 'ollama', 'fake')
 
 
@@ -52,6 +52,8 @@ class Settings:
     llm_model: str = ''
     llm_base_url: str = ''
     asr_model: str = ''
+    # Свой адрес сервиса распознавания: у облаков он свой у каждого, у своей модели — voice-asr.
+    asr_base_url: str = ''
 
     def token_for(self, target: str) -> str:
         """Токен именно для этой цели, иначе общий."""
@@ -186,6 +188,7 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
         llm_model=(source.get('VV_LLM_MODEL') or '').strip(),
         llm_base_url=(source.get('VV_LLM_BASE_URL') or '').strip(),
         asr_model=(source.get('VV_ASR_MODEL') or '').strip(),
+        asr_base_url=(source.get('VV_ASR_BASE_URL') or '').strip(),
         # Тариф — настройка, а не константа: цены меняются, и вписанная в код цифра однажды станет ложью.
         asr_price_per_hour=_price(source.get('VV_ASR_PRICE_PER_HOUR')),
         budget_per_meeting=_price(source.get('VV_BUDGET_PER_MEETING')),

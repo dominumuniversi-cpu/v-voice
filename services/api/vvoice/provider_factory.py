@@ -17,7 +17,7 @@ from .providers.fake_asr import FakeAsr
 
 # Провайдеры, для которых есть настоящая реализация в коде. Остальные — настройка есть,
 # реализации нет: сюда добавлять только после того, как она написана и проверена.
-IMPLEMENTED_ASR = ('fake', 'speechmatics', 'whisper')
+IMPLEMENTED_ASR = ('fake', 'speechmatics', 'whisper', 'deepgram', 'assemblyai', 'openai_asr', 'gladia')
 
 
 def make_asr_factory(settings: Settings) -> Callable[[str], Any] | None:
@@ -48,6 +48,32 @@ def make_asr_factory(settings: Settings) -> Callable[[str], Any] | None:
             return client
 
         return _make_speechmatics
+    # Облачные распознаватели «запись файлом»: ключ обязателен, адрес по умолчанию — свой у каждого.
+    if provider in ('deepgram', 'assemblyai', 'openai_asr', 'gladia'):
+        key = (settings.asr_key or '').strip()
+        if not key:
+            return None
+        base = (settings.asr_base_url or '').strip()
+        model = (settings.asr_model or '').strip()
+
+        def _make_cloud(path: str) -> Any:
+            from .providers import cloud_asr
+
+            if provider == 'deepgram':
+                client = cloud_asr.DeepgramAsr(api_key=key, base_url=base or 'https://api.deepgram.com/v1',
+                                               model=model or 'nova-3')
+            elif provider == 'assemblyai':
+                client = cloud_asr.AssemblyAiAsr(api_key=key, base_url=base or 'https://api.assemblyai.com/v2',
+                                                 model=model or 'universal')
+            elif provider == 'openai_asr':
+                client = cloud_asr.OpenAiWhisperAsr(api_key=key, base_url=base or 'https://api.openai.com/v1',
+                                                    model=model or 'whisper-1')
+            else:
+                client = cloud_asr.GladiaAsr(api_key=key, base_url=base or 'https://api.gladia.io/v2')
+            client.transcribe_file(path)
+            return client
+
+        return _make_cloud
     if provider == 'whisper':
         # Своё распознавание: ключ не нужен, нужен живой сервис модели рядом. Адрес — VV_ASR_URL.
         import os as _os
@@ -79,6 +105,8 @@ PROTOCOL_TO_LLM: dict[str, str] = {
 # Протокол -> провайдер распознавания.
 PROTOCOL_TO_ASR: dict[str, str] = {
     'speechmatics': 'speechmatics', 'whisper': 'whisper', 'fake': 'fake',
+    'deepgram': 'deepgram', 'assemblyai': 'assemblyai', 'openai_asr': 'openai_asr',
+    'gladia': 'gladia',
 }
 
 

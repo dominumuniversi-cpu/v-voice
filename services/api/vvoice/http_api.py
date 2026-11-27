@@ -79,6 +79,8 @@ ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/conversations": ("GET",),
     # Сам звук записи: человек хочет переслушать разговор, а не только прочитать его.
     "/api/v1/sessions/{session_id}/audio": ("GET",),
+    # Удаление разговора целиком: запись и разбор. Человек — хозяин своего архива.
+    "/api/v1/sessions/{session_id}": ("DELETE",),
 }
 
 # Шаблонные пути: клиент обращается к /api/v1/sessions/<id>/digest, поэтому точного совпадения мало.
@@ -90,6 +92,7 @@ _TEMPLATED: list[tuple[re.Pattern[str], str]] = [
     # Без этой строки скачивание расшифровки (TXT/SRT/JSON) отвечало 404 на любой запрос.
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/transcript$"), "/api/v1/sessions/{session_id}/transcript"),
     (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})/audio$"), "/api/v1/sessions/{session_id}/audio"),
+    (re.compile(r"^/api/v1/sessions/([A-Za-z0-9_-]{1,64})$"), "/api/v1/sessions/{session_id}"),
     # Подключения: одна запись по имени. Без этих строк «Удалить» и «Включить» отвечали бы 404.
     (re.compile(r"^/api/v1/connections/([A-Za-z0-9_-]{1,32})$"), "/api/v1/connections/{conn_id}"),
     (re.compile(r"^/api/v1/connections/([A-Za-z0-9_-]{1,32})/activate$"), "/api/v1/connections/{conn_id}/activate"),
@@ -443,6 +446,18 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
                                   "message": "Сервер не хранит состояние живого потока."})
         code, body = push_chunk(live_sessions, param, pcm, provider_factory=recognizer, gate=gate)
         return Response(code, body)
+
+    if method.upper() == "DELETE" and template == "/api/v1/sessions/{session_id}":
+        # Удаляем запись и разбор вместе: оставить разбор от удалённого звука — значит хранить
+        # разговор, который человек попросил убрать.
+        removed_audio = store.remove(param) if store is not None else False
+        removed_digest = digests.remove(param) if digests is not None else False
+        if not removed_audio and not removed_digest:
+            return Response(404, {"error": "session_not_found", "session_id": param,
+                                  "message": "Такого разговора уже нет — возможно, его удалили раньше."})
+        return Response(200, {"session_id": param, "deleted": True,
+                              "audio": removed_audio, "digest": removed_digest,
+                              "message": "Разговор удалён: запись и разбор убраны с сервера."})
 
     if template == "/api/v1/sessions/{session_id}/export":
         code, body = export_session(payload, send=exporter, configured=export_targets)

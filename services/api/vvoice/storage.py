@@ -64,6 +64,17 @@ class AudioStore:
             return None
         return Stored(path=path, size=path.stat().st_size)
 
+    def remove(self, session_id: str) -> bool:
+        """Удаляет запись. False — файла не было, а не «не получилось»."""
+        try:
+            path = self._path(session_id)
+        except ValueError:
+            return False
+        if not path.exists():
+            return False
+        path.unlink()
+        return True
+
     def read(self, session_id: str) -> bytes | None:
         stored = self.find(session_id)
         if stored is None:

@@ -28,6 +28,9 @@ class WhisperAsr:
 
     base_url: str = DEFAULT_URL
     language: str = 'ru'
+    # Что ответил сервис: модель и устройство. Экран говорит этим, где идёт распознавание,
+    # вместо того чтобы обещать «Whisper» и молчать о том, какая именно модель поднята.
+    model: str = ''
     segments: list[Segment] = field(default_factory=list)
 
     def transcribe_file(self, path: str) -> list[Segment]:
@@ -50,6 +53,9 @@ class WhisperAsr:
             raise RuntimeError('распознавание не удалось: ' + (detail or str(exc.code))) from exc
         except urllib.error.URLError as exc:
             raise RuntimeError('сервис распознавания недоступен: ' + str(exc.reason)) from exc
+        model = str(data.get('model') or '').strip()
+        if model:
+            self.model = model
         self.segments = [Segment(start_s=float(s.get('start_s', 0.0)), end_s=float(s.get('end_s', 0.0)),
                                  text=str(s.get('text', '')).strip())
                          for s in data.get('segments', []) if str(s.get('text', '')).strip()]

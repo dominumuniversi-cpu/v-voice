@@ -31,12 +31,16 @@ PROTOCOLS: dict[str, str] = {
     'zai': 'Z.AI (GLM)',
     'mistral': 'Mistral',
     'speechmatics': 'Speechmatics (облако)',
+    'deepgram': 'Deepgram (облако)',
+    'assemblyai': 'AssemblyAI (облако)',
+    'openai_asr': 'OpenAI Whisper API (облако)',
+    'gladia': 'Gladia (облако)',
     'whisper': 'Своя модель на нашем сервере',
-    'fake': 'Заглушка (без сети)',
 }
 
 # Какие протоколы бывают у какого вида связи. Экран «Добавить» берёт выпадающий список отсюда:
 # человек выбирает провайдера для разбора или для речи, а не угадывает по общему списку.
+# В скобках — что нужно ввести, кроме ключа: остальное приходит из пресета.
 PROTOCOLS_BY_KIND: dict[str, tuple[tuple[str, str], ...]] = {
     'llm': (
         ('mistral', 'Mistral'),
@@ -45,48 +49,73 @@ PROTOCOLS_BY_KIND: dict[str, tuple[tuple[str, str], ...]] = {
         ('anthropic', 'Claude (Anthropic)'),
         ('openai', 'Свой шлюз (OpenAI-совместимый)'),
         ('ollama', 'Ollama (свой сервер)'),
-        ('fake', 'Демо-заглушка (без сети)'),
     ),
     'asr': (
-        ('whisper', 'Своя модель на нашем сервере (бесплатно)'),
-        ('speechmatics', 'Speechmatics (облако)'),
-        ('fake', 'Демо-заглушка (расшифровка выдумана)'),
+        ('whisper', 'Своя модель на нашем сервере — бесплатно, без ключа'),
+        ('speechmatics', 'Speechmatics — пробный период'),
+        ('deepgram', 'Deepgram — 200 $ на пробу'),
+        ('assemblyai', 'AssemblyAI — бесплатные часы на пробу'),
+        ('openai_asr', 'OpenAI Whisper API — платно за минуты'),
+        ('gladia', 'Gladia — бесплатные часы на пробу'),
     ),
 }
 
+# Готовые пресеты: заполнен адрес и модель, человеку остаётся вставить ключ. Пустое поле
+# «Адрес» в форме раньше заставляло угадывать, а модель приходилось писать руками — отсюда
+# и рождались нерабочие связки.
 _ID_RE = re.compile(r'^[a-z0-9][a-z0-9_-]{0,31}$')
 
 
 BUILTIN_CONNECTIONS: tuple[dict[str, Any], ...] = (
-    # Продавать «бесплатно» без оговорки нельзя, поэтому в каждого встроенного — цена и правда.
+    # Вид связки: без модели не заработает ни понимание, ни расшифровка, поэтому адрес и модель
+    # здесь обязательны — это и есть «правильная настройка», которую человек не должен искать.
+    # --- понимание разговора -----------------------------------------------------------------
     {'id': 'deepseek', 'kind': 'llm', 'protocol': 'deepseek', 'title': 'DeepSeek',
-     'model': 'deepseek-chat', 'cost': 'платно, копейки за встречу',
+     'base_url': 'https://api.deepseek.com', 'model': 'deepseek-chat',
+     'cost': 'платно, копейки за встречу',
      'note': 'Ключ — на platform.deepseek.com. Хорошо разбирает русскую речь в задачи.'},
     {'id': 'zai', 'kind': 'llm', 'protocol': 'zai', 'title': 'Z.AI (GLM)',
-     'model': 'glm-4.6', 'cost': 'платно, есть дешёвые модели',
+     'base_url': 'https://api.z.ai/api/paas/v4', 'model': 'glm-4.6',
+     'cost': 'платно, есть дешёвые модели',
      'note': 'Ключ — на z.ai. Адрес api.z.ai/api/paas/v4, модели GLM.'},
     {'id': 'mistral', 'kind': 'llm', 'protocol': 'mistral', 'title': 'Mistral',
-     'model': 'mistral-small-latest', 'cost': 'платно, есть бесплатный уровень с лимитом',
+     'base_url': 'https://api.mistral.ai/v1', 'model': 'mistral-small-latest',
+     'cost': 'платно, есть бесплатный уровень с лимитом',
      'note': 'Ключ — на console.mistral.ai. Русский понимает, но слабее DeepSeek.'},
     {'id': 'anthropic', 'kind': 'llm', 'protocol': 'anthropic', 'title': 'Claude Sonnet',
-     'model': 'claude-sonnet-4-5', 'cost': 'платно',
+     'base_url': 'https://api.anthropic.com', 'model': 'claude-sonnet-4-5',
+     'cost': 'платно',
      'note': 'Ключ — на console.anthropic.com. Аккуратно отдаёт JSON.'},
     {'id': 'ollama-local', 'kind': 'llm', 'protocol': 'ollama', 'title': 'Ollama на своём сервере',
      'base_url': 'http://127.0.0.1:11434', 'model': 'qwen3:8b',
      'cost': 'бесплатно, работает на вашем железе',
      'note': 'Нужен запущенный ollama и скачанная модель. Адрес обязателен: из контейнера '
              '127.0.0.1 — это сам контейнер.'},
-    {'id': 'fake-demo', 'kind': 'llm', 'protocol': 'fake', 'title': 'Демо-заглушка (разбор)',
-     'cost': 'бесплатно', 'note': 'Показывает весь путь, но текст выдуман. Для проверки экранов.'},
-    {'id': 'speechmatics', 'kind': 'asr', 'protocol': 'speechmatics', 'title': 'Speechmatics',
-     'cost': 'платно, есть пробный период',
-     'note': 'Ключ — на portal.speechmatics.com. Бесплатного режима нет, после пробного — оплата.'},
+    # --- распознавание речи ------------------------------------------------------------------
     {'id': 'whisper-local', 'kind': 'asr', 'protocol': 'whisper', 'title': 'Своё распознавание (Whisper)',
      'cost': 'бесплатно, работает на нашем железе',
      'note': 'Открытая модель на процессоре рядом с сервером: ни ключа, ни оплаты за минуты. '
              'Качество ниже, чем у GigaAM-v3 (ему нужна видеокарта, которой у нас нет).'},
-    {'id': 'fake-asr', 'kind': 'asr', 'protocol': 'fake', 'title': 'Демо-заглушка (распознавание)',
-     'cost': 'бесплатно', 'note': 'Расшифровка выдумана, но весь путь проходит целиком.'},
+    {'id': 'speechmatics', 'kind': 'asr', 'protocol': 'speechmatics', 'title': 'Speechmatics',
+     'base_url': 'wss://eu2.rt.speechmatics.com/v2',
+     'cost': 'платно, есть пробный период',
+     'note': 'Ключ — на portal.speechmatics.com. Бесплатного режима нет, после пробного — оплата.'},
+    {'id': 'deepgram', 'kind': 'asr', 'protocol': 'deepgram', 'title': 'Deepgram',
+     'base_url': 'https://api.deepgram.com/v1', 'model': 'nova-3',
+     'cost': 'платно, 200 $ при регистрации',
+     'note': 'Ключ — на console.deepgram.com. Быстро, хорошо держит русскую речь, дешёвые минуты.'},
+    {'id': 'assemblyai', 'kind': 'asr', 'protocol': 'assemblyai', 'title': 'AssemblyAI',
+     'base_url': 'https://api.assemblyai.com/v2', 'model': 'universal',
+     'cost': 'платно, есть бесплатные часы',
+     'note': 'Ключ — на assemblyai.com. Русский поддерживает, но уступает Deepgram по скорости.'},
+    {'id': 'openai-asr', 'kind': 'asr', 'protocol': 'openai_asr', 'title': 'OpenAI Whisper API',
+     'base_url': 'https://api.openai.com/v1', 'model': 'whisper-1',
+     'cost': 'платно, 0,006 $ за минуту',
+     'note': 'Ключ — на platform.openai.com. Тот же Whisper, но платно и по файлу целиком.'},
+    {'id': 'gladia', 'kind': 'asr', 'protocol': 'gladia', 'title': 'Gladia',
+     'base_url': 'https://api.gladia.io/v2', 'model': 'default',
+     'cost': 'платно, есть бесплатные часы на пробу',
+     'note': 'Ключ — на app.gladia.io. Много языков, включая русский, и готовые субтитры.'},
 )
 
 
@@ -237,11 +266,13 @@ class ConnectionList:
         model = str(raw.get('model') or preset.get('model') or '').strip()
         # Модель и адрес из каталога — это не настройка человека: без ключа провайдер всё равно
         # не ответит. Работать заводим только то, что готово, — свой сервер без ключа считаем
-        # готовым по адресу; заглушки fake/whisper готовы всегда.
+        # готовым по адресу; своя модель whisper ключа не требует.
         key = str(raw.get('key') or '').strip()
         note = str(preset.get('note') or 'добавлено вами')
         cost = str(raw.get('cost') or preset.get('cost') or 'условия у провайдера').strip()
-        if not key and protocol not in ('fake', 'whisper') and not base_url:
+        # Свой шлюз и Ollama живут адресом, всё остальное без ключа молчит.
+        needs_key = protocol not in ('whisper', 'ollama', 'openai')
+        if needs_key and not key and not (protocol == 'openai' and base_url):
             return 400, {'error': 'nothing_set',
                          'message': 'Вставьте ключ провайдера' + (' или укажите адрес' if protocol == 'ollama' else '')
                                     + ': без него связка не заработает, а в списке будет обещать работу.'}
@@ -266,7 +297,7 @@ class ConnectionList:
             # Готовность считаем по СВОИМ значениям человека, а не по модели из каталога:
             # модель из каталога стоит у всех, а без ключа провайдер не ответит.
             # Заглушка и своё распознавание работают без ключа, свой сервер — по адресу.
-            ready = bool(key) or protocol in ('fake', 'whisper') or (protocol == 'ollama' and bool(base_url))
+            ready = bool(key) or protocol == 'whisper' or (protocol == 'ollama' and bool(base_url))
             if ready and not self.active.get(kind):
                 self.active[kind] = conn_id
             conn = Connection(id=conn_id, kind=kind, protocol=protocol, title=title, base_url=base_url,

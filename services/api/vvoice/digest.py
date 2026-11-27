@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Callable
 
@@ -102,6 +103,11 @@ def members_only_flag(participants: list[dict]) -> tuple[set[str], bool]:
     return foreign, bool(foreign)
 
 
+def _lead_colon(value) -> str:
+    """Убирает ведущее двоеточие: «: текст» — остаток от пустого автора, а не начало фразы."""
+    return re.sub(r"^\s*:\s*", "", str(value or "")).strip()
+
+
 def make_digest(
     transcript: Transcript,
     call_llm: Callable[[str, str], dict],
@@ -125,10 +131,12 @@ def make_digest(
     return {
         # Одна строка «о чём был разговор». Раньше её теряли: промпт просил, модель отвечала,
         # а в результат она не попадала — и человек видел список, но не видел сути.
-        "topic": str(raw.get("topic") or "").strip(),
+        # Двоеточие без автора модель иногда оставляет в начале строки — «: я отправлю смету».
+        # Это обрывок, а не ответ; на сервере вычищаем, чтобы экран и экспорт не расходились.
+        "topic": _lead_colon(raw.get("topic")),
         # True — разобрана только часть разговора. Молчать об этом значит выдать половину за целое.
         "truncated": prompt_is_truncated(transcript),
-        "summary": _drop_foreign_only(_summary_points(raw), _utterance_pairs(transcript), active_foreign),
+        "summary": [_lead_colon(s) for s in _drop_foreign_only(_summary_points(raw), _utterance_pairs(transcript), active_foreign) if _lead_colon(s)],
         # Сколько пунктов не показано. Молчаливая обрезка заставила бы человека думать, что он
         # увидел всё главное.
         "summary_hidden": max(0, len(raw.get("summary") or []) - MAX_SUMMARY_ITEMS),
@@ -136,10 +144,10 @@ def make_digest(
         # Тот, кто строит интеграцию, должен уметь отличить «нечего сказать» от «не справилась».
         "summary_missing": not (raw.get("summary") or []),
         "participants": raw.get("participants") or [],
-        "open_questions": _drop_foreign_only([str(s) for s in (raw.get("open_questions") or [])], _utterance_pairs(transcript), active_foreign),
+        "open_questions": [_lead_colon(s) for s in _drop_foreign_only([str(s) for s in (raw.get("open_questions") or [])], _utterance_pairs(transcript), active_foreign) if _lead_colon(s)],
         # Решения читает приложение, а не только экспорт: без фильтра чужая реплика становилась
         # «тем, о чём договорились».
-        "decisions": _drop_foreign_only([str(s) for s in (raw.get("decisions") or [])], _utterance_pairs(transcript), active_foreign),
+        "decisions": [_lead_colon(s) for s in _drop_foreign_only([str(s) for s in (raw.get("decisions") or [])], _utterance_pairs(transcript), active_foreign) if _lead_colon(s)],
         "items": checked["items"],
         "rejected": checked["rejected"],
     }

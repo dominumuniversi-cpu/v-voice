@@ -1080,6 +1080,21 @@ _own = _cl.add({'kind': 'llm', 'preset': 'mistral', 'key': 'sk-test'})
 check("preset_fills_model_and_address", _own[0] == 201
       and _own[1]['connection']['model'] == 'mistral-small-latest', _own[1].get('connection'))
 _cl.add({'kind': 'asr', 'preset': 'speechmatics', 'key': 'sm-test'})
+# Каждый пресет распознавания обязан нести адрес: без него облако некуда звать, а человек
+# получает «не настроено» вместо «вставьте ключ».
+_asr_presets = [p for p in _BUILTIN if p['kind'] == 'asr']
+check("asr_presets_have_address", all(p.get('base_url') for p in _asr_presets if p['protocol'] != 'whisper'),
+      [p['id'] for p in _asr_presets if not p.get('base_url')])
+check("asr_catalog_covers_four_clouds",
+      set(p['protocol'] for p in _asr_presets) >= {'speechmatics', 'deepgram', 'assemblyai', 'openai_asr', 'gladia', 'whisper'},
+      sorted(p['protocol'] for p in _asr_presets))
+check("no_demo_stubs_in_catalog", not [p for p in _BUILTIN if p['protocol'] == 'fake'],
+      [p['id'] for p in _BUILTIN if p['protocol'] == 'fake'])
+# Своё распознавание заводится без ключа, облако — нет: это разные обещания.
+_no_key_cloud = _cl.add({'kind': 'asr', 'preset': 'deepgram'})
+check("cloud_asr_needs_key", _no_key_cloud[0] == 400, _no_key_cloud[1])
+_local = _cl.add({'kind': 'asr', 'preset': 'whisper-local'})
+check("local_asr_wants_no_key", _local[0] == 201, _local[1])
 # Выбор не появляется сам: пока человек не нажал «Работать этой», рабочего подключения нет.
 _cl.active.clear()  # выбор не появляется сам
 # По умолчанию ничего не выбрано: сервер не берёт связку «по привычке» и не отдаёт провайдера
@@ -1103,7 +1118,7 @@ check("health_follows_activation", _hc2.body["settings"]["llm"]["provider"] == "
       and _hc2.body["settings"]["llm"]["connection"] == "Mistral", _hc2.body["settings"]["llm"])
 _vw = _handle('GET', '/api/v1/connections', '', connections=_cl)
 check("connections_view_in_work", _vw.body.get("in_work", {}).get("llm") == _own_llm_id
-      and _vw.body.get("in_work", {}).get("asr") == _own_asr_id, _vw.body.get("in_work"))
+      and _vw.body.get("in_work", {}).get("asr") == _cl.active.get("asr"), _vw.body.get("in_work"))
 # Экран «Добавить» берёт список провайдеров по виду связи, а не общий список протоколов.
 _pv = _vw.body.get("protocols") or {}
 check("protocols_are_per_kind", [p["value"] for p in _pv.get("llm", [])][:1] == ["mistral"]
@@ -1217,6 +1232,28 @@ check("llm_garbage_is_empty", _answer('не json') == '')
 # AC-9: сколько секунд ушло провайдеру — считается из тех же чисел, что и куски.
 from vvoice.vad import FRAME_MS as _FM
 check("sent_seconds_formula", abs(50 * _FM / 1000.0 - 1.0) < 1e-9, 'кадр ' + str(_FM) + ' мс')
+# Файловый проход целиком: счётчики берутся из самой записи. Раньше здесь стояли имена
+# переменных, которых после правки конвейера не стало, и разбор падал с NameError на живом сервере.
+import tempfile as _tmp
+import wave as _wave
+from vvoice.providers.fake_asr import FakeAsr as _FakeAsr2
+_wav_dir = _tmp.mkdtemp()
+_wav_path = str(Path(_wav_dir) / 'probe.wav')
+with _wave.open(_wav_path, 'wb') as _w:
+    _w.setnchannels(1)
+    _w.setsampwidth(2)
+    _w.setframerate(16000)
+    _w.writeframes(b'\x00\x00' * 32000)  # две секунды тишины: распознавание не нужно
+_res = _run_session(_FakeAsr2(script=[]), [], lambda system, user: {'summary': ['ok'], 'items': []},
+                    audio_path=_wav_path)
+# Модель складывает запись как Path, а не строку — именно на этом разбор и падал.
+_res_path = _run_session(_FakeAsr2(script=[]), [], lambda system, user: {'summary': ['ok'], 'items': []},
+                         audio_path=Path(_wav_path))
+check("file_pass_accepts_path", _res_path.get("sent_seconds") == 2.0, _res_path.get("sent_seconds"))
+check("file_pass_counts_from_recording", _res.get("sent_seconds") == 2.0 and _res.get("dropped_by_vad") == 0,
+      {k: _res.get(k) for k in ("sent_seconds", "dropped_by_vad", "sent_chunks")})
+check("file_pass_has_no_stale_names", all(k in _res for k in ("dropped_noise", "dropped_short", "dropped_invented")),
+      sorted(set(("dropped_noise", "dropped_short", "dropped_invented")) - set(_res)))
 # AC-9: стоимость показывается только при заданном тарифе, иначе — молчание, а не «0 ₽».
 from vvoice.http_api import _with_cost as _cost
 _c1 = _cost({'sent_seconds': 1800.0}, 100.0)

@@ -76,10 +76,36 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 <div class="card"><div class="rec"><div class="dot" id="dot"></div><div class="timer" id="timer">00:00</div></div>
 <div class="text" id="live">Микрофон выключен. Нажмите «Слушаю».</div>
 <div class="row"><button id="start">Слушаю</button><button id="pause" class="ghost" disabled>Пауза</button><button id="stop" class="ghost" disabled>Стоп</button><button id="analyze" class="ghost" disabled>Разобрать</button></div></div>
-<div class="card"><h2>Подключённые модели</h2>
+<div class="card" id="digest" style="display:none"><h2 id="digestTitle">Запись</h2>
+<div class="row" style="margin-top:0" id="digestTools">
+  <button id="digestTranscript" class="ghost small">Показать исходный текст</button>
+  <a id="digestDownload" class="ghost small" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;min-height:32px;display:inline-flex;align-items:center">Скачать TXT</a>
+  <button id="digestClose" class="ghost small">Закрыть</button>
+  <button id="digestDelete" class="danger small">Удалить запись</button>
+</div>
+<p class="muted" id="digestWhen" style="margin:6px 0 10px"></p>
+<div class="text warn" id="digestNote" style="display:none;margin:0 0 12px"></div>
+<div id="playBox" style="display:none;margin-bottom:12px">
+<audio id="digestAudio" controls style="width:100%"></audio>
+<p class="muted" id="audioName" style="margin:6px 0 0;font-size:12px"></p>
+</div>
+<div id="transcriptBox" style="display:none"><h2 style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">Исходный текст
+<span class="row" style="margin:0;gap:6px"><a class="ghost small" id="trSrt" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;font-weight:400;min-height:32px;display:inline-flex;align-items:center">SRT</a>
+<a class="ghost small" id="trJson" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;font-weight:400;min-height:32px;display:inline-flex;align-items:center">JSON</a></span></h2>
+<div id="transcriptText" class="text" style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#faf8f3;padding:10px 12px;border-radius:10px;display:none"></div></div>
+<h2 style="margin-top:16px">Выжимка</h2><ul class="sum" id="summary"></ul>
+<h2 style="margin-top:16px">Задачи и встречи</h2><div id="items"></div>
+<h2 style="margin-top:16px">Открытые вопросы</h2><ul class="sum" id="questions"></ul>
+</div>
+<div class="card"><h2>Разговоры</h2>
+<p class="muted" style="margin:0 0 10px">Каждый разговор остаётся здесь со звуком и разбором. Нажмите строку — запись и текст откроются сразу наверху.</p>
+<div class="row" style="margin-top:0"><button id="convsToggle" class="ghost small">Свернуть список</button><button id="convsReload" class="ghost small">Обновить</button></div>
+<div class="conns" id="convs" style="margin-top:10px"></div>
+<p class="muted" id="convsMsg" style="margin:8px 0 0"></p></div>
+<div class="card"><h2>Модели</h2>
 <div id="settings" class="muted">Проверяю…</div>
-<div class="row"><button id="recheck" class="ghost">Проверить снова</button></div>
-<div class="setup">
+<div class="row"><button id="recheck" class="ghost">Проверить снова</button><button id="setupToggle" class="ghost">Настроить провайдеров</button></div>
+<div class="setup" id="setup" hidden>
   <h3 style="margin:0 0 6px">Мои подключения</h3>
   <p class="muted" style="margin:0 0 10px">Здесь только то, что вы завели сами. Ни одного подключения — значит ни расшифровки, ни разбора: начните с кнопки «Добавить».</p>
   <div class="conns" id="conns"></div>
@@ -107,33 +133,13 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
   <p class="muted" id="saveMsg" style="margin-top:8px"></p>
 </div>
 <p class="muted" id="hint" style="margin-top:10px"></p></div>
-<div class="card"><h2>Сервер</h2>
+<div class="card" id="serverCard"><h2>Сервер</h2>
+<div class="row" id="serverSummary" hidden style="margin-top:0"><span class="muted" id="serverSummaryText" style="font-size:13px"></span><button id="serverChange" class="ghost small">Сменить</button></div>
 <label for="server">Адрес</label><input id="server" placeholder="https://192.168.8.49/voice">
 <label for="token" style="margin-top:10px">Токен устройства</label><input id="token" type="password" autocomplete="off" placeholder="из настроек сервера">
+<div class="row" id="tokenForm" style="margin-top:8px"><button id="goServer" class="small">Перейти</button><button id="forgetToken" class="ghost small">Забыть токен</button></div>
 <p class="muted" style="margin:4px 0 0;font-size:12px">Нужен, только если сервер закрыт токеном. Браузер его запомнит — в адресной строке токена не будет.</p>
-<div class="row"><button id="goServer">Перейти</button><button id="forgetToken" class="ghost">Забыть токен</button></div>
 <p class="muted" id="serverMsg" style="margin-top:8px"></p></div>
-<div class="card"><h2>Разговоры</h2>
-<p class="muted" style="margin:0 0 10px">Каждый разговор остаётся здесь: разбор, расшифровка и сам звук. Открывается без повторного разбора.</p>
-<div class="row" style="margin-top:0"><button id="convsToggle" class="ghost small">Свернуть список</button><button id="convsReload" class="ghost small">Обновить</button></div>
-<div class="conns" id="convs" style="margin-top:10px"></div>
-<p class="muted" id="convsMsg" style="margin:8px 0 0"></p></div>
-<div class="card" id="digest" style="display:none"><h2 id="digestTitle">Выжимка</h2>
-<div class="row" style="margin-top:0" id="digestTools">
-  <button id="digestTranscript" class="ghost small">Показать расшифровку</button>
-  <a id="digestDownload" class="ghost small" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;min-height:32px;display:inline-flex;align-items:center">Скачать TXT</a>
-  <button id="digestClose" class="ghost small">Закрыть</button>
-</div>
-<p class="muted" id="digestWhen" style="margin:6px 0 10px"></p>
-<audio id="digestAudio" controls style="width:100%;margin-bottom:12px;display:none"></audio>
-<ul class="sum" id="summary"></ul>
-<h2 style="margin-top:16px">Задачи и встречи</h2><div id="items"></div>
-<h2 style="margin-top:16px">Открытые вопросы</h2><ul class="sum" id="questions"></ul>
-<div id="transcriptBox" style="display:none"><h2 style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">Расшифровка
-<span class="row" style="margin:0;gap:6px"><a class="ghost small" id="trSrt" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;font-weight:400;min-height:32px;display:inline-flex;align-items:center">SRT</a>
-<a class="ghost small" id="trJson" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;font-weight:400;min-height:32px;display:inline-flex;align-items:center">JSON</a></span></h2>
-<div id="transcriptText" class="text" style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#faf8f3;padding:10px 12px;border-radius:10px;display:none"></div></div>
-</div>
 </main>
 <script>
 const $=(s)=>document.querySelector(s);
@@ -210,11 +216,15 @@ async function analyze(){
     const r=await fetch(server()+'/api/v1/sessions/'+sessionId+'/analyze',{method:'POST',headers:headers(),body:'{}'});
     const d=await r.json();
     if(!r.ok){say('Разбор не удался: '+(d.message||d.error||r.status),true);$('#analyze').disabled=false;return}
-    render(d);say('Готово. Разбор сохранён: открыть его можно в блоке «Разговоры».');$('#digestAudio').style.display='block';$('#digestAudio').src=server()+'/api/v1/sessions/'+sessionId+'/audio?token='+encodeURIComponent(token());loadConvs();
+    // После разбора открываем ЭТУ запись в карточке — сразу под кнопками записи: звук и текст
+    // на месте, и не нужно искать её в списке ниже.
+    say('Готово. Запись и разбор открыты ниже.');
+    await loadConvs();
+    openConv(sessionId);
   }catch(e){say('Связь с сервером прервалась при разборе: '+e.message,true);$('#analyze').disabled=false}
 }
 function render(d){
-  const box=$('#digest');box.style.display='block';
+  const box=$('#digest');
   const sum=$('#summary');sum.innerHTML='';  (d.summary||[]).forEach(s=>{const text=clean(s);if(!text)return;const li=document.createElement('li');li.textContent=text;sum.appendChild(li)});
   if(!(d.summary||[]).length){sum.innerHTML='<li class="muted">'+(d.summary_missing?'Модель не выделила выжимку.':'Выжимки нет.')+'</li>'}
   const items=$('#items');items.innerHTML='';
@@ -267,7 +277,7 @@ function drawConvs(d){
     convsMsg('',false);return;
   }
   CONVS.forEach(c=>{
-    const row=document.createElement('div');row.className='conn';
+    const row=document.createElement('div');row.className='conn';row.dataset.sid=c.session_id;
     const body=document.createElement('div');body.className='body';
     const b=document.createElement('b');b.textContent=c.title||('Разговор '+c.session_id.slice(0,6));
     body.appendChild(b);
@@ -277,95 +287,143 @@ function drawConvs(d){
     meta.push(c.ready?'разбор готов':(c.has_audio?'разбора ещё нет':'записи нет'));
     const s=document.createElement('span');s.textContent=meta.join(' · ');body.appendChild(s);
     const state=document.createElement('div');state.className='state';
-    const i=document.createElement('i');i.textContent=c.ready?(c.items?c.items+' в разборе':'разбор без задач'):'';
+    const i=document.createElement('i');i.textContent=c.ready?(c.items?c.items+' в разборе':'разбор без задач'):(c.has_audio?'не разобран':'не разобрать — нет звука');
     if(!c.ready)i.className='paid';state.appendChild(i);body.appendChild(state);
     row.appendChild(body);
     const tools=document.createElement('div');tools.className='tools';
-    if(c.ready){const open=document.createElement('button');open.className='small';open.textContent='Открыть';open.dataset.sid=c.session_id;open.onclick=()=>openConv(open.dataset.sid);tools.appendChild(open)}
+    // Открывается любой разговор: у разобранного — разбор, у остальных — звук и текст-статус.
+    const open=document.createElement('button');open.className='small';open.textContent='Открыть';open.dataset.sid=c.session_id;open.onclick=()=>openConv(open.dataset.sid);tools.appendChild(open);
     if(c.has_audio){const an=document.createElement('button');an.className='ghost small';an.textContent=c.ready?'Разобрать заново':'Разобрать';an.dataset.sid=c.session_id;an.onclick=()=>analyzeConv(an.dataset.sid);tools.appendChild(an)}
     // Вся строка кликабельна, кроме кнопок: на телефоне попасть в «Открыть» сложнее, чем в строку.
-    if(c.ready)row.classList.add('clickable');
-    row.addEventListener('click',e=>{if(e.target.closest('.tools'))return;if(c.ready)openConv(c.session_id)});
+    row.classList.add('clickable');
+    row.addEventListener('click',e=>{if(e.target.closest('.tools'))return;openConv(c.session_id)});
     row.appendChild(tools);box.appendChild(row);
   });
   convsMsg('Всего разговоров: '+CONVS.length+(d&&d.ready!=null?', с разбором: '+d.ready:''),false);
 }
-// Открытие разговора: сперва готовый разбор, расшифровка и звук — без повторного распознавания.
+// Открытие разговора: карточка стоит сразу под записью, поэтому запись слышна сразу, а текст и
+// разбор подгружаются в неё же. Страница никуда не прыгает: человек остаётся там, где нажал.
 async function openConv(id){
   if(!id)return;
   if(!CONVS.length)await loadConvs();
   const c=CONVS.find(x=>x.session_id===id)||{};
   shown=id;
   el('digest').style.display='block';
-  el('digestTitle').textContent='Разговор';
-  el('digestWhen').textContent='Открываю…';
+  el('digestTitle').textContent=clean(c.title)||'Разговор '+id.slice(0,6);
+  el('digestWhen').textContent=[fmtWhen(c.started),c.duration_s?fmtDur(c.duration_s):'',c.has_audio?'звук сохранён':'звук не сохранился','запись: '+id.slice(0,8)].filter(Boolean).join(' · ');
   hide(el('transcriptBox'));
+  note('');
   ['summary','items','questions'].forEach(k=>el(k).innerHTML='');
-  // Нет звука — нет плеера: чёрная полоса вместо записи читается как «сломалось».
-  // Убирать ссылку с экрана — честнее, чем оставлять её и молча получать 404.
-  const audio=el('digestAudio');
-  if(c.has_audio){show(audio);audio.src=server()+'/api/v1/sessions/'+id+'/audio?token='+encodeURIComponent(token())}
-  else{audio.pause();audio.removeAttribute('src');hide(audio)}
-  // Нет текста — нет кнопки скачивания: ссылка, которая отдаёт ошибку, хуже её отсутствия.
+  // Звук — первым делом и всегда, если он есть: прослушать запись можно и до разбора.
+  const box=el('playBox'),audio=el('digestAudio');
+  if(c.has_audio){
+    show(box);
+    audio.src=server()+'/api/v1/sessions/'+id+'/audio?token='+encodeURIComponent(token());
+    el('audioName').textContent='Файл записи: '+id+'.wav — его же скачивание в плеере сохранит под этим именем.';
+  }else{audio.pause();audio.removeAttribute('src');hide(box)}
   const hasText=c.ready===true;
-  ['trSrt','trJson','digestTranscript'].forEach(k=>{hasText?show(el(k)):hide(el(k))});
-  // Скачать расшифровку можно только когда она есть: ссылка без текста отдаёт отказ.
-  c.ready?show(el('digestDownload')):hide(el('digestDownload'));
+  ['trSrt','trJson','digestTranscript','digestDownload'].forEach(k=>{hasText?show(el(k)):hide(el(k))});
   el('digestDownload').href=server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token());
   el('trSrt').href=server()+'/api/v1/sessions/'+id+'/transcript?format=srt&token='+encodeURIComponent(token());
   el('trJson').href=server()+'/api/v1/sessions/'+id+'/transcript?format=json&token='+encodeURIComponent(token());
+  markRow(id);
+  // Разбора нет — говорим это словами и сразу предлагаем разобрать, не отправляя искать кнопку.
+  if(!c.ready){
+    note(c.has_audio
+      ? 'Разбора пока нет: запись на месте, звук можно слушать. Нажмите «Разобрать» — текст и выжимка появятся здесь же.'
+      : 'У этой записи нет файла звука: вероятно, она пришла с ошибкой загрузки. Разобрать её нечем.');
+    return;
+  }
+  // Исходный текст показываем сами: человек ищет его первым, и лишнее нажатие здесь только мешает.
+  await showTranscript(id,{force:true});
   try{
     const r=await fetch(server()+'/api/v1/sessions/'+id+'/digest',{headers:headers()});
     const d=await r.json();
     if(!r.ok){
-      el('digestWhen').textContent='Разбора пока нет: '+String(d.message||r.status).replace(/[.\s]+$/,'')+'. Запись цела — можно нажать «Разобрать».';
+      note('Разбор не открылся: '+String(d.message||('код '+r.status)).replace(/[.\s]+$/,'')+'.');
       return;
     }
     render(d);
-    el('digestTitle').textContent=clean(d.title)||c.title||'Разбор разговора';
-    el('digestWhen').textContent=[fmtWhen(c.started),c.duration_s?fmtDur(c.duration_s):'',c.has_audio?'звук сохранён':'звук не сохранился','запись: '+id.slice(0,8)].filter(Boolean).join(' · ');
-    el('digest').scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(e){el('digestWhen').textContent='Связь прервалась: '+e.message}
+    el('digestTitle').textContent=clean(d.topic)||clean(d.title)||c.title||'Разбор разговора';
+  }catch(e){note('Связь прервалась при чтении разбора: '+e.message)}
+}
+function note(text){const n=el('digestNote');if(!text){hide(n);n.textContent='';return}n.textContent=text;show(n)}
+function markRow(id){
+  document.querySelectorAll('#convs .conn').forEach(r=>r.classList.toggle('on',r.dataset.sid===id));
 }
 async function analyzeConv(id){
   convsMsg('Разбираю разговор…',false);
+  if(shown===id)note('Разбираю: распознаю речь и собираю выжимку. Это может занять время — запись на месте.');
   try{
     const r=await fetch(server()+'/api/v1/sessions/'+id+'/analyze',{method:'POST',headers:headers(),body:'{}'});
     const d=await r.json();
-    if(!r.ok){convsMsg('Разбор не удался: '+(d.message||d.error||r.status),true);return}
+    if(!r.ok){
+      const why='Разбор не удался: '+(d.message||d.error||('код '+r.status));
+      convsMsg(why,true);
+      if(shown===id)note(why+' Запись цела — можно попробовать ещё раз.');
+      return;
+    }
     convsMsg('Разбор готов.',false);
     await loadConvs();openConv(id);
   }catch(e){convsMsg('Связь прервалась при разборе: '+e.message,true)}
 }
-async function showTranscript(id){
+async function showTranscript(id,opts){
   const box=el('transcriptBox'),text=el('transcriptText');
-  if(getComputedStyle(box).display!=='none'){hide(box);return}
-  show(box);text.textContent='Загружаю расшифровку…';
+  const force=!!(opts&&opts.force);
+  if(!force && getComputedStyle(box).display!=='none'){hide(box);return}
+  show(box);
+  if(!force || !text.dataset.sid || text.dataset.sid!==id){
+    text.textContent='Загружаю исходный текст…';
+    try{
+      const r=await fetch(server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token()));
+      if(!r.ok){
+        const d=await r.json().catch(()=>null);
+        text.textContent=d&&d.message?d.message:('Текст не открылся, код '+r.status+'.');
+        return;
+      }
+      text.textContent=await r.text();
+      text.dataset.sid=id;
+    }catch(e){text.textContent='Связь прервалась: '+e.message}
+  }
+}
+async function deleteConv(id){
+  if(!id)return;
+  const c=CONVS.find(x=>x.session_id===id)||{};
+  convsMsg('Удаляю запись…',false);
   try{
-    const r=await fetch(server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token()));
-    if(!r.ok){
-      // Сырой JSON и «код 409» человеку ничего не говорят: переводим на слова.
-      const d=await r.json().catch(()=>null);
-      text.textContent=d&&d.message?d.message:('Расшифровка не открылась, код '+r.status+'.');
-      return;
-    }
-    text.textContent=await r.text();
-  }catch(e){text.textContent='Связь прервалась: '+e.message}
+    const r=await fetch(server()+'/api/v1/sessions/'+id,{method:'DELETE',headers:headers()});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){convsMsg('Удалить не удалось: '+(d.message||('код '+r.status)),true);return}
+    closeCard();
+    await loadConvs();
+    convsMsg('Удалён разговор '+(c.title||id.slice(0,6))+'. Если ошиблись — он в корзине сервера, скажите, вернём.',false);
+  }catch(e){convsMsg('Связь прервалась при удалении: '+e.message,true)}
+}
+function closeCard(){
+  el('digest').style.display='none';
+  el('digestAudio').pause();
+  shown=null;
+  markRow(null);
 }
 // Обработчики журнала вешаем ПОСЛЕ объявления el: раньше здесь стоял вызов el() до её объявления,
 // и весь скрипт падал с ReferenceError — страница оставалась мёртвой ($('...') ниже по коду).
+function wireSetupOpen(){const s=el('setup');if(s)s.hidden=false;const b=el('setupToggle');if(b)b.textContent='Скрыть настройку'}
 function wireJournal(){
 // Список раскрыт по умолчанию: разговоры — главное, что человек пришёл смотреть. Кнопка только
 // сворачивает его, и подпись честно говорит, что сделает нажатие.
 el('convsToggle').onclick=()=>{const b=el('convs'),open=b.style.display!=='none';b.style.display=open?'none':'grid';el('convsToggle').textContent=open?'Показать список':'Свернуть список'};
 el('convsReload').onclick=loadConvs;
-el('digestClose').onclick=()=>{el('digest').style.display='none';el('digestAudio').pause()};
+el('digestClose').onclick=closeCard;
+el('digestDelete').onclick=()=>deleteConv(shown);
+// Настройки провайдеров спрятаны под кнопкой: его дело — записывать и читать, а не настраивать.
+el('setupToggle').onclick=()=>{const s=el('setup');const open=s.hidden;s.hidden=!open;el('setupToggle').textContent=open?'Скрыть настройку':'Настроить провайдеров'};
 el('digestTranscript').onclick=()=>showTranscript(shown);
+// Если настройки ещё не заведены вовсе — сразу раскрываем: иначе человек не поймёт, где их взять.if(!Object.keys(CONNS).some(k=>CONNS[k].length))wireSetupOpen();
 }
 
-const NAMES={fake:'демо-заглушка',speechmatics:'Speechmatics',deepgram:'Deepgram',assemblyai:'AssemblyAI',
+const NAMES={speechmatics:'Speechmatics',deepgram:'Deepgram',assemblyai:'AssemblyAI',
   gigaam:'GigaAM (свой сервер)',deepseek:'DeepSeek',anthropic:'Anthropic',ollama:'Ollama (свой сервер)',
-  openai:'OpenAI',gigachat:'GigaChat',whisper:'Whisper'};
+  openai:'OpenAI',openai_asr:'OpenAI Whisper API',gladia:'Gladia',zai:'Z.AI (GLM)',mistral:'Mistral',whisper:'Своя модель Whisper'};
 function label(p){return NAMES[p]||p||'не задано'}
 async function loadSettings(){
   const box=document.getElementById('settings');const hint=document.getElementById('hint');
@@ -415,8 +473,8 @@ function draw(){
     const where=[];
     if(c.model)where.push('модель: '+c.model);
     if(c.base_url)where.push(c.base_url);
-    // Ключ не нужен заглушке и своему распознаванию: «ключ не задан» рядом с ними пугало зря.
-    const keyless=(c.protocol==='fake'||c.protocol==='whisper');
+    // Ключ не нужен своему распознаванию: «ключ не задан» рядом с ним пугало зря.
+    const keyless=(c.protocol==='whisper');
     where.push(c.key_set?'ключ задан '+c.key_hint:(keyless?'ключ не нужен':'ключ не задан'));
     const s=document.createElement('span');s.textContent=where.join(' · ');body.appendChild(s);
     const state=document.createElement('i');state.textContent=works?'работает сейчас':'не выбрана';
@@ -459,12 +517,27 @@ function choice(){
   if(how==='preset'){const p=(PRESETS[el('cfKind').value]||[]).find(x=>x.id===what)||{};return {preset:what,protocol:p.protocol||what,preset_data:p}}
   return {preset:'',protocol:what||''};
 }
+// Адрес и модель приходят из пресета: человеку остаётся вставить ключ. Поля «Адрес» и «Модель»
+// показываем только там, где выбор действительно за человеком (свой шлюз, Ollama, своя модель) —
+// раньше они висели всегда пустыми и провоцировали «настройку», которая ломала связку.
+const NEEDS_URL={'openai':true,'ollama':true};
+const NEEDS_MODEL={'openai':true,'ollama':true};
 function applyChoice(){
   const c=choice();
-  el('cfU').value=c.preset_data?(c.preset_data.base_url||''):'';
-  el('cfM').value=c.preset_data?(c.preset_data.model||''):'';
   const p=c.preset_data||{};
-  el('cfHint').textContent=[p.note||'',p.cost?('Цена: '+p.cost+'.'):''].filter(Boolean).join(' ');
+  el('cfU').value=p.base_url||'';
+  el('cfM').value=p.model||'';
+  el('cfU').hidden=!(NEEDS_URL[c.protocol]||!p.base_url);
+  el('cfM').hidden=!(NEEDS_MODEL[c.protocol]||!p.model);
+  const noKey=(c.protocol==='whisper');
+  el('cfK').hidden=noKey;
+  el('cfK').placeholder=noKey?'Ключ не нужен: модель работает на нашем сервере':'Ключ провайдера';
+  const bits=[];
+  if(p.note)bits.push(p.note);
+  if(p.cost)bits.push('Цена: '+p.cost+'.');
+  if(p.base_url&&!NEEDS_URL[c.protocol])bits.push('Адрес из пресета: '+p.base_url+'.');
+  if(p.model&&!NEEDS_MODEL[c.protocol])bits.push('Модель: '+p.model+'.');
+  el('cfHint').textContent=bits.join(' ');
   if(!editing&&p.title)el('cfT').value=p.title;
 }
 async function loadConns(){
@@ -591,13 +664,31 @@ async function goServer(){
     }
     if(!r.ok){serverMsg('Сервер ответил кодом '+r.status+'. Проверьте адрес.',true);return}
     serverMsg('Связь есть. Настройки ниже загружены.',false);
+    collapseServer();
     await loadConns();loadSettings();
   }catch(e){serverMsg('Сервер не ответил: '+e.message+'. Проверьте адрес и сеть.',true)}
 }
 el('goServer').onclick=goServer;
-el('forgetToken').onclick=()=>{localStorage.removeItem('vv_token');$('#token').value='';serverMsg('Токен забыт в этом браузере: если сервер открыт, он и не нужен.',false)};
+el('forgetToken').onclick=()=>{localStorage.removeItem('vv_token');$('#token').value='';expandServer();serverMsg('Токен забыт в этом браузере: если сервер открыт, он и не нужен.',false)};
+// После входа блок «Сервер» прячется до одной строки: он уже сделал своё дело, и держать
+// поле токена открытым на виду незачем. «Сменить» возвращает его обратно.
+function collapseServer(message){
+  ['server','token','tokenForm'].forEach(id=>{const n=document.getElementById(id);if(n)n.hidden=true});
+  const summary=document.getElementById('serverSummary');
+  if(summary){summary.hidden=false;}
+  document.getElementById('serverSummaryText').textContent=message||('Сервер: '+server()+(token()?' · вход выполнен':' · без токена'));
+}
+document.getElementById('serverChange').onclick=expandServer;
+function expandServer(){
+  ['server','token','tokenForm'].forEach(id=>{const n=document.getElementById(id);if(n)n.hidden=false});
+  const summary=document.getElementById('serverSummary');
+  if(summary)summary.hidden=true;
+  serverMsg('',false);
+}
 // Стартовая подсказка в блоке «Сервер»: молчащее поле токена человек читает как «оно обязательное».
 serverMsg(localStorage.getItem('vv_token')?'Токен сохранён в этом браузере.':'Токен не задан: если сервер открыт, нажимать «Перейти» не нужно.',false);
+// Токен пришёл в адресе и уже сохранён: вход состоялся, поэтому блок входа прячем сразу.
+if(localStorage.getItem('vv_token'))collapseServer('Сервер: '+server()+' · вход выполнен');
 el('addConn').onclick=()=>openForm(null);
 el('cfX').onclick=()=>{el('connForm').hidden=true;editing=null};
 el('cfDo').onclick=saveConn;

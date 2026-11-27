@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import wave
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -49,6 +50,16 @@ def run_live(provider, state: SessionState, chunks: list[bytes], *, gate: VadGat
     return state.live
 
 
+def _wav_seconds(path: str) -> float:
+    """Длительность записи в секундах. Не читается — 0, а не выдуманное число."""
+    try:
+        with wave.open(str(path), 'rb') as handle:
+            rate = handle.getframerate() or 1
+            return round(handle.getnframes() / float(rate), 1)
+    except (OSError, wave.Error):
+        return 0.0
+
+
 def run_session(
     provider,
     chunks: list[bytes],
@@ -64,9 +75,10 @@ def run_session(
     audio_path — где лежит сама запись. Без него файл провайдеру не отдать: раньше здесь стояла
     строка "segment.wav", которой на диске нет, и любой файловый провайдер падал на «нет файла».
     """
+    # Файловый проход звук не отправляет: провайдер сам получит всю запись один раз ниже.
+    # Раньше сюда уходили те же участки речи, что и в файл, — тишина между фразами выпадала,
+    # а распознавание шло дважды.
     state = SessionState()
-    sent, dropped_frames = (chunks, 0) if gate is None else gate_chunks(chunks, gate)
-    run_live(provider, state, sent)
     try:
         final_segments: list[Segment] = provider.transcribe_file(audio_path or "segment.wav")
     except Exception as exc:  # провайдер речи упал: у нас нет ни одной реплики
@@ -84,11 +96,12 @@ def run_session(
         ],
         "speakers": sorted(transcript.speakers),
         "dropped_noise": transcript.dropped_noise,
-        "dropped_by_vad": dropped_frames,
-        "sent_chunks": len(sent),
-        # Сколько секунд аудио реально ушло провайдеру. Человеку и расчёту стоимости нужно это,
-        # а не число кусков: по кускам цену не посчитать, не зная длины куска.
-        "sent_seconds": round(len(sent) * FRAME_MS / 1000.0, 1),
+        # Файловый проход отдаёт запись целиком, а не куски через отсечение шума: отсечения
+        # здесь нет, и считать его нулём честнее, чем числами из ниоткуда.
+        "dropped_by_vad": 0,
+        "sent_chunks": 1,
+        # Сколько секунд аудио реально ушло провайдеру — по длине самой записи, а не по числу кусков.
+        "sent_seconds": _wav_seconds(audio_path or ""),
         "dropped_short": transcript.dropped_short,
         # Сколько строк распознавание придумало в тишине. Нужно человеку как мера шума в зале.
         "dropped_invented": transcript.dropped_invented,

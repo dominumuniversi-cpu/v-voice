@@ -99,7 +99,8 @@ class RuntimeSettings:
 
     def asr(self) -> dict[str, str]:
         with self._lock:
-            return {'provider': self.asr_provider, 'key': self.asr_key, 'model': self.asr_model}
+            return {'provider': self.asr_provider, 'key': self.asr_key, 'model': self.asr_model,
+                    'base_url': ''}
 
     def llm(self) -> dict[str, str]:
         with self._lock:

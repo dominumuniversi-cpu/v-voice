@@ -38,6 +38,17 @@ class DigestStore:
         os.replace(temp, target)
         return target
 
+    def remove(self, session_id: str) -> bool:
+        """Удаляет разбор. False — файла не было."""
+        try:
+            path = self._path(session_id)
+        except ValueError:
+            return False
+        if not path.exists():
+            return False
+        path.unlink()
+        return True
+
     def load(self, session_id: str) -> dict[str, Any] | None:
         """Возвращает разбор или None; битый файл тоже None, а не падение сервера."""
         try:
