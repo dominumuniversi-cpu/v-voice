@@ -323,8 +323,6 @@ class ConnectionList:
             # модель из каталога стоит у всех, а без ключа провайдер не ответит.
             # Своё распознавание работает без ключа, свой сервер — по адресу.
             ready = bool(key) or protocol == 'whisper' or (protocol == 'ollama' and bool(base_url))
-            if ready and not self.active.get(kind):
-                self.active[kind] = conn_id
             conn = Connection(id=conn_id, kind=kind, protocol=protocol, title=title, base_url=base_url,
                               model=model, key=key, preset=str(raw.get('preset') or '').strip().lower(),
                               note=note, cost=cost, added=time.time())

@@ -68,6 +68,8 @@ button.small{padding:6px 10px;font-size:12px;border-radius:8px}
 button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 .connform{display:grid;gap:8px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
 .connform[hidden]{display:none}
+/* Скрытие — для любых строк, а не только полей: у форм есть класс row, и hidden у них не срабатывал. */
+.row[hidden]{display:none}
 .connform input,.connform select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit}
 </style></head><body>
 <header><h1>Умный диктофон</h1>
@@ -311,7 +313,6 @@ function hasText(id){const c=CONVS.find(x=>x.session_id===id);return !!(c&&c.has
 // кнопке. Человек остаётся там, где нажал — это правило «действие не перебрасывает».
 async function openConv(id){
   if(!id)return;
-  const keepY=window.scrollY;
   if(!CONVS.length)await loadConvs();
   const c=CONVS.find(x=>x.session_id===id)||{};
   shown=id;
@@ -328,8 +329,11 @@ async function openConv(id){
     audio.src=server()+'/api/v1/sessions/'+id+'/audio?token='+encodeURIComponent(token());
     el('audioName').textContent='Файл записи: '+id+'.wav — его же скачивание в плеере сохранит под этим именем.';
   }else{audio.pause();audio.removeAttribute('src');hide(box)}
-  const hasText=c.ready===true;
-  ['trSrt','trJson','digestTranscript','digestDownload'].forEach(k=>{hasText?show(el(k)):hide(el(k))});
+  // Только про расшифровку: если сервер её не прислал, спрашиваем сам разбор, а не прячем кнопки.
+  const hasText=c.has_transcript===undefined?!!(c.digest&&c.digest.transcript):c.has_transcript===true;
+  // Скачивать нечего, а посмотреть — можно: у записи без реплик остаётся кнопка с честной подсказкой.
+  ['trSrt','trJson','digestDownload'].forEach(k=>{hasText?show(el(k)):hide(el(k))});
+  show(el('digestTranscript'));
   el('digestDownload').href=server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token());
   el('trSrt').href=server()+'/api/v1/sessions/'+id+'/transcript?format=srt&token='+encodeURIComponent(token());
   el('trJson').href=server()+'/api/v1/sessions/'+id+'/transcript?format=json&token='+encodeURIComponent(token());
@@ -339,7 +343,6 @@ async function openConv(id){
     note(c.has_audio
       ? 'Разбора пока нет: запись на месте, звук можно слушать. Нажмите «Разобрать» — текст и выжимка появятся здесь же.'
       : 'У этой записи нет файла звука: вероятно, она пришла с ошибкой загрузки. Разобрать её нечем.');
-    window.scrollTo(0,keepY);
     return;
   }
   // Исходный текст показываем сами: человек ищет его первым, и лишнее нажатие здесь только мешает.
@@ -354,7 +357,6 @@ async function openConv(id){
     render(d);
     el('digestTitle').textContent=clean(d.topic)||clean(d.title)||c.title||'Разбор разговора';
   }catch(e){note('Связь прервалась при чтении разбора: '+e.message)}
-  window.scrollTo(0,keepY);
 }
 function note(text){const n=el('digestNote');if(!text){hide(n);n.textContent='';return}n.textContent=text;show(n)}
 function markRow(id){
@@ -687,6 +689,7 @@ function collapseServer(message){
   const summary=document.getElementById('serverSummary');
   if(summary){summary.hidden=false;}
   document.getElementById('serverSummaryText').textContent=message||('Сервер: '+server()+(token()?' · вход выполнен':' · без токена'));
+  const change=document.getElementById('serverChange');if(change)change.textContent='Сменить';
 }
 // Одна кнопка и туда, и обратно: человек может передумать и вернуть свёрнутый вид.
 document.getElementById('serverChange').onclick=()=>{const form=document.getElementById('token');
@@ -696,6 +699,7 @@ function expandServer(){
   ['server','token','tokenForm'].forEach(id=>{const n=document.getElementById(id);if(n)n.hidden=false});
   const summary=document.getElementById('serverSummary');
   if(summary)summary.hidden=true;
+  const change=document.getElementById('serverChange');if(change)change.textContent='Свернуть';
   serverMsg('',false);
 }
 // Стартовая подсказка в блоке «Сервер»: молчащее поле токена человек читает как «оно обязательное».
