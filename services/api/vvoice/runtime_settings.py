@@ -60,6 +60,11 @@ ASR_PRESETS: tuple[Preset, ...] = (
            'Полностью бесплатное распознавание требует своего движка на нашем сервере — этого здесь пока нет.'),
     Preset('fake-demo', 'asr', 'fake', 'Демо-заглушка (без сети)',
            '', '', 'бесплатно', 'Расшифровка выдумана, но весь путь проходит целиком.'),
+    Preset('whisper-local', 'asr', 'whisper', 'Своё распознавание (бесплатно, на нашем сервере)',
+           '', '', 'бесплатно, работает на нашем железе',
+           'Открытая модель Whisper на процессоре рядом с сервером: ни ключа, ни оплаты за минуты. '
+           'Качество русского ниже, чем у GigaAM-v3 (его требует видеокарту, которой у нас нет), '
+           'и распознавание идёт по одной записи — на длинных встречах ждать дольше, чем у платных.'),
 )
 
 
@@ -163,6 +168,9 @@ class RuntimeSettings:
             return False
         if provider == 'fake':
             return True
+        if kind == 'asr' and provider == 'whisper':
+            # Ключ не нужен: модель живёт на нашем сервере. Готовность проверяется живым вызовом.
+            return True
         if kind == 'llm' and provider == 'ollama':
             # Ключ не нужен, но без адреса звать некуда.
             return bool(self.llm_base_url)
@@ -174,7 +182,7 @@ class RuntimeSettings:
         asr, llm = self.asr(), self.llm()
         if not asr['provider']:
             out.append('Распознавание не выбрано: сервер берёт значение из окружения.')
-        elif asr['provider'] != 'fake' and not asr['key']:
+        elif asr['provider'] not in ('fake', 'whisper') and not asr['key']:
             out.append('Для распознавания «' + asr['provider'] + '» не введён ключ — расшифровки не будет.')
         if not llm['provider']:
             out.append('Понимание не выбрано: сервер берёт значение из окружения.')

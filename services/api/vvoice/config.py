@@ -22,9 +22,10 @@ from typing import Mapping
 
 # fake — заглушка для сквозных проверок. Допустима только по явному имени и никогда по умолчанию:
 # так выдуманный текст не может случайно оказаться на месте настоящего.
-# Только то, что действительно собрано в provider_factory. Остальные (gigaam, deepgram, assemblyai,
-# whisper) — кандидаты на будущее; держать их здесь значит обещать подключение, которого нет.
-ASR_PROVIDERS = ('speechmatics', 'fake')
+# Только то, что действительно собрано в provider_factory. Остальные (gigaam, deepgram, assemblyai) —
+# кандидаты на будущее; держать их здесь значит обещать подключение, которого нет.
+# whisper — своя модель на нашем сервере (services/asr), без ключей и оплаты за минуты.
+ASR_PROVIDERS = ('speechmatics', 'whisper', 'fake')
 LLM_PROVIDERS = ('deepseek', 'anthropic', 'ollama', 'fake')
 
 

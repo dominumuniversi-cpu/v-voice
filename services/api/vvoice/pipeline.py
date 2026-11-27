@@ -56,16 +56,19 @@ def run_session(
     *,
     gate: VadGate | None = None,
     members_only: bool = False,
+    audio_path: str | None = None,
 ) -> dict:
     """Полный проход: VAD -> живой текст -> финальный транскрипт -> разбор.
 
     gate=None означает «прогнать всё как есть» (так делают тесты с заранее записанным звуком).
+    audio_path — где лежит сама запись. Без него файл провайдеру не отдать: раньше здесь стояла
+    строка "segment.wav", которой на диске нет, и любой файловый провайдер падал на «нет файла».
     """
     state = SessionState()
     sent, dropped_frames = (chunks, 0) if gate is None else gate_chunks(chunks, gate)
     run_live(provider, state, sent)
     try:
-        final_segments: list[Segment] = provider.transcribe_file("segment.wav")
+        final_segments: list[Segment] = provider.transcribe_file(audio_path or "segment.wav")
     except Exception as exc:  # провайдер речи упал: у нас нет ни одной реплики
         raise AsrFailure(str(exc)) from exc
     transcript: Transcript = assemble(final_segments)

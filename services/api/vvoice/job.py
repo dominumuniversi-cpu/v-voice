@@ -58,7 +58,8 @@ def analyze(
     except Exception as exc:
         return JobResult(502, dict({"error": "asr_failed"}, **explain_digest_failure(exc)))
     try:
-        result = run_session(provider, [], call_llm, gate=gate, members_only=members_only)
+        result = run_session(provider, [], call_llm, gate=gate, members_only=members_only,
+                             audio_path=stored.path)
     except AsrFailure as exc:
         # Речь не распознали — это не «непонятый разговор», а отсутствие текста вообще.
         return JobResult(502, dict({"error": "asr_failed", "kind": "asr",

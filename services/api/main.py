@@ -34,9 +34,13 @@ MAX_BODY_BYTES = 12 * 1024 * 1024  # запись приходит base64, за�
 def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
     """Собирает всё, что нужно маршрутам. Ключи остаются в settings и наружу не передаются."""
     data_dir.mkdir(parents=True, exist_ok=True)
-    # Настройки, которые человек меняет из браузера. Живут дольше одного запроса, но не дольше
-    # процесса: ключ, который никто не сохраняет, невозможно потом найти в чужом логе.
-    runtime = RuntimeSettings()
+    # Стартуем с того, что задано в окружении: иначе сервер запускается с пустыми настройками
+    # и первое же открытие экрана стирает рабочую связку из .env. Что человек поменял в браузере,
+    # живёт дольше одного запроса, но не дольше процесса: ключ никто не сохраняет на диск.
+    runtime = RuntimeSettings(asr_provider=settings.asr_provider, asr_key=settings.asr_key,
+                              asr_model=settings.asr_model, llm_provider=settings.llm_provider,
+                              llm_key=settings.llm_key, llm_model=settings.llm_model,
+                              llm_base_url=settings.llm_base_url)
 
     def asr_factory(path: str) -> Any:
         """Собирает распознавание на момент вызова: ключ мог поменяться только что."""

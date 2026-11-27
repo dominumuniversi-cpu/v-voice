@@ -17,7 +17,7 @@ from .providers.fake_asr import FakeAsr
 
 # Провайдеры, для которых есть настоящая реализация в коде. Остальные — настройка есть,
 # реализации нет: сюда добавлять только после того, как она написана и проверена.
-IMPLEMENTED_ASR = ('fake', 'speechmatics')
+IMPLEMENTED_ASR = ('fake', 'speechmatics', 'whisper')
 
 
 def make_asr_factory(settings: Settings) -> Callable[[str], Any] | None:
@@ -48,6 +48,23 @@ def make_asr_factory(settings: Settings) -> Callable[[str], Any] | None:
             return client
 
         return _make_speechmatics
+    if provider == 'whisper':
+        # Своё распознавание: ключ не нужен, нужен живой сервис модели рядом. Адрес — VV_ASR_URL.
+        import os as _os
+        from .providers.whisper_asr import DEFAULT_URL, WhisperAsr
+
+        base = (_os.environ.get('VV_ASR_URL') or DEFAULT_URL).strip()
+        # Один клиент на всю запись: разбор пути зовёт фабрику несколько раз (разбор, расшифровка),
+        # и каждый раз гонять звук в модель заново — значит платить минутами ожидания дважды.
+        cache: dict[str, Any] = {}
+
+        def _make_whisper(path: str) -> Any:
+            client = WhisperAsr(base_url=base)
+            client.transcribe_file(path)
+            cache[path] = client
+            return client
+
+        return _make_whisper
     return None
 
 
