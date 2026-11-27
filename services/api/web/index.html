@@ -70,6 +70,9 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 .connform[hidden]{display:none}
 /* Скрытие — для любых строк, а не только полей: у форм есть класс row, и hidden у них не срабатывал. */
 .row[hidden]{display:none}
+/* Страховка прокрутки браузера сдвигает страницу, когда карточка над журналом меняет высоту:
+   на телефоне человека уносило на экран вверх. Открытие записи не должно двигать то, что он читает. */
+html,body,#digest,#playBox,#transcriptBox,#convs,.conn{overflow-anchor:none;-ms-overflow-anchor:none;-webkit-overflow-anchor:none}
 .connform input,.connform select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit}
 </style></head><body>
 <header><h1>Умный диктофон</h1>
@@ -330,9 +333,11 @@ async function openConv(id){
     el('audioName').textContent='Файл записи: '+id+'.wav — его же скачивание в плеере сохранит под этим именем.';
   }else{audio.pause();audio.removeAttribute('src');hide(box)}
   // Только про расшифровку: если сервер её не прислал, спрашиваем сам разбор, а не прячем кнопки.
-  const hasText=c.has_transcript===undefined?!!(c.digest&&c.digest.transcript):c.has_transcript===true;
+  // Имя переменной не должно повторять имя функции: объявление внутри функции перекрывало её
+  // до самого конца, и вызов hasText(id) падал с «hasText is not a function» — рамка текста не раскрывалась.
+  const withText=c.has_transcript===undefined?!!(c.digest&&c.digest.transcript):c.has_transcript===true;
   // Скачивать нечего, а посмотреть — можно: у записи без реплик остаётся кнопка с честной подсказкой.
-  ['trSrt','trJson','digestDownload'].forEach(k=>{hasText?show(el(k)):hide(el(k))});
+  ['trSrt','trJson','digestDownload'].forEach(k=>{withText?show(el(k)):hide(el(k))});
   show(el('digestTranscript'));
   el('digestDownload').href=server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token());
   el('trSrt').href=server()+'/api/v1/sessions/'+id+'/transcript?format=srt&token='+encodeURIComponent(token());
@@ -346,7 +351,9 @@ async function openConv(id){
     return;
   }
   // Исходный текст показываем сами: человек ищет его первым, и лишнее нажатие здесь только мешает.
-  await showTranscript(id,{force:true});
+  // Но только когда текст есть: у записи без реплик пустая рамка выглядит как поломка страницы.
+  if(hasText(id)){try{await showTranscript(id,{force:true})}catch(e){hide(el('transcriptBox'));convsMsg('Текст не раскрылся: '+e.message,true)}}
+  else hide(el('transcriptBox'));
   try{
     const r=await fetch(server()+'/api/v1/sessions/'+id+'/digest',{headers:headers()});
     const d=await r.json();
@@ -383,6 +390,7 @@ async function showTranscript(id,opts){
   const force=!!(opts&&opts.force);
   if(!force && getComputedStyle(box).display!=='none'){hide(box);return}
   show(box);
+  show(text);
   if(!force || !text.dataset.sid || text.dataset.sid!==id){
     text.textContent='Загружаю исходный текст…';
     try{
