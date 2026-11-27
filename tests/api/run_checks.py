@@ -1226,6 +1226,15 @@ _e2 = _endpoint_for('ollama', 'http://1.2.3.4:11434/api/chat')
 _e3 = _endpoint_for('ollama', '')
 check("ollama_base_url_gets_path", _e1 == 'http://1.2.3.4:11434/api/chat' and _e2 == 'http://1.2.3.4:11434/api/chat'
       and _e3 == 'http://127.0.0.1:11434/api/chat', (_e1, _e2, _e3))
+# Экран читает ready / configured / key_fingerprint. Раньше сервер отдавал другие имена,
+# и «Подключённые модели» всегда писали «не работает».
+_v = RuntimeSettings()
+_v.update({'llm_provider': 'fake', 'asr_provider': 'fake'})
+_view = _v.view()
+check("view_fields_match_page",
+      all(k in _view['llm'] for k in ('ready', 'configured', 'key_fingerprint'))
+      and all(k in _view['asr'] for k in ('ready', 'configured', 'key_fingerprint'))
+      and _view['llm']['ready'] is True, _view['llm'])
 _n = handle("GET", "/api/v1/settings")
 check("settings_route_without_store", _n.status == 503 and _n.body.get('error') == 'settings_unavailable')
 

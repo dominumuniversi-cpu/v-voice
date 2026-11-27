@@ -140,6 +140,17 @@ class RuntimeSettings:
         problems = self.problems()
         return 200, {'settings': self.view(), 'problems': problems}
 
+    def _ready(self, kind: str, provider: str, key_set: bool) -> bool:
+        """Готова ли эта половина к работе — теми же правилами, что и список проблем."""
+        if not provider:
+            return False
+        if provider == 'fake':
+            return True
+        if kind == 'llm' and provider == 'ollama':
+            # Ключ не нужен, но без адреса звать некуда.
+            return bool(self.llm_base_url)
+        return key_set
+
     def problems(self) -> list[str]:
         """Что мешает работать прямо сейчас. Пустой список — можно пользоваться."""
         out: list[str] = []
@@ -159,16 +170,27 @@ class RuntimeSettings:
         return out
 
     def view(self, *, asr_env: str = '', llm_env: str = '') -> dict[str, Any]:
-        """Что показать человеку. Ключи — только отпечатком."""
+        """Что показать человеку. Ключи — только отпечатком.
+
+        Страница читает ready / configured / key_fingerprint. Раньше сервер отдавал только
+        key_set / key_hint, и экран «Подключённые модели» всегда писал «не работает», даже когда
+        всё было настроено: поля просто не совпадали по именам.
+        """
         with self._lock:
             return {
                 'asr': {'provider': self.asr_provider or asr_env,
                         'from_env': not self.asr_provider and bool(asr_env),
                         'key_set': bool(self.asr_key), 'key_hint': _fingerprint(self.asr_key),
+                        'key_fingerprint': _fingerprint(self.asr_key),
+                        'configured': bool(self.asr_provider or asr_env),
+                        'ready': self._ready('asr', self.asr_provider or asr_env, bool(self.asr_key)),
                         'model': self.asr_model, 'available': list(IMPLEMENTED_ASR)},
                 'llm': {'provider': self.llm_provider or llm_env,
                         'from_env': not self.llm_provider and bool(llm_env),
                         'key_set': bool(self.llm_key), 'key_hint': _fingerprint(self.llm_key),
+                        'key_fingerprint': _fingerprint(self.llm_key),
+                        'configured': bool(self.llm_provider or llm_env),
+                        'ready': self._ready('llm', self.llm_provider or llm_env, bool(self.llm_key)),
                         'model': self.llm_model, 'base_url': self.llm_base_url,
                         'available': list(IMPLEMENTED_LLM)},
             }
