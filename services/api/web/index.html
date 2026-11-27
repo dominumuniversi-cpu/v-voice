@@ -23,7 +23,9 @@ button{border:0;border-radius:999px;padding:13px 22px;font-size:15px;cursor:poin
 button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
 button:disabled{opacity:.45;cursor:default}
 .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+/* Поле и подпись держат просвет: без него они смотрятся одной склеенной строкой. */
+label + input,label + select,label + textarea{margin-top:6px}
 input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px}
 .text{color:var(--muted);font-size:14px;min-height:48px;margin-top:10px;white-space:pre-wrap}
 .warn{color:var(--warn)}
@@ -62,9 +64,9 @@ ul.sum li{margin-bottom:8px}
 @media(max-width:520px){
   .conn .tools{flex-basis:100%}
   .conn .tools button{flex:0 1 auto;padding:8px 12px;min-height:32px}
-#digestTools{gap:8px;flex-wrap:wrap}#digestTools>*{flex:0 1 auto;white-space:nowrap;min-height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:400}
 }
-button.small{padding:6px 10px;font-size:12px;border-radius:8px}
+#digestTools{gap:8px;flex-wrap:wrap}#digestTools>*{flex:0 1 auto;white-space:nowrap;min-height:32px;height:32px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;font-weight:400;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:none;color:var(--ink);font-size:12px}
+button.small{padding:6px 10px;font-size:12px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center}
 button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 .connform{display:grid;gap:8px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
 .connform[hidden]{display:none}
@@ -72,7 +74,7 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 .row[hidden]{display:none}
 /* Страховка прокрутки браузера сдвигает страницу, когда карточка над журналом меняет высоту:
    на телефоне человека уносило на экран вверх. Открытие записи не должно двигать то, что он читает. */
-html,body,#digest,#playBox,#transcriptBox,#convs,.conn{overflow-anchor:none;-ms-overflow-anchor:none;-webkit-overflow-anchor:none}
+html,body,#digest,#playBox,#transcriptBox,#convs{overflow-anchor:none;-ms-overflow-anchor:none;-webkit-overflow-anchor:none}
 .connform input,.connform select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit}
 </style></head><body>
 <header><h1>Умный диктофон</h1>
@@ -83,7 +85,7 @@ html,body,#digest,#playBox,#transcriptBox,#convs,.conn{overflow-anchor:none;-ms-
 <div class="row"><button id="start">Слушаю</button><button id="pause" class="ghost" disabled>Пауза</button><button id="stop" class="ghost" disabled>Стоп</button><button id="analyze" class="ghost" disabled>Разобрать</button></div></div>
 <div class="card" id="digest" style="display:none"><h2 id="digestTitle">Запись</h2>
 <div class="row" style="margin-top:0" id="digestTools">
-  <button id="digestTranscript" class="ghost small">Показать исходный текст</button>
+  <button id="digestTranscript" class="ghost small" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--ink);font-size:12px;min-height:32px;display:inline-flex;align-items:center">Показать исходный текст</button>
   <a id="digestDownload" class="ghost small" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;min-height:32px;display:inline-flex;align-items:center">Скачать TXT</a>
   <button id="digestClose" class="ghost small">Закрыть</button>
   <button id="digestDelete" class="danger small">Удалить запись</button>
@@ -140,8 +142,8 @@ html,body,#digest,#playBox,#transcriptBox,#convs,.conn{overflow-anchor:none;-ms-
 <p class="muted" id="hint" style="margin-top:10px"></p></div>
 <div class="card" id="serverCard"><h2>Сервер</h2>
 <div class="row" id="serverSummary" hidden style="margin-top:0"><span class="muted" id="serverSummaryText" style="font-size:13px"></span><button id="serverChange" class="ghost small">Сменить</button></div>
-<label for="server">Адрес</label><input id="server" placeholder="https://192.168.8.49/voice">
-<label for="token" style="margin-top:10px">Токен устройства</label><input id="token" type="password" autocomplete="off" placeholder="из настроек сервера">
+<div class="field" id="serverField"><label for="server">Адрес</label><input id="server" placeholder="https://192.168.8.49/voice"></div>
+<div class="field" id="tokenField"><label for="token">Токен устройства</label><input id="token" type="password" autocomplete="off" placeholder="из настроек сервера"></div>
 <div class="row" id="tokenForm" style="margin-top:8px"><button id="goServer" class="small">Перейти</button><button id="forgetToken" class="ghost small">Забыть токен</button></div>
 <p class="muted" style="margin:4px 0 0;font-size:12px">Нужен, только если сервер закрыт токеном. Браузер его запомнит — в адресной строке токена не будет.</p>
 <p class="muted" id="serverMsg" style="margin-top:8px"></p></div>
@@ -337,7 +339,11 @@ async function openConv(id){
   const withText=c.has_transcript===undefined?!!(c.digest&&c.digest.transcript):c.has_transcript===true;
   // Скачивать нечего, а посмотреть — можно: у записи без реплик остаётся кнопка с честной подсказкой.
   ['trSrt','trJson','digestDownload'].forEach(k=>{withText?show(el(k)):hide(el(k))});
-  show(el('digestTranscript'));
+  // У записи без реплик кнопка не может ничего показать: подпись сразу говорит, что там, а не
+  // зовёт нажимать впустую.
+  const textBtn=el('digestTranscript');
+  textBtn.textContent=withText?'Показать исходный текст':'Расшифровки нет';
+  show(textBtn);
   el('digestDownload').href=server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token());
   el('trSrt').href=server()+'/api/v1/sessions/'+id+'/transcript?format=srt&token='+encodeURIComponent(token());
   el('trJson').href=server()+'/api/v1/sessions/'+id+'/transcript?format=json&token='+encodeURIComponent(token());
@@ -697,7 +703,8 @@ el('forgetToken').onclick=()=>{localStorage.removeItem('vv_token');$('#token').v
 // После входа блок «Сервер» прячется до одной строки: он уже сделал своё дело, и держать
 // поле токена открытым на виду незачем. «Сменить» возвращает его обратно.
 function collapseServer(message){
-  ['server','token','tokenForm'].forEach(id=>{const n=document.getElementById(id);if(n)n.hidden=true});
+  // Скрываем сами поля вместе с подписями: одиночное поле без подписи читалось как обрывок формы.
+  ['server','serverField','token','tokenField','tokenForm'].forEach(id=>{const n=document.getElementById(id);if(n)n.hidden=true});
   const summary=document.getElementById('serverSummary');
   if(summary){summary.hidden=false;}
   document.getElementById('serverSummaryText').textContent=message||('Сервер: '+server()+(token()?' · вход выполнен':' · без токена'));
@@ -708,9 +715,8 @@ document.getElementById('serverChange').onclick=()=>{const form=document.getElem
   const open=!!form&&form.getClientRects().length>0;
   if(open)collapseServer();else expandServer();};
 function expandServer(){
-  ['server','token','tokenForm'].forEach(id=>{const n=document.getElementById(id);if(n)n.hidden=false});
-  const summary=document.getElementById('serverSummary');
-  if(summary)summary.hidden=true;
+  ['server','serverField','token','tokenField','tokenForm'].forEach(id=>{const n=document.getElementById(id);if(n)n.hidden=false});
+  // Строку-подпись оставляем: кнопка «Сменить» живёт внутри неё, и без строки свернуть форму нечем.
   const change=document.getElementById('serverChange');if(change)change.textContent='Свернуть';
   serverMsg('',false);
 }
