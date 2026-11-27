@@ -197,7 +197,7 @@ check("probe_skips_network_for_bad_key", short_circuit.verdict == "rejected")
 
 ps = presets()
 check("presets_three", len(ps) == 3, str(list(ps)))
-check("presets_private_local", ps["приватно"]["asr"] == "gigaam" and ps["приватно"]["llm"] == "ollama")
+check("presets_private_local", ps["приватно"]["llm"] == "ollama" and "gigaam" not in ps["приватно"]["asr"])
 check("presets_have_titles", all(p.get("title") for p in ps.values()))
 
 
@@ -649,7 +649,7 @@ _threading.Thread(target=_srv.serve_forever, daemon=True).start()
 _live = _url.urlopen('http://127.0.0.1:%d/api/v1/health' % _port, timeout=5)
 _live_body = _json.loads(_live.read().decode('utf-8'))
 check("server_starts_and_answers", _live.status == 200 and _live_body.get("status") == "ok", _live_body)
-check("server_health_has_settings", "settings" in _live_body and "can_transcribe" in _live_body["settings"])
+check("server_health_has_settings", "settings" in _live_body and "llm" in _live_body["settings"] and "asr" in _live_body["settings"])
 try:
     _url.urlopen('http://127.0.0.1:%d/api/v1/nope' % _port, timeout=5)
     _code_unknown = 200
@@ -1210,6 +1210,22 @@ _m_ollama = RuntimeSettings()
 _m_ollama.update({'llm_provider': 'ollama'})
 _m_o = handle("GET", "/api/v1/models", settings=_m_ollama)
 check("models_list_ollama_needs_address", _m_o.status == 200 and _m_o.body.get('source') == 'none', _m_o.body)
+# Регрессии после проверки панели: экран настраивал, а разбор не мог позвать модель.
+_rt9 = RuntimeSettings()
+_rt9.update({'llm_provider': 'fake', 'asr_provider': 'fake'})
+_h = handle("GET", "/api/v1/health", settings=_rt9)
+check("health_reflects_runtime", _h.status == 200 and _h.body['settings']['llm']['provider'] == 'fake', _h.body.get('settings', {}).get('llm'))
+from vvoice.provider_probe import presets as _task_presets
+from vvoice.provider_factory import IMPLEMENTED_LLM as _IMPL_LLM
+_impl = set(_IMPL_LLM) | {'fake'}
+_tp2 = _task_presets()
+check("presets_use_implemented_llm", all(v['llm'] in _impl for v in _tp2.values()), {k: v['llm'] for k, v in _tp2.items()})
+from vvoice.providers.llm import _endpoint_for
+_e1 = _endpoint_for('ollama', 'http://1.2.3.4:11434')
+_e2 = _endpoint_for('ollama', 'http://1.2.3.4:11434/api/chat')
+_e3 = _endpoint_for('ollama', '')
+check("ollama_base_url_gets_path", _e1 == 'http://1.2.3.4:11434/api/chat' and _e2 == 'http://1.2.3.4:11434/api/chat'
+      and _e3 == 'http://127.0.0.1:11434/api/chat', (_e1, _e2, _e3))
 _n = handle("GET", "/api/v1/settings")
 check("settings_route_without_store", _n.status == 503 and _n.body.get('error') == 'settings_unavailable')
 

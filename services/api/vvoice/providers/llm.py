@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+from urllib.parse import urlsplit
 from dataclasses import dataclass
 from typing import Any
 
@@ -45,6 +46,21 @@ class LlmRequest:
         return {"url": self.url, "headers": self.headers, "body": self.body}
 
 
+def _endpoint_for(provider: str, base_url: str) -> str:
+    """Адрес запроса: хост из настроек + путь провайдера. Полный URL с путём оставляем как есть."""
+    default = ENDPOINTS[provider]
+    if not base_url:
+        return default
+    url = base_url
+    if '://' not in url:
+        url = 'http://' + url
+    url = url.rstrip('/')
+    parsed = urlsplit(url)
+    if parsed.path and parsed.path != '/':
+        return url  # человек дал полный адрес ручки — не трогаем
+    return url + urlsplit(default).path
+
+
 def build_request(provider: str, model: str, system: str, user: str, api_key: str, base_url: str = '') -> LlmRequest:
     """Собирает запрос под конкретного провайдера. Ошибка в имени — понятная, а не KeyError."""
     if provider not in SUPPORTED:
@@ -52,7 +68,9 @@ def build_request(provider: str, model: str, system: str, user: str, api_key: st
     model = model or DEFAULT_MODELS[provider]
     # Адрес можно переопределить: «своего сервера» одной модели недостаточно — у локальной сборки
     # свой порт, у прокси своя точка входа. Пустое значение значит «как у провайдера по умолчанию».
-    url = (base_url or '').strip() or ENDPOINTS[provider]
+    # «Адрес сервера» из настроек — это хост («http://192.168.1.5:11434»), а не готовый URL запроса.
+    # Раньше он подставлялся как есть, и Ollama получал POST на корень вместо /api/chat.
+    url = _endpoint_for(provider, (base_url or '').strip())
 
     if provider in ("deepseek", "gigachat"):
         body = {

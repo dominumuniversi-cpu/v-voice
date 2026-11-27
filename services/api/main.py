@@ -47,6 +47,16 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
                       asr_model=chosen['model'] or settings.asr_model))
         return make_asr_factory(live)(path)
 
+    def _call_understanding(system: str, user: str) -> dict:
+        """Вызов модели так, как его ждёт разбор. Нечем звать — говорим причину, а не падаем TypeError."""
+        understanding = llm_factory()
+        if understanding is None:
+            raise RuntimeError('модель разбора не настроена: выберите связку и введите ключ '
+                               'на экране «Подключить модели»')
+        if not callable(understanding):
+            raise RuntimeError('внутренняя ошибка: понимание собрано не как функция вызова')
+        return understanding(system, user)
+
     def llm_factory() -> Any:
         """Понимание собирается в момент разбора: человек мог сменить модель минуту назад."""
         chosen = runtime.llm()
@@ -82,7 +92,10 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         # не передавалось, и «осмысленный разбор» не мог работать даже с заполненным ключом.
         # Заглушка включается только явным VV_LLM_PROVIDER=fake и не требует ключа: иначе демо
         # без ключей невозможно, и человек видит «сервер не настроен» вместо работы пути.
-        'call_llm': llm_factory,
+        # Конвейер зовёт это как call_llm(system, user) -> dict. Раньше сюда клали саму фабрику
+        # без вызова, и разбор падал TypeError у ЛЮБОГО провайдера: экран настраивал модель,
+        # а разбор не мог её позвать. Обёртка собирает понимание в момент запроса.
+        'call_llm': _call_understanding,
         # Пусто — сервер открыт (режим разработки). Задан — без токена не пустим.
         'device_tokens': settings.device_tokens,
         # Тариф для расчёта стоимости встречи. 0 — цена не считается и не выдумывается.

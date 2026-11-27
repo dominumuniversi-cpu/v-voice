@@ -175,9 +175,13 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         if path == "/api/v1/health":
             # Сюда добавляются настройки моделей: человек по этому ответу понимает, работает ли разбор,
             # и видит отпечаток ключа, чтобы сверить, тот ли подхвачен. Значения ключей не выходят никогда.
+            # Раньше здесь читался только .env, и после сохранения на экране health продолжал
+            # показывать старую связку — экран не отражал то, что человек настроил. Берём живое
+            # состояние, когда оно есть, и .env только если сервер собран без него.
             from .config import load as _load_settings
+            live = settings.view() if settings is not None else _load_settings().public_health()
             return Response(200, {"status": "ok", "service": "v-voice", "version": "1",
-                                  "settings": _load_settings().public_health()})
+                                  "settings": live})
         if path == "/api/v1/presets":
             # Старые пресеты (шаблоны задач) и новые (связки моделей) в одном ответе: два разных
             # пути к одному понятию — это две правды, и одна из них обязательно отстанет.
