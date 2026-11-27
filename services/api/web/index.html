@@ -131,9 +131,24 @@ function headers(){const h={'Content-Type':'application/json'};const t=token();i
 function setDot(cls){$('#dot').className='dot '+(cls||'')}
 function fmt(ms){const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
 function say(t,warn){const el=$('#live');el.textContent=t;el.className='text'+(warn?' warn':'')}
+// Почему браузер молчит про микрофон — по-русски и с тем адресом, который открыт сейчас.
+function micWhy(){
+  const h=location.hostname, secure=location.protocol==='https:'||h==='localhost'||h==='127.0.0.1';
+  if(secure)return 'Браузер не отдал микрофон. Проверьте, что он не занят другой программой и разрешён в настройках сайта.';
+  return 'Микрофон браузер даёт только по https (или на localhost). '+
+    'Для Windows откройте этот же сервер как https://dimas.local/voice/ — этот адрес браузер пускает к микрофону, '+
+    'а http://'+h+'/voice/ — нет. Телефон — только по https.';
+}
 async function start(){
+  // Почему отдельная проверка до getUserMedia: по http с чужого адреса (192.168.8.49) браузер
+  // микрофон не отдаёт ВООБЩЕ, и старого кода просто не существует — человек видел «undefined».
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    say('Микрофон не даёт доступ: '+micWhy(),true);return;
+  }
+  // На незащищённом адресе пробуем всё равно: в перечне браузера 192.168.8.49 может быть
+  // отмечен как источник, и тогда он пускает к микрофону. Не пустит — объясним, что сделать.
   try{media=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}})}
-  catch(e){say('Микрофон недоступен: '+e.message+'. На телефоне нужен https или localhost.',true);return}
+  catch(e){say('Микрофон недоступен: '+(e&&e.name==='NotAllowedError'?'вы запретили доступ в браузере. ':'' )+micWhy(),true);return}
   // WAV собираем сами: браузеры дают webm/ogg, а сервер ждёт 16 кГц моно PCM.
   chunks=[];paused=false;t0=Date.now();
   const ctx=new AudioContext({sampleRate:16000});
@@ -346,6 +361,26 @@ async function checkLive(prefix){
 // Порядок: сначала адрес и токен, потом запросы. Иначе первый же запрос уходит по пустому адресу.
 // Адрес — полный путь страницы вместе с префиксом стенда (/voice), его срезать нельзя.
 $('#server').value=location.origin+location.pathname.replace(/\/+$/,'');
+// По http с сетевого адреса микрофон обычно не дают, и тогда всё молчит без причины.
+// Сразу предлагаем адрес, который точно пускает: на Windows — dimas.local, на телефоне — https.
+function micBanner(){
+  if(window.isSecureContext!==false)return;
+  if(location.protocol!=='http:')return;
+  const h=location.hostname;
+  if(h==='localhost'||h==='127.0.0.1')return;
+  if(document.getElementById('micHint'))return;
+  const alt='/voice/'+location.search;
+  const box=document.createElement('p');
+  box.id='micHint';
+  box.className='text warn';
+  box.style.marginTop='10px';
+  box.innerHTML='<b>Микрофон на этом адресе браузер может не отдать.</b> Он разрешает микрофон по https или на localhost; '+
+    '192.168.8.49 без https — на усмотрение настроек браузера. Если «Слушаю» ругается на микрофон, откройте '+
+    '<a href="https://dimas.local'+alt+'">https://dimas.local'+alt+'</a> — это тот же сервер, и микрофон там работает. '+
+    'С телефона — только https.';
+  $('#live').parentNode.appendChild(box);
+}
+micBanner();
 const _q=new URLSearchParams(location.search).get('token');
 if(_q){
   $('#token').value=_q;
