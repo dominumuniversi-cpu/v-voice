@@ -6,11 +6,16 @@
 
 | Что | Адрес |
 |---|---|
-| Веб-экран (запись с телефона) | **https://192.168.8.49/voice/** |
+| Веб-экран (запись с телефона и компьютера) | **https://192.168.8.49/voice/** или **https://dimas.local/voice/** |
 | Проверка сервера | https://192.168.8.49/voice/api/v1/health |
 
+Микрофон браузеры дают только по `https` или на `localhost`: на `http://…` кнопка «Слушаю»
+не работает, и страница прямо об этом говорит. Поэтому открывать стенд нужно по `https`.
+
 Токен устройства для этого стенда: задаётся переменной `VV_DEVICE_TOKENS` при запуске контейнера.
-Веб-экран спрашивает его на странице — вводится один раз, дальше браузер помнит.
+В адресной строке токена быть не должно: страница сама убирает `?token=…` из адреса и хранит
+токен в браузере. Ввести его можно в блоке «Сервер» и нажать «Перейти». Проверка систем без
+токена (health, страница) работает и без него.
 
 ## Почему отдельный контейнер
 
@@ -35,7 +40,8 @@ set DOCKER_CONFIG=C:\npc-docker-cfg
 docker build -t v-voice-stand:latest "<репозиторий>\services\api"
 docker rm -f voice-app
 docker run -d --name voice-app --network npc-proxy-net --restart unless-stopped ^
-  -e VV_ASR_PROVIDER=fake -e VV_LLM_PROVIDER=fake -e VV_DEVICE_TOKENS=voice2026 ^
+  -e VV_ASR_PROVIDER=whisper -e VV_LLM_PROVIDER=fake -e VV_ASR_URL=http://voice-asr:8090 ^
+  -e VV_DEVICE_TOKENS=voice2026 -e VV_HOST=0.0.0.0 -e VV_PORT=8080 ^
   -e VV_DATA_DIR=/data -v vv-data:/data v-voice-stand:latest
 docker exec proxy nginx -s reload
 ```
