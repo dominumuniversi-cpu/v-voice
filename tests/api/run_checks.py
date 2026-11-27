@@ -487,6 +487,8 @@ check("store_read_roundtrip", _store.read(_sid) == _store.read(_sid) and _store.
 
 _again = _handle("POST", "/api/v1/sessions", _payload, store=_store)
 check("store_no_overwrite", _again.status == 409 and _again.body.get("error") == "already_exists")
+# Повторивший загрузку должен узнать, к какой записи идти: без id он не найдёт расшифровку.
+check("store_conflict_names_session", _again.body.get("session_id") == _sid and bool(_sid))
 
 _none = _handle("POST", "/api/v1/sessions", _payload)
 check("store_required", _none.status == 503 and _none.body.get("error") == "storage_unavailable")

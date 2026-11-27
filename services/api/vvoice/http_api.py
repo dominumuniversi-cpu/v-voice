@@ -271,7 +271,10 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
                 bool(_live_state.live.finals) or _live_state.live.volatile is not None)
             store.save(body["session_id"], audio, replace=opened_live)
         except FileExistsError:
+            # Повтор той же загрузки — не ошибка человека, а обычный сбой сети. Отдаём идентификатор
+            # уже лежащей записи, иначе он не знает, куда идти за расшифровкой.
             return Response(409, {"error": "already_exists",
+                                  "session_id": body["session_id"],
                                   "message": "Такая запись уже загружена."})
         if sender is not None:
             # Уведомление для слоя разбора: сам разбор здесь не запускается.
