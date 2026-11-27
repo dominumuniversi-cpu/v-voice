@@ -109,6 +109,42 @@ def _bad_request(reason: str) -> Response:
     return Response(400, {"error": "bad_request", "message": reason})
 
 
+# Протокол связки -> провайдер в терминах настроек. Держим рядом с /health: там это и нужно.
+_CHOSEN_PROTOCOL = {
+    'deepseek': 'deepseek', 'anthropic': 'anthropic', 'ollama': 'ollama', 'fake': 'fake',
+    'zai': 'zai', 'mistral': 'mistral', 'openai': 'openai',
+    'speechmatics': 'speechmatics', 'whisper': 'whisper',
+}
+
+
+def _apply_chosen(live: Any, connections: Any) -> None:
+    """Подставляет в ответ /health ту связку, которой сервер работает на самом деле.
+
+    Мутирует уже собранный словарь: copy.deepcopy здесь не нужен, а лишний слой скрыл бы,
+    что /health и фабрики провайдеров смотрят на один и тот же выбор.
+    """
+    if connections is None or not isinstance(live, dict):
+        return
+    view = connections.view()
+    chosen = view.get('in_work') or {}
+    by_id = {item.get('id'): item for item in view.get('items') or []}
+    for kind in ('llm', 'asr'):
+        conn = by_id.get(chosen.get(kind))
+        block = live.get(kind)
+        if conn is None or not isinstance(block, dict):
+            continue
+        protocol = str(conn.get('protocol') or '')
+        block['provider'] = _CHOSEN_PROTOCOL.get(protocol, protocol)
+        block['model'] = conn.get('model') or ''
+        if kind == 'llm':
+            block['base_url'] = conn.get('base_url') or ''
+        block['from_env'] = False
+        # Сам ключ не показываем никогда: только «есть/нет», как и у настроек из окружения.
+        block['key_set'] = bool(conn.get('key_set'))
+        block['ready'] = bool(conn.get('key_set')) or block['provider'] in ('fake', 'whisper')
+        block['connection'] = conn.get('title') or ''
+
+
 def _with_cost(body: Any, price_per_hour: float, budget: float = 0.0) -> Any:
     """Добавляет стоимость к разбору — и только если тариф задан.
 
@@ -195,6 +231,12 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             # состояние, когда оно есть, и .env только если сервер собран без него.
             from .config import load as _load_settings
             live = settings.view() if settings is not None else _load_settings().public_health()
+            if settings is not None:
+                # Настройки (.env) — не приговор: человек выбирает связку в списоке подключений,
+                # и в работу идёт именно она (фабрики в main.py берут active_for первым делом).
+                # Без этой поправки /health показывал whisper и fake рядом с выбранными
+                # «Mistral» и «Speechmatics», и экран говорил одно, а работал другое.
+                _apply_chosen(live, connections)
             return Response(200, {"status": "ok", "service": "v-voice", "version": "1",
                                   "settings": live})
         if path == "/api/v1/presets":

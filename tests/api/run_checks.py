@@ -1062,6 +1062,26 @@ for _tpl in _ROUTES:
 check("lock_covers_every_route", not _leaks, _leaks)
 _ok = _handle('GET', '/api/v1/health', '', device_tokens=('key-one',), auth_token='key-one')
 check("lock_lets_own_device_in", _ok.status != 401, _ok.status)
+# Выбор связки принадлежит человеку: выбранная «Mistral» должна быть и в /health, и в списке
+# в разделе in_work — иначе экран показывает одну, а сервер работает другой.
+from vvoice.connections import BUILTIN_CONNECTIONS as _BUILTIN, Connection as _Conn, ConnectionList as _CL
+from vvoice.runtime_settings import RuntimeSettings as _RS
+_cl = _CL()
+for _c in _BUILTIN:
+    _cl.seed(_Conn(**_c))
+_rs = _RS(asr_provider='whisper', llm_provider='fake')
+_hc = _handle('GET', '/api/v1/health', '', settings=_rs, connections=_cl)
+check("health_shows_chosen_llm", _hc.body["settings"]["llm"]["provider"] == "deepseek", _hc.body["settings"]["llm"])
+check("health_chosen_has_no_key", _hc.body["settings"]["llm"]["key_set"] is False)
+_cl.activate('llm', 'mistral')
+_hc2 = _handle('GET', '/api/v1/health', '', settings=_rs, connections=_cl)
+check("health_follows_activation", _hc2.body["settings"]["llm"]["provider"] == "mistral"
+      and _hc2.body["settings"]["llm"]["connection"] == "Mistral", _hc2.body["settings"]["llm"])
+_vw = _handle('GET', '/api/v1/connections', '', connections=_cl)
+check("connections_view_in_work", _vw.body.get("in_work", {}).get("llm") == "mistral"
+      and _vw.body.get("in_work", {}).get("asr") == "speechmatics", _vw.body.get("in_work"))
+# /health под замком и с живой связкой не должен висеть: у view() и active_for() общий замок.
+check("health_with_connections_fast", _hc2.status == 200)
 # Маршрут, объявленный в ROUTES и не попавший в шаблоны, отвечает 404 на каждый запрос:
 # так молча не работало скачивание расшифровки.
 from vvoice.http_api import _route as _route_of

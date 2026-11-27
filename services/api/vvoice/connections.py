@@ -153,8 +153,22 @@ class ConnectionList:
     def view(self) -> dict[str, Any]:
         """Всё, что нужно экрану: список, активные и что из этого работает без ключа."""
         with self._lock:
+            # «Активная» — та, которой сервер РАБОТАЕТ, а не только имя выбранной строки.
+            # active_for отдаёт первую связку вида, если выбор сбросился (удалили активную) —
+            # экран должен показывать то же, что идёт в работу, иначе человек видит одну,
+            # а работает другая. Считаем по self.items напрямую: active_for берёт тот же замок,
+            # и RLock из фонового потока дал бы дедлок на запросе /health.
+            in_work: dict[str, str] = {}
+            for kind in ('llm', 'asr'):
+                want = self.active.get(kind)
+                chosen = next((c.id for c in self.items if c.id == want and c.kind == kind), None)
+                if chosen is None:
+                    chosen = next((c.id for c in self.items if c.kind == kind), None)
+                if chosen is not None:
+                    in_work[kind] = chosen
             return {'items': [c.public() for c in self.items],
                     'active': dict(self.active),
+                    'in_work': in_work,
                     'protocols': dict(PROTOCOLS)}
 
     # --- изменение ----------------------------------------------------------
