@@ -405,7 +405,7 @@ async function deleteConv(id){
     if(!r.ok){convsMsg('Удалить не удалось: '+(d.message||('код '+r.status)),true);return}
     closeCard();
     await loadConvs();
-    // Что имено удалено — по названию: «Удалён разговор запись 7fe4c0» звучит как ошибка.
+    // Что именно удалено — по названию: «Удалён разговор запись 7fe4c0» звучит как ошибка.
     const gone=clean(c.title)||('запись '+id.slice(0,8));
     convsMsg('Удалено: '+gone+'. Записи и разбора больше нет.',false);
   }catch(e){convsMsg('Связь прервалась при удалении: '+e.message,true)}
