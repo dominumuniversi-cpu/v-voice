@@ -16,6 +16,19 @@ from __future__ import annotations
 
 import json
 import time
+
+# Отказы распознавания на языке человека. Ключи — ответы сервера (`type`), значение — что делать.
+_WHY = {
+    'not_authorised': 'сервис не принял ключ: он недействителен или у него нет доступа к распознаванию. '
+                      'Проверьте ключ в настройках связки «Speechmatics» на сайте провайдера.',
+    'auth_failed': 'сервис не принял ключ: он недействителен или у него нет доступа к распознаванию. '
+                   'Проверьте ключ в настройках связки «Speechmatics» на сайте провайдера.',
+    'invalid_language': 'сервис не умеет распознавать на выбранном языке. Смените язык в настройках разбора.',
+    'quota_exceeded': 'закончился лимит или кредит на счёте провайдера. Пополните счёт и повторите разбор.',
+    'not_entitled': 'ключ верный, но у аккаунта не подключён батч-тариф. Включите его в кабинете провайдера.',
+    'too_much_audio': 'запись длиннее, чем принимает провайдер. Разбейте её на части.',
+}
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -80,7 +93,7 @@ def parse_response(raw: str) -> Segment | None:
         end = float(data.get("end_time") or start)
         return Segment(start_s=start, end_s=end, text=text, speaker=_speaker(data))
     if kind == "Error":
-        raise ConnectionError("speechmatics error: " + str(data.get("reason") or data.get("type") or "unknown"))
+        raise ConnectionError(why_error(data))
     return None
 
 
@@ -92,6 +105,43 @@ def _speaker(data: dict) -> str | None:
             return "Голос " + str(speaker).replace("S", "")
     return None
 
+
+def why_error(data: dict) -> str:
+    """Причина отказа сервера словами человека, с техническим кодом в скобках."""
+    code = str(data.get("type") or "unknown")
+    return ("Speechmatics: " + _WHY.get(code, str(data.get("reason") or code))
+            + " (ответ сервера: " + code + ")")
+
+
+def check_key(connect: Any, api_key: str, language: str = "ru") -> tuple[bool, str]:
+    """Проверка ключа без звука: открыть сеанс и дождаться подтверждения или отказа.
+
+    Отдельный короткий сеанс нужен потому, что разбор идёт минутами, а «ключ не принят»
+    человек должен увидеть сразу после его вставки, а не на середине разговора.
+    """
+    sock = None
+    try:
+        sock = connect(WS_URL + "?" + "jwt=" + api_key, {})
+        sock.send(start_recognition_message(language, False))
+        for _ in range(5):
+            raw = sock.recv()
+            try:
+                data = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+            if data.get("message") == "RecognitionStarted":
+                return True, "ключ принят, распознавание готово"
+            if data.get("message") == "Error":
+                return False, why_error(data)
+        return False, "сервис не подтвердил сеанс — попробуйте ещё раз через минуту"
+    except Exception as exc:  # сеть, TLS, рукопожатие — всё это «нет связи», а не падение сервера
+        return False, "не удалось связаться: " + str(exc)[:200]
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
 
 @dataclass
 class SpeechmaticsAsr:

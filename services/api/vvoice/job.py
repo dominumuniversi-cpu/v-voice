@@ -56,7 +56,9 @@ def analyze(
     try:
         provider = provider_factory(stored.path)
     except Exception as exc:
-        return JobResult(502, dict({"error": "asr_failed"}, **explain_digest_failure(exc)))
+        # Провайдер получается с ключом и адресом — частые причины тут «ключ не принят» и «нет связи».
+        return JobResult(502, dict({"error": "asr_failed", "kind": "asr", "detail": scrub(str(exc))[:300]},
+                                   **explain_digest_failure(exc)))
     try:
         result = run_session(provider, [], call_llm, gate=gate, members_only=members_only,
                              audio_path=stored.path)

@@ -117,6 +117,24 @@ class RuntimeSettings:
                     'llm_key': self.llm_key, 'llm_model': self.llm_model,
                     'llm_base_url': self.llm_base_url}
 
+    _connections: Any = field(default=None, repr=False)
+
+    def bind_connections(self, connections: Any) -> None:
+        """Привязывает список подключений: он старше файла настроек и именно им работает сервер.
+
+        Без этой привязки проверка связи читала файл и говорила «демо-заглушка» рядом с выбранными
+        «Mistral» и «Speechmatics» — то есть врала человеку про его же настройку.
+        """
+        with self._lock:
+            self._connections = connections
+
+    def active_for(self, kind: str) -> Any:
+        """Выбранная связка или None, если человек её ещё не выбирал."""
+        with self._lock:
+            connections = self._connections
+        getter = getattr(connections, "active_for", None)
+        return getter(kind) if callable(getter) else None
+
     def asr(self) -> dict[str, str]:
         with self._lock:
             return {'provider': self.asr_provider, 'key': self.asr_key, 'model': self.asr_model,

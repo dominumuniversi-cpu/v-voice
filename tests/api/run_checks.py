@@ -1064,6 +1064,39 @@ _ok = _handle('GET', '/api/v1/health', '', device_tokens=('key-one',), auth_toke
 check("lock_lets_own_device_in", _ok.status != 401, _ok.status)
 # Выбор связки принадлежит человеку: выбранная «Mistral» должна быть и в /health, и в списке
 # в разделе in_work — иначе экран показывает одну, а сервер работает другой.
+
+# Отказ распознавания должен называть причину, а не «сервис не ответил».
+from vvoice.providers.speechmatics import parse_response as _sm_parse, why_error as _sm_why
+_sm_err = {'message': 'Error', 'type': 'not_authorised'}
+check('speechmatics_reason_explains_key', 'ключ' in _sm_why(_sm_err) and 'not_authorised' in _sm_why(_sm_err),
+      _sm_why(_sm_err))
+try:
+    _sm_parse('{"message": "Error", "type": "not_authorised"}')
+    _sm_raised = ''
+except ConnectionError as exc:
+    _sm_raised = str(exc)
+check('speechmatics_error_carries_reason', 'ключ' in _sm_raised, _sm_raised)
+# Ключ проверяется коротким сеансом: подтверждение и отказ различаются.
+from vvoice.providers.speechmatics import check_key as _sm_check
+class _FakeSock:
+    def __init__(self, replies):
+        self.replies = list(replies)
+        self.sent = []
+        self.closed = False
+    def send(self, msg):
+        self.sent.append(msg)
+    def recv(self):
+        return self.replies.pop(0)
+    def close(self):
+        self.closed = True
+_ok_sock = _FakeSock(['{"message": "RecognitionStarted"}'])
+_ok_key = _sm_check(lambda url, headers: _ok_sock, 'jwt-test')
+check('check_key_confirms_session', _ok_key[0] is True and _ok_sock.closed, _ok_key)
+_bad_sock = _FakeSock(['{"message": "Error", "type": "not_authorised"}'])
+_bad_key = _sm_check(lambda url, headers: _bad_sock, 'jwt-test')
+check('check_key_explains_refusal', _bad_key[0] is False and 'ключ' in _bad_key[1], _bad_key)
+# Проверка связи говорит и про понимание, и про распознавание.
+from vvoice.models_check import check_models as _check_models
 from vvoice.connections import BUILTIN_CONNECTIONS as _BUILTIN, Connection as _Conn, ConnectionList as _CL
 from vvoice.runtime_settings import RuntimeSettings as _RS
 _cl = _CL()

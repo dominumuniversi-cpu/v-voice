@@ -73,6 +73,8 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
     # которые человек ввёл в настройках приложения.
     conn_files = ConnectionFiles(data_dir / "connections.json")
     connections.restore(conn_files.load(), conn_files.load_active())
+    # Выбранная связка старше файла настроек: проверка связи и разбор должны видеть её же.
+    runtime.bind_connections(connections)
 
     def asr_factory(path: str) -> Any:
         """Собирает распознавание на момент вызова: ключ мог поменяться только что."""

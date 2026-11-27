@@ -664,11 +664,15 @@ revealMsg();
 }
 async function checkLive(prefix){
   const m=el('saveMsg');const keep=typeof prefix==='string'?prefix:'';
-  m.textContent=keep+'Стучусь в модель…';m.className='muted';
+  m.textContent=keep+'Стучусь в обе службы…';m.className='muted';
   try{const r=await fetch(server()+'/api/v1/models/check',{method:'POST',headers:headers(),body:'{}'});
     const d=await r.json();
-    m.textContent=keep+(d.ok?('Связь есть. '+d.message):('Связи нет: '+d.message));
-    m.className=d.ok?'muted':'text warn';
+    // Понимание и распознавание проверяются порознь: разные ключи и разные службы, и «разбор не идёт»
+    // чаще всего означает именно отказ распознавания — его причину человек должен прочитать здесь.
+    const heard=d.asr&&d.asr.message?(' Распознавание: '+d.asr.message):'';
+    const heardOk=!d.asr||d.asr.ok!==false;
+    m.textContent=keep+(d.ok?('Модель понимания ответила. '+d.message):('Модель не ответила: '+d.message));
+    m.className=(d.ok&&heardOk)?'muted':'text warn';
   }catch(e){m.textContent='Связь прервалась: '+e.message;m.className='text warn'}
 }
 // Порядок: сначала адрес и токен, потом запросы. Иначе первый же запрос уходит по пустому адресу.
