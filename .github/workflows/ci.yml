@@ -49,6 +49,9 @@ jobs:
       - name: status numbers
         run: node tests/native/status-numbers-check.mjs
       # Документ о моделях не обещает провайдеров, которых нет в коде.
+      # Ловушки стенда /voice/ не теряются (пустой токен, слэш в proxy_pass, префикс).
+      - name: stand layout
+        run: node tests/native/stand-layout-check.mjs
       - name: provider claims
         run: node tests/native/provider-claims-check.mjs
       - name: export contract

@@ -41,6 +41,10 @@ ul.sum li{margin-bottom:8px}
 <div class="card"><div class="rec"><div class="dot" id="dot"></div><div class="timer" id="timer">00:00</div></div>
 <div class="text" id="live">Микрофон выключен. Нажмите «Слушаю».</div>
 <div class="row"><button id="start">Слушаю</button><button id="pause" class="ghost" disabled>Пауза</button><button id="stop" class="ghost" disabled>Стоп</button><button id="analyze" class="ghost" disabled>Разобрать</button></div></div>
+<div class="card"><h2>Подключённые модели</h2>
+<div id="settings" class="muted">Проверяю…</div>
+<div class="row"><button id="recheck" class="ghost">Проверить снова</button></div>
+<p class="muted" id="hint" style="margin-top:10px"></p></div>
 <div class="card"><h2>Сервер</h2>
 <label for="server">Адрес</label><input id="server" placeholder="https://192.168.8.49/voice">
 <label for="token" style="margin-top:10px">Токен устройства</label><input id="token" placeholder="из настроек сервера"></div>
@@ -129,6 +133,32 @@ function render(d){
   const q=$('#questions');q.innerHTML='';(d.open_questions||[]).forEach(x=>{const li=document.createElement('li');li.textContent=x;q.appendChild(li)});
 }
 $('#start').onclick=start;$('#pause').onclick=togglePause;$('#stop').onclick=stop;$('#analyze').onclick=analyze;
+
+const NAMES={fake:'демо-заглушка',speechmatics:'Speechmatics',deepgram:'Deepgram',assemblyai:'AssemblyAI',
+  gigaam:'GigaAM (свой сервер)',deepseek:'DeepSeek',anthropic:'Anthropic',ollama:'Ollama (свой сервер)',
+  openai:'OpenAI',gigachat:'GigaChat',whisper:'Whisper'};
+function label(p){return NAMES[p]||p||'не задано'}
+async function loadSettings(){
+  const box=document.getElementById('settings');const hint=document.getElementById('hint');
+  try{
+    const r=await fetch(server()+'/api/v1/health',{headers:headers()});
+    const d=await r.json();
+    if(!r.ok){box.textContent='Настройки не читаются: '+(d.message||r.status);return}
+    const s=d.settings||{};const asr=s.asr||{},llm=s.llm||{};
+    const line=(x)=>(x.ready?'подключено':'<span class="warn">не работает</span>')
+      +' — '+label(x.provider)+(x.key_fingerprint?' · ключ '+x.key_fingerprint:'')+(x.configured?'':' · ключ не задан');
+    box.innerHTML='Речь: '+line(asr)+'<br>Понимание: '+line(llm);
+    const problems=[];
+    if(!asr.ready)problems.push('распознавание речи');
+    if(!llm.ready)problems.push('осмысленный разбор');
+    hint.textContent=problems.length
+      ? 'Чтобы это заработало, на сервере нужно задать провайдера и ключ: '+problems.join(' и ')+'. Показать как — спросите того, кто ставил стенд.'
+      : 'Обе модели подключены. Если ключ неверный, это выяснится при первом разборе — сервер скажет прямо.';
+  }catch(e){box.textContent='Сервер не ответил: '+e.message}
+}
+document.getElementById('recheck').onclick=loadSettings;
+loadSettings();
+  
 $('#server').value=location.origin.replace(/\/voice\/?$/,'');
 </script>
 </body></html>
