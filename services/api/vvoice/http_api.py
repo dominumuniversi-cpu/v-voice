@@ -46,6 +46,10 @@ import re
 ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/health": ("GET",),
     "/api/v1/presets": ("GET",),
+    # Настройка моделей из браузера: меняет работающий сервер, ключ живёт в памяти.
+    "/api/v1/settings": ("GET", "POST"),
+    # Настройка моделей из браузера. Отдельная ручка, потому что меняет работающий сервер.
+
     "/api/v1/probe": ("POST",),
     "/api/v1/items/validate": ("POST",),
     # Приём записи с телефона. Ответ содержит идентификатор сессии для разбора.
@@ -129,7 +133,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            auth_token: str | None = None,
            asr_price_per_hour: float = 0.0,
            budget_per_meeting: float = 0.0,
-           device_tokens: Any = None) -> Response:
+           device_tokens: Any = None,
+           settings: Any = None) -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -170,6 +175,25 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
                                   "settings": _load_settings().public_health()})
         if path == "/api/v1/presets":
             return Response(200, {"presets": presets()})
+
+    if path == "/api/v1/settings":
+        if settings is None:
+            return Response(503, {"error": "settings_unavailable",
+                                  "message": "Сервер не хранит настроек в памяти."})
+        if method.upper() == "GET":
+            return Response(200, settings.view())
+        payload: dict[str, Any] = {}
+        if raw_body.strip():
+            try:
+                payload = json.loads(raw_body)
+            except json.JSONDecodeError as exc:
+                return _bad_request("Тело запроса не JSON: " + exc.msg)
+            if not isinstance(payload, dict):
+                return _bad_request("Нужен объект с полями asr_provider, asr_key, llm_provider, llm_key")
+        code, body = settings.update(payload)
+        if code != 200:
+            body["message"] = str(body.get("message", ""))
+        return Response(code, body)
 
     payload: dict[str, Any] = {}
     if raw_body.strip():

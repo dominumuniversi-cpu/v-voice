@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from vvoice.config import Settings, load as load_settings, load_env_file
+from vvoice.runtime_settings import RuntimeSettings
 from vvoice.digest_store import DigestStore
 from vvoice.http_api import handle
 from vvoice.live_sessions import LiveSessions
@@ -33,14 +34,31 @@ MAX_BODY_BYTES = 12 * 1024 * 1024  # запись приходит base64, за�
 def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
     """Собирает всё, что нужно маршрутам. Ключи остаются в settings и наружу не передаются."""
     data_dir.mkdir(parents=True, exist_ok=True)
+    # Настройки, которые человек меняет из браузера. Живут дольше одного запроса, но не дольше
+    # процесса: ключ, который никто не сохраняет, невозможно потом найти в чужом логе.
+    runtime = RuntimeSettings()
+
+    def asr_factory(path: str) -> Any:
+        """Собирает распознавание на момент вызова: ключ мог поменяться только что."""
+        provider, key = runtime.asr()
+        live = settings if not provider else _with(settings, asr_provider=provider, asr_key=key)
+        return make_asr_factory(live)(path)
+
+    def llm_factory() -> Any:
+        """То же для понимания: провайдер и ключ берутся в момент разбора."""
+        provider, key = runtime.llm()
+        live = settings if not provider else _with(settings, llm_provider=provider, llm_key=key)
+        return _make_understanding(live)
+
     return {
+        'settings': runtime,
         'store': AudioStore(data_dir / 'audio'),
         'digests': DigestStore(data_dir / 'digests'),
         'live_sessions': LiveSessions(),
         # Распознавание речи: раньше сюда ничего не передавалось, и разбор не мог работать даже
         # с заполненным ключом. Теперь фабрика собирается из настроек, а отсутствие реализации
         # видно в /health, а не в молчаливом «ничего не произошло».
-        'recognizer': make_asr_factory(settings),
+        'recognizer': asr_factory,
         # Отсечение шума: без этого шум шёл в распознавание целиком, и код vad.py существовал,
         # но ни один запрос через него не проходил. None — только если человек сам выключил.
         'gate': VadGate(config=VadConfig()) if settings.noise_gate else None,
@@ -55,7 +73,7 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
         # не передавалось, и «осмысленный разбор» не мог работать даже с заполненным ключом.
         # Заглушка включается только явным VV_LLM_PROVIDER=fake и не требует ключа: иначе демо
         # без ключей невозможно, и человек видит «сервер не настроен» вместо работы пути.
-        'call_llm': _make_understanding(settings),
+        'call_llm': llm_factory,
         # Пусто — сервер открыт (режим разработки). Задан — без токена не пустим.
         'device_tokens': settings.device_tokens,
         # Тариф для расчёта стоимости встречи. 0 — цена не считается и не выдумывается.
@@ -87,6 +105,19 @@ def _strip_prefix(path: str) -> str:
         if path.startswith(prefix + '/'):
             return path[len(prefix):]
     return path
+
+
+def _with(settings: Settings, **changes: Any) -> Settings:
+    """Копия настроек с заменой полей: работающий процесс не должен переписывать сам себя.
+
+    dataclasses.replace здесь не подходит: Settings из другого модуля и собирается своим
+    загрузчиком, а копирование через copy с явными полями оставляет один источник правды.
+    """
+    import copy
+    clone = copy.copy(settings)
+    for name, value in changes.items():
+        object.__setattr__(clone, name, value)
+    return clone
 
 
 def _safe_path(path: str) -> str:

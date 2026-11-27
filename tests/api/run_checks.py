@@ -1177,3 +1177,25 @@ for name, passed, detail in checks:
 failed2 = [c for c in checks if not c[1]]
 sys.stderr.write("total=%d passed=%d failed=%d\n" % (len(checks), len(checks) - len(failed2), len(failed2)))
 sys.exit(1 if failed2 else 0)
+
+
+# --- Настройки моделей из браузера ---
+from vvoice.runtime_settings import RuntimeSettings  # noqa: E402
+
+_rt = RuntimeSettings()
+check("settings_starts_empty", _rt.view()['asr']['provider'] == '' and _rt.view()['llm']['provider'] == '')
+_c, _b = _rt.update({'llm_provider': 'openai', 'llm_key': 'k'})
+# OpenAI описан в документе как кандидат, но в коде его нет. Человек не должен сохранить
+# провайдера, который потом молча не заработает.
+check("settings_rejects_unimplemented", _c == 400 and _b.get('error') == 'provider_not_implemented', _b.get('message', '')[:60])
+_c2, _b2 = _rt.update({'llm_provider': 'deepseek'})
+check("settings_needs_key", _c2 == 400 and _b2.get('error') == 'key_required')
+_c3, _b3 = _rt.update({'llm_provider': 'deepseek', 'llm_key': 'sk-test'})
+check("settings_accepts_working", _c3 == 200 and _rt.view()['llm']['key_set'] is True)
+check("settings_hides_key", 'sk-test' not in json.dumps(_rt.view()))
+_g = handle("GET", "/api/v1/settings", settings=_rt)
+check("settings_route_get", _g.status == 200 and _g.body['llm']['provider'] == 'deepseek')
+_p = handle("POST", "/api/v1/settings", json.dumps({'llm_provider': 'ollama', 'llm_key': 'x'}), settings=_rt)
+check("settings_route_post", _p.status == 200 and _rt.view()['llm']['provider'] == 'ollama')
+_n = handle("GET", "/api/v1/settings")
+check("settings_route_without_store", _n.status == 503 and _n.body.get('error') == 'settings_unavailable')
