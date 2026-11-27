@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Умный диктофон</title>
@@ -59,7 +59,7 @@ ul.sum li{margin-bottom:8px}
 .conn .tools{display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0}
 @media(max-width:520px){
   .conn .tools{flex-basis:100%}
-  .conn .tools button{flex:1 1 auto}
+  .conn .tools button{flex:0 1 auto;padding:8px 12px;min-height:32px}
 }
 button.small{padding:6px 10px;font-size:12px;border-radius:8px}
 button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
@@ -263,7 +263,9 @@ function draw(){
     const where=[];
     if(c.model)where.push('модель: '+c.model);
     if(c.base_url)where.push(c.base_url);
-    where.push(c.key_set?'ключ задан '+c.key_hint:'ключ не задан');
+    // Ключ не нужен заглушке и своему распознаванию: «ключ не задан» рядом с ними пугало зря.
+    const keyless=(c.protocol==='fake'||c.protocol==='whisper');
+    where.push(c.key_set?'ключ задан '+c.key_hint:(keyless?'ключ не нужен':'ключ не задан'));
     const s=document.createElement('span');s.textContent=where.join(' · ');body.appendChild(s);
     const state=document.createElement('i');state.textContent=works?'работает сейчас':'не выбрана';
     if(!works)state.className='paid';
@@ -325,9 +327,13 @@ async function loadConns(){
     (d.items||[]).forEach(c=>{if(CONNS[c.kind])CONNS[c.kind].push(c)});
     draw();fillProtocols();
   }catch(e){
-    // Пустой блок без объяснения — это и был прежний баг: человек не понимал, что тут должно быть.
+    // Тишина в списке читается как поломка, поэтому объяснение живёт прямо здесь, а не внизу.
+    const why=needToken('Не удалось получить список: '+e.message+'. Проверьте адрес и токен в блоке «Сервер».');
     if(box)box.innerHTML='';
-    msg(needToken('Не удалось получить список: '+e.message+'. Проверьте адрес и токен в блоке «Сервер».'),true);
+    if(box){const w=document.createElement('div');w.className='text warn';w.style.marginTop='0';w.textContent=why;
+      box.appendChild(w);const again=document.createElement('button');again.className='ghost small';again.textContent='Повторить';
+      again.onclick=loadConns;const r2=document.createElement('div');r2.className='row';r2.style.marginTop='6px';r2.appendChild(again);box.appendChild(r2)}
+    msg(why,true);
   }
 }
 async function activate(kind,id){
@@ -413,7 +419,9 @@ function serverMsg(t,warn){const el2=el('serverMsg');el2.textContent=t;el2.class
 // Токена нет — сервер может быть открыт, и тогда тоже работаем: закрытый ответит 401,
 // и тогда человек впишет токен в блоке «Сервер».
 function needToken(text){
-  if(/Нужен токен|Токен/i.test(text||'')) return 'Сервер просит токен: впишите его в блоке «Сервер» и нажмите «Перейти».';
+  // Подменяем только настоящий отказ авторизации: сказать «просит токен» при обрыве сети —
+  // значит отправить человека менять рабочий токен вместо проверки сети.
+  if(/Нужен токен|токен устройства|401/i.test(text||'')) return 'Сервер просит токен: впишите его в блоке «Сервер» и нажмите «Перейти».';
   return text;
 }
 // «Перейти» — не переход на страницу, а вход: проверяем адрес и токен и открываем настройки.
@@ -434,7 +442,7 @@ async function goServer(){
   }catch(e){serverMsg('Сервер не ответил: '+e.message+'. Проверьте адрес и сеть.',true)}
 }
 el('goServer').onclick=goServer;
-el('forgetToken').onclick=()=>{localStorage.removeItem('vv_token');$('#token').value='';serverMsg('Токен забыт в этом браузере.',false)};
+el('forgetToken').onclick=()=>{localStorage.removeItem('vv_token');$('#token').value='';serverMsg('Токен забыт в этом браузере: если сервер открыт, он и не нужен.',false)};
 // Стартовая подсказка в блоке «Сервер»: молчащее поле токена человек читает как «оно обязательное».
 serverMsg(localStorage.getItem('vv_token')?'Токен сохранён в этом браузере.':'Токен не задан: если сервер открыт, нажимать «Перейти» не нужно.',false);
 el('addConn').onclick=()=>openForm(null);

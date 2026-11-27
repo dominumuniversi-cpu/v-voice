@@ -235,15 +235,16 @@ class ConnectionList:
         if '/' not in base_url and '.' in base_url:
             base_url = preset.get('base_url') or base_url
         model = str(raw.get('model') or preset.get('model') or '').strip()
+        # Модель и адрес из каталога — это не настройка человека: без ключа провайдер всё равно
+        # не ответит. Работать заводим только то, что готово, — свой сервер без ключа считаем
+        # готовым по адресу; заглушки fake/whisper готовы всегда.
         key = str(raw.get('key') or '').strip()
         note = str(preset.get('note') or 'добавлено вами')
         cost = str(raw.get('cost') or preset.get('cost') or 'условия у провайдера').strip()
-        # Связка без ключа, адреса и модели работать не может: её нельзя ни проверить, ни вылечить.
-        # Такую мы не заводим — говорим прямо, чего не хватает.
-        if not key and not base_url and not model and protocol not in ('fake', 'whisper'):
+        if not key and protocol not in ('fake', 'whisper') and not base_url:
             return 400, {'error': 'nothing_set',
-                         'message': 'Впишите ключ провайдера или адрес и модель: пустая связка всё равно '
-                                    'не заработает, а в списке будет обещать работу.'}
+                         'message': 'Вставьте ключ провайдера' + (' или укажите адрес' if protocol == 'ollama' else '')
+                                    + ': без него связка не заработает, а в списке будет обещать работу.'}
         conn_id = str(raw.get('id') or '').strip().lower()
         if not conn_id:
             conn_id = self._slug(title)
@@ -262,10 +263,10 @@ class ConnectionList:
             if any(c.id == conn_id for c in self.items):
                 return 409, {'error': 'already_exists', 'id': conn_id,
                              'message': 'Связка с таким именем уже есть. Выберите другое имя.'}
-            # Связка с ключом или адресом готова к работе — сразу и становится рабочей, иначе
-            # человек добавил и не понимает, почему ничего не изменилось. Заглушка whisper/fake
-            # работает и без ключа, поэтому тоже годится; пустую связку мы выше не пропустили.
-            ready = bool(key or base_url or model) or protocol in ('fake', 'whisper')
+            # Готовность считаем по СВОИМ значениям человека, а не по модели из каталога:
+            # модель из каталога стоит у всех, а без ключа провайдер не ответит.
+            # Заглушка и своё распознавание работают без ключа, свой сервер — по адресу.
+            ready = bool(key) or protocol in ('fake', 'whisper') or (protocol == 'ollama' and bool(base_url))
             if ready and not self.active.get(kind):
                 self.active[kind] = conn_id
             conn = Connection(id=conn_id, kind=kind, protocol=protocol, title=title, base_url=base_url,
