@@ -1070,8 +1070,18 @@ _cl = _CL()
 for _c in _BUILTIN:
     _cl.seed(_Conn(**_c))
 _rs = _RS(asr_provider='whisper', llm_provider='fake')
+# По умолчанию ничего не выбрано: сервер не берёт связку «по привычке» и не отдаёт провайдера
+# из окружения как рабочего — иначе панель обещает работу, которую человек не заказывал.
+_hc0 = _handle('GET', '/api/v1/health', '', settings=_rs, connections=_cl)
+check("health_defaults_to_nothing", _hc0.body["settings"]["llm"]["provider"] == "fake"
+      and _hc0.body["settings"]["llm"]["ready"] is False
+      and "connection" not in _hc0.body["settings"]["llm"], _hc0.body["settings"]["llm"])
+check("connections_nothing_in_work_by_default",
+      _handle('GET', '/api/v1/connections', '', connections=_cl).body.get("in_work") == {})
+_cl.activate('llm', 'mistral')
+_cl.activate('asr', 'speechmatics')
 _hc = _handle('GET', '/api/v1/health', '', settings=_rs, connections=_cl)
-check("health_shows_chosen_llm", _hc.body["settings"]["llm"]["provider"] == "deepseek", _hc.body["settings"]["llm"])
+check("health_shows_chosen_llm", _hc.body["settings"]["llm"]["provider"] == "mistral", _hc.body["settings"]["llm"])
 check("health_chosen_has_no_key", _hc.body["settings"]["llm"]["key_set"] is False)
 _cl.activate('llm', 'mistral')
 _hc2 = _handle('GET', '/api/v1/health', '', settings=_rs, connections=_cl)
@@ -1080,6 +1090,11 @@ check("health_follows_activation", _hc2.body["settings"]["llm"]["provider"] == "
 _vw = _handle('GET', '/api/v1/connections', '', connections=_cl)
 check("connections_view_in_work", _vw.body.get("in_work", {}).get("llm") == "mistral"
       and _vw.body.get("in_work", {}).get("asr") == "speechmatics", _vw.body.get("in_work"))
+# Экран «Добавить» берёт список провайдеров по виду связи, а не общий список протоколов.
+_pv = _vw.body.get("protocols") or {}
+check("protocols_are_per_kind", [p["value"] for p in _pv.get("llm", [])][:1] == ["mistral"]
+      and "whisper" in [p["value"] for p in _pv.get("asr", [])]
+      and "whisper" not in [p["value"] for p in _pv.get("llm", [])], _pv)
 # /health под замком и с живой связкой не должен висеть: у view() и active_for() общий замок.
 check("health_with_connections_fast", _hc2.status == 200)
 # Маршрут, объявленный в ROUTES и не попавший в шаблоны, отвечает 404 на каждый запрос:

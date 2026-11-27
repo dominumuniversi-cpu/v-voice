@@ -35,6 +35,25 @@ PROTOCOLS: dict[str, str] = {
     'fake': 'Заглушка (без сети)',
 }
 
+# Какие протоколы бывают у какого вида связи. Экран «Добавить» берёт выпадающий список отсюда:
+# человек выбирает провайдера для разбора или для речи, а не угадывает по общему списку.
+PROTOCOLS_BY_KIND: dict[str, tuple[tuple[str, str], ...]] = {
+    'llm': (
+        ('mistral', 'Mistral'),
+        ('zai', 'Z.AI (GLM)'),
+        ('deepseek', 'DeepSeek'),
+        ('anthropic', 'Claude (Anthropic)'),
+        ('openai', 'Свой шлюз (OpenAI-совместимый)'),
+        ('ollama', 'Ollama (свой сервер)'),
+        ('fake', 'Демо-заглушка (без сети)'),
+    ),
+    'asr': (
+        ('whisper', 'Своя модель на нашем сервере (бесплатно)'),
+        ('speechmatics', 'Speechmatics (облако)'),
+        ('fake', 'Демо-заглушка (расшифровка выдумана)'),
+    ),
+}
+
 _ID_RE = re.compile(r'^[a-z0-9][a-z0-9_-]{0,31}$')
 
 
@@ -139,14 +158,17 @@ class ConnectionList:
         return None
 
     def active_for(self, kind: str) -> Connection | None:
-        """Активная связка вида. Если активной нет — первая добавленная, чтобы выбор был всегда."""
+        """Связка вида, которой сервер работает сейчас. Нет выбранной — None, а не «какая-нибудь».
+
+        Раньше здесь отдавалась первая связка вида. Это давало работу без выбора человека:
+        достаточно было открыть список, и сервер уже звал незаказанного провайдера.
+        """
         with self._lock:
             want = self.active.get(kind)
+            if not want:
+                return None
             for c in self.items:
                 if c.id == want and c.kind == kind:
-                    return c
-            for c in self.items:
-                if c.kind == kind:
                     return c
         return None
 
@@ -159,17 +181,18 @@ class ConnectionList:
             # а работает другая. Считаем по self.items напрямую: active_for берёт тот же замок,
             # и RLock из фонового потока дал бы дедлок на запросе /health.
             in_work: dict[str, str] = {}
+            # Активных подключений по умолчанию НЕТ: пока человек сам не нажал «Работать этой»,
+            # сервер не берёт ни провайдера по привычке, ни «первую попавшуюся» связку.
+            # Иначе панель обещает работу, которой человек не выбирал.
             for kind in ('llm', 'asr'):
                 want = self.active.get(kind)
-                chosen = next((c.id for c in self.items if c.id == want and c.kind == kind), None)
-                if chosen is None:
-                    chosen = next((c.id for c in self.items if c.kind == kind), None)
-                if chosen is not None:
-                    in_work[kind] = chosen
+                if want and any(c.id == want and c.kind == kind for c in self.items):
+                    in_work[kind] = want
             return {'items': [c.public() for c in self.items],
                     'active': dict(self.active),
                     'in_work': in_work,
-                    'protocols': dict(PROTOCOLS)}
+                    'protocols': {kind: [{'value': v, 'title': t} for v, t in pairs]
+                                  for kind, pairs in PROTOCOLS_BY_KIND.items()}}
 
     # --- изменение ----------------------------------------------------------
 
@@ -225,21 +248,28 @@ class ConnectionList:
                               added=time.time())
             self.items.append(conn)
             # Первая связка вида сразу становится рабочей: иначе человек добавил и «ничего не произошло».
-            self.active.setdefault(kind, conn_id)
+            if not self.active.get(kind):
+                self.active[kind] = conn_id
             return 201, {'connection': conn.public(), 'active': dict(self.active),
                          'message': 'Связка «' + title + '» добавлена.'}
 
     def update_key(self, conn_id: str, key: str, model: str | None = None,
-                   base_url: str | None = None) -> tuple[int, dict[str, Any]]:
-        """Меняет ключ/модель/адрес у записи. Пустой ключ значит «оставить прежний»."""
+                   base_url: str | None = None, title: str | None = None) -> tuple[int, dict[str, Any]]:
+        """Меняет ключ/модель/адрес/имя у записи. Пустой ключ значит «стереть прежний»."""
         with self._lock:
             conn = next((c for c in self.items if c.id == conn_id), None)
             if conn is None:
                 return 404, {'error': 'not_found', 'message': 'Такой связки нет.'}
             if key:
                 conn.key = key.strip()
-            if model is not None and model.strip():
+            else:
+                # Пустой ключ — «уберите прежний»: человек не должен остаться с чужим ключом,
+                # который он не может увидеть и потому не может проверить.
+                conn.key = ''
+            if model is not None:
                 conn.model = model.strip()
+            if title is not None:
+                conn.title = title.strip() or conn.title
             if base_url is not None:
                 try:
                     conn.base_url = _check_url(base_url)

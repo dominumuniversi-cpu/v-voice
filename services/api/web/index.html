@@ -70,45 +70,27 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 <div id="settings" class="muted">Проверяю…</div>
 <div class="row"><button id="recheck" class="ghost">Проверить снова</button></div>
 <div class="setup">
-  <h3 style="margin:0 0 6px">Подключения</h3>
-  <p class="muted" style="margin:0 0 10px">Список провайдеров. Активная связка — та, которой сервер работает сейчас. Можно добавить любого провайдера по адресу.</p>
-  <div class="muted" style="margin-bottom:6px">Понимание разговора</div>
-  <div class="conns" id="llmConns"></div>
-  <button class="ghost small" id="llmAdd" style="margin-top:8px">+ Добавить провайдера</button>
-  <div class="connform" id="llmForm" hidden>
-    <input id="llmT" type="text" placeholder="Название, например «Mistral — мой ключ»">
-    <select id="llmP">
-      <option value="openai">OpenAI-совместимый (свой адрес)</option>
-      <option value="zai">Z.AI (GLM)</option>
-      <option value="mistral">Mistral</option>
-      <option value="deepseek">DeepSeek</option>
-      <option value="anthropic">Claude (Anthropic)</option>
-      <option value="ollama">Ollama (свой сервер)</option>
+  <h3 style="margin:0 0 6px">Мои подключения</h3>
+  <p class="muted" style="margin:0 0 10px">Здесь только то, что вы настроили. Без подключения сервер ничего не получит — запись останется без расшифровки.</p>
+  <div class="conns" id="conns"></div>
+  <div class="row" style="margin-top:10px"><button id="addConn" class="ghost small">Добавить</button></div>
+  <div class="connform" id="connForm" hidden>
+    <select id="cfKind">
+      <option value="llm">Понимание разговора (модель)</option>
+      <option value="asr">Распознавание речи</option>
     </select>
-    <input id="llmU" type="text" placeholder="Адрес, например https://api.mistral.ai/v1">
-    <input id="llmM" type="text" placeholder="Модель, например mistral-small-latest">
-    <span class="muted" id="llmModelHint" style="font-size:12px"></span>
-    <input id="llmK" type="password" autocomplete="off" placeholder="Ключ (если нужен)">
-    <button id="llmDo" class="small">Добавить</button>
-    <button id="llmX" class="ghost small">Отмена</button>
+    <select id="cfP"></select>
+    <input id="cfT" type="text" placeholder="Название, например «Mistral — мой ключ»">
+    <input id="cfU" type="text" placeholder="Адрес, если нужен свой (https://api.mistral.ai/v1)">
+    <input id="cfM" type="text" placeholder="Модель, если нужна своя">
+    <input id="cfK" type="password" autocomplete="off" placeholder="Ключ (если нужен)">
+    <span class="muted" id="cfHint" style="font-size:12px"></span>
+    <div class="row" style="margin-top:4px">
+      <button id="cfDo" class="small">Добавить</button>
+      <button id="cfX" class="ghost small">Отмена</button>
+    </div>
   </div>
-  <p class="muted" id="llmMsg" style="margin:6px 0 0"></p>
-
-  <div class="muted" style="margin:16px 0 6px">Распознавание речи</div>
-  <div class="conns" id="asrConns"></div>
-  <button class="ghost small" id="asrAdd" style="margin-top:8px">+ Добавить провайдера</button>
-  <div class="connform" id="asrForm" hidden>
-    <input id="asrT" type="text" placeholder="Название, например «Speechmatics — мой ключ»">
-    <select id="asrP">
-      <option value="speechmatics">Speechmatics (облако)</option>
-      <option value="whisper">Своя модель на нашем сервере</option>
-    </select>
-    <input id="asrK" type="password" autocomplete="off" placeholder="Ключ (если нужен)">
-    <button id="asrDo" class="small">Добавить</button>
-    <button id="asrX" class="ghost small">Отмена</button>
-  </div>
-  <p class="muted" id="asrMsg" style="margin:6px 0 0"></p>
-
+  <p class="muted" id="connMsg" style="margin:6px 0 0"></p>
   <div class="row" style="margin-top:14px">
     <button id="checkLive" class="ghost" title="Проверяет уже сохранённую связку заново, ничего не меняя">Проверить связку ещё раз</button>
   </div>
@@ -117,7 +99,9 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 <p class="muted" id="hint" style="margin-top:10px"></p></div>
 <div class="card"><h2>Сервер</h2>
 <label for="server">Адрес</label><input id="server" placeholder="https://192.168.8.49/voice">
-<label for="token" style="margin-top:10px">Токен устройства</label><input id="token" placeholder="из настроек сервера"></div>
+<label for="token" style="margin-top:10px">Токен устройства</label><input id="token" type="password" autocomplete="off" placeholder="если сервер его требует — впишите и нажмите «Перейти»">
+<div class="row"><button id="goServer">Перейти</button><button id="forgetToken" class="ghost">Забыть токен</button></div>
+<p class="muted" id="serverMsg" style="margin-top:8px"></p></div>
 <div class="card" id="digest" style="display:none"><h2>Выжимка</h2><ul class="sum" id="summary"></ul>
 <h2 style="margin-top:16px">Задачи и встречи</h2><div id="items"></div>
 <h2 style="margin-top:16px">Открытые вопросы</h2><ul class="sum" id="questions"></ul></div>
@@ -228,127 +212,143 @@ async function loadSettings(){
   try{
     const r=await fetch(server()+'/api/v1/health',{headers:headers()});
     const d=await r.json();
-    if(!r.ok){box.textContent='Настройки не читаются: '+(d.message||r.status);return}
+    if(!r.ok){box.textContent=needToken('Настройки не читаются: '+(d.message||r.status));return}
     const s=d.settings||{};const asr=s.asr||{},llm=s.llm||{};
-    const line=(x)=>(x.ready?'подключено':'<span class="warn">не работает</span>')
-      +' — '+label(x.provider)+(x.key_fingerprint?' · ключ '+x.key_fingerprint:'')+(x.configured?'':' · ключ не задан');
+    const line=(x)=>(x.ready?'<b>работает</b>':'<span class="warn">не работает</span>')+(x.connection?' — '+x.connection:'');
     box.innerHTML='Речь: '+line(asr)+'<br>Понимание: '+line(llm);
     const problems=[];
     if(!asr.ready)problems.push('распознавание речи');
     if(!llm.ready)problems.push('осмысленный разбор');
-    hint.textContent=problems.length
-      ? 'Чтобы это заработало, на сервере нужно задать провайдера и ключ: '+problems.join(' и ')+'. Показать как — спросите того, кто ставил стенд.'
-      : 'Обе модели подключены. Если ключ неверный, это выяснится при первом разборе — сервер скажет прямо.';
+    if(!(INWORK.llm||INWORK.asr)){
+      hint.textContent='Ни одно подключение не выбрано. Нажмите «Работать этой» у нужного — до этого момента сервер его не использует.';
+    }else if(!INWORK.llm||!INWORK.asr){
+      hint.textContent='Не выбрано '+(INWORK.llm?'распознавание речи':'понимание разговора')
+        +': выберите его кнопкой «Работать этой», иначе эта часть работы не выполнится.';
+    }else if(problems.length){
+      hint.textContent='Выбрано, но не готово: '+problems.join(' и ')+'. Откройте подключение кнопкой «Настроить» и проверьте ключ.';
+    }else{
+      hint.textContent='Обе модели подключены. Если ключ неверный, это выяснится при первом разборе — сервер скажет прямо.';
+    }
   }catch(e){box.textContent='Сервер не ответил: '+e.message}
 }
 document.getElementById('recheck').onclick=loadSettings;
-let CONNS={llm:[],asr:[]},ACTIVE={llm:'',asr:''};
+let CONNS={llm:[],asr:[]},INWORK={llm:'',asr:''},PROTOCOLS={};
 const el=id=>document.getElementById(id);
-// Список подключений: одна строка на провайдера. Активная — та, которой сервер работает сейчас.
-function draw(kind){
-  const box=el(kind+'Conns');if(!box)return;box.innerHTML='';
-  const list=CONNS[kind]||[];
-  if(!list.length){box.innerHTML='<div class="muted">Пока пусто — нажмите «Добавить провайдера».</div>';return}
+const KINDNAME={llm:'понимание',asr:'речь'};
+// Список подключений: одна строка на то, что человек настроил. Пометка «работает» — по серверу,
+// а не по догадке экрана: в работу идёт связка из раздела in_work.
+function draw(){
+  const box=el('conns');if(!box)return;box.innerHTML='';
+  const list=(CONNS.llm||[]).concat(CONNS.asr||[]);
+  if(!list.length){
+    box.innerHTML='<div class="muted">Пока ничего не настроено. Нажмите «Добавить»: без подключения запись останется без расшифровки.</div>';
+    return;
+  }
   list.forEach(c=>{
-    const row=document.createElement('div');row.className='conn'+(ACTIVE[kind]===c.id?' on':'');
+    const kind=c.kind, works=INWORK[kind]===c.id;
+    const row=document.createElement('div');row.className='conn'+(works?' on':'');
     const body=document.createElement('div');body.className='body';
-    const b=document.createElement('b');b.textContent=c.title;body.appendChild(b);
+    const b=document.createElement('b');b.textContent=c.title;
+    const kn=document.createElement('span');kn.className='muted';kn.style.fontSize='11px';
+    kn.textContent=KINDNAME[kind]||kind;b.appendChild(document.createTextNode(' '));b.appendChild(kn);
+    body.appendChild(b);
     const where=[];
     if(c.model)where.push('модель: '+c.model);
     if(c.base_url)where.push(c.base_url);
-    if(c.key_set)where.push('ключ задан '+c.key_hint);else where.push('ключ не задан');
+    where.push(c.key_set?'ключ задан '+c.key_hint:'ключ не задан');
     const s=document.createElement('span');s.textContent=where.join(' · ');body.appendChild(s);
-    if(c.note){const n=document.createElement('span');n.textContent=c.note;body.appendChild(n)}
-    const cost=document.createElement('i');cost.textContent=(c.cost||'');if((c.cost||'').indexOf('бесплатно')<0)cost.className='paid';body.appendChild(cost);
+    const state=document.createElement('i');state.textContent=works?'работает сейчас':'не выбрана';
+    if(!works)state.className='paid';body.appendChild(state);
     row.appendChild(body);
     const tools=document.createElement('div');tools.className='tools';
-    if(ACTIVE[kind]!==c.id){
+    if(!works&&kind){
       const use=document.createElement('button');use.className='small';use.textContent='Работать этой';
       use.onclick=()=>activate(kind,c.id);tools.appendChild(use);
-    }else{
-      const tag=document.createElement('span');tag.className='muted';tag.textContent='активна';
-      tag.style.cssText='font-size:12px;align-self:center';tools.appendChild(tag);
     }
-    const key=document.createElement('button');key.className='ghost small';key.textContent=c.key_set?'Сменить ключ':'Ввести ключ';
-    key.onclick=()=>askKey(kind,c);tools.appendChild(key);
-    if(!c.builtin){
-      const del=document.createElement('button');del.className='danger small';del.textContent='Удалить';
-      del.onclick=()=>removeConn(kind,c.id);tools.appendChild(del);
-    }
+    const edit=document.createElement('button');edit.className='ghost small';edit.textContent='Настроить';
+    edit.onclick=()=>openForm(kind,c);tools.appendChild(edit);
+    const del=document.createElement('button');del.className='danger small';del.textContent='Удалить';
+    del.onclick=()=>removeConn(kind,c.id);tools.appendChild(del);
     row.appendChild(tools);
     box.appendChild(row);
   });
 }
-function msg(kind,text,warn){const m=el(kind+'Msg');if(!m)return;m.textContent=text;m.className=warn?'text warn':'muted'}
+function msg(text,warn){const m=el('connMsg');if(!m)return;m.textContent=text||'';m.className=warn?'text warn':'muted'}
+// Форма одна на оба вида: вид выбирается первым полем, протоколы подставляются из сервера.
+function fillProtocols(){
+  const sel=el('cfP'),kind=el('cfKind').value;sel.innerHTML='';
+  const names=(PROTOCOLS[kind]||[]);
+  names.forEach(p=>{const o=document.createElement('option');o.value=p.value;o.textContent=p.title;sel.appendChild(o)});
+}
 async function loadConns(){
-  ['llm','asr'].forEach(k=>{const b=el(k+'Conns');if(b)b.innerHTML='<div class="muted">Загружаю список…</div>'});
+  const box=el('conns');if(box)box.innerHTML='<div class="muted">Загружаю список…</div>';
   try{
     const r=await fetch(server()+'/api/v1/connections',{headers:headers()});
     const d=await r.json();
     if(!r.ok)throw new Error(d.message||('код '+r.status));
-    CONNS={llm:[],asr:[]};ACTIVE=d.active||{};
+    CONNS={llm:[],asr:[]};INWORK=d.in_work||{};ACTIVE=d.active||{};
+    if(d.protocols)PROTOCOLS=d.protocols;
     (d.items||[]).forEach(c=>{if(CONNS[c.kind])CONNS[c.kind].push(c)});
-    draw('llm');draw('asr');
+    draw();fillProtocols();
   }catch(e){
     // Пустой блок без объяснения — это и был прежний баг: человек не понимал, что тут должно быть.
-    ['llm','asr'].forEach(k=>{const b=el(k+'Conns');if(b)b.innerHTML='';});
-    msg('llm','Не удалось получить список: '+e.message+'. Проверьте адрес и токен выше.',true);
+    if(box)box.innerHTML='';
+    msg(needToken('Не удалось получить список: '+e.message+'. Проверьте адрес и токен в блоке «Сервер».'),true);
   }
 }
 async function activate(kind,id){
-  msg(kind,'Включаю…',false);
+  msg('Включаю…',false);
   try{
     const r=await fetch(server()+'/api/v1/connections/'+encodeURIComponent(id)+'/activate',{method:'POST',headers:headers(),body:JSON.stringify({kind})});
     const d=await r.json();
-    if(!r.ok){msg(kind,'Не получилось: '+(d.message||r.status),true);return}
-    msg(kind,d.message||'Готово.',false);
+    if(!r.ok){msg('Не получилось: '+(d.message||r.status),true);return}
+    msg(d.message||'Готово.',false);
     await loadConns();loadSettings();
-  }catch(e){msg(kind,'Связь прервалась: '+e.message,true)}
+  }catch(e){msg('Связь прервалась: '+e.message,true)}
 }
 async function removeConn(kind,id){
   try{
     const r=await fetch(server()+'/api/v1/connections/'+encodeURIComponent(id),{method:'DELETE',headers:headers()});
     const d=await r.json();
-    if(!r.ok){msg(kind,'Не получилось: '+(d.message||r.status),true);return}
-    msg(kind,d.message||'Удалено.',false);
+    if(!r.ok){msg('Не получилось: '+(d.message||r.status),true);return}
+    msg(d.message||'Удалено.',false);
     await loadConns();loadSettings();
-  }catch(e){msg(kind,'Связь прервалась: '+e.message,true)}
+  }catch(e){msg('Связь прервалась: '+e.message,true)}
 }
-async function askKey(kind,c){
-  const v=prompt('Ключ для «'+c.title+'». Пустое поле — оставить прежний:','');
-  if(v===null)return;
-  msg(kind,'Сохраняю ключ…',false);
+// «Настроить» = та же форма, что и «Добавить», но с уже заполненными полями и записью по id.
+let editing=null;
+function openForm(kind,conn){
+  editing=conn?{kind,id:conn.id}:null;
+  el('connForm').hidden=false;
+  el('cfKind').value=conn?conn.kind:'llm';
+  fillProtocols();
+  if(conn&&conn.protocol)el('cfP').value=conn.protocol;
+  el('cfT').value=conn?conn.title:'';
+  el('cfU').value=conn?(conn.base_url||''):'';
+  el('cfM').value=conn?(conn.model||''):'';
+  el('cfK').value='';
+  el('cfK').placeholder=conn&&conn.key_set?'Новый ключ (пусто — стереть прежний)':'Ключ (если нужен)';
+  el('cfDo').textContent=conn?'Сохранить':'Добавить';
+  el('cfHint').textContent=conn?(conn.note||''):'Ключ хранится только в памяти сервера до перезапуска.';
+  el('cfT').focus();
+}
+async function saveConn(){
+  const kind=el('cfKind').value,protocol=el('cfP').value;
+  const body={kind,protocol,title:el('cfT').value.trim(),base_url:el('cfU').value.trim(),
+              model:el('cfM').value.trim(),key:el('cfK').value.trim()};
+  if(!body.title){msg('Впишите название — по нему вы будете узнавать связку.',true);return}
+  msg('Сохраняю…',false);
   try{
-    const r=await fetch(server()+'/api/v1/connections/'+encodeURIComponent(c.id),{method:'PATCH',headers:headers(),body:JSON.stringify({key:v.trim()})});
+    const url=editing?server()+'/api/v1/connections/'+encodeURIComponent(editing.id):server()+'/api/v1/connections';
+    const r=await fetch(url,{method:editing?'PATCH':'POST',headers:headers(),body:JSON.stringify(body)});
     const d=await r.json();
-    if(!r.ok){msg(kind,'Не получилось: '+(d.message||r.status),true);return}
-    msg(kind,'Ключ сохранён. Он живёт до перезапуска сервера.',false);
-    await loadConns();
-  }catch(e){msg(kind,'Связь прервалась: '+e.message,true)}
+    if(!r.ok){msg('Не принято: '+(d.message||d.error||r.status),true);return}
+    msg(editing?'Сохранено.':((d.message||'Добавлено.')+' Это подключение выбрано рабочим.'),false);
+    el('connForm').hidden=true;editing=null;
+    ['T','U','M','K'].forEach(s=>{const f=el('cf'+s);if(f)f.value=''});
+    await loadConns();loadSettings();
+  }catch(e){msg('Связь прервалась: '+e.message,true)}
 }
-async function addConn(kind){
-  const title=el(kind+'T').value.trim(),protocol=el(kind+'P').value;
-  const body={kind,protocol,title};
-  if(el(kind+'U'))body.base_url=el(kind+'U').value.trim();
-  if(el(kind+'M'))body.model=el(kind+'M').value.trim();
-  if(el(kind+'K'))body.key=el(kind+'K').value.trim();
-  msg(kind,'Добавляю…',false);
-  try{
-    const r=await fetch(server()+'/api/v1/connections',{method:'POST',headers:headers(),body:JSON.stringify(body)});
-    const d=await r.json();
-    if(!r.ok){msg(kind,'Не принято: '+(d.message||d.error||r.status),true);return}
-    msg(kind,(d.message||'Добавлено.')+' Теперь выберите её кнопкой «Работать этой».',false);
-    el(kind+'Form').hidden=true;
-    ['T','U','M','K'].forEach(s=>{const f=el(kind+s);if(f)f.value=''});
-    await loadConns();
-  }catch(e){msg(kind,'Связь прервалась: '+e.message,true)}
-}
-['llm','asr'].forEach(kind=>{
-  const add=el(kind+'Add'),form=el(kind+'Form'),x=el(kind+'X'),doit=el(kind+'Do');
-  if(add)add.onclick=()=>{form.hidden=!form.hidden};
-  if(x)x.onclick=()=>{form.hidden=true};
-  if(doit)doit.onclick=()=>addConn(kind);
-});
 async function checkLive(prefix){
   const m=el('saveMsg');const keep=typeof prefix==='string'?prefix:'';
   m.textContent=keep+'Стучусь в модель…';m.className='muted';
@@ -361,6 +361,45 @@ async function checkLive(prefix){
 // Порядок: сначала адрес и токен, потом запросы. Иначе первый же запрос уходит по пустому адресу.
 // Адрес — полный путь страницы вместе с префиксом стенда (/voice), его срезать нельзя.
 $('#server').value=location.origin+location.pathname.replace(/\/+$/,'');
+// Токен НЕ живёт в адресной строке: оттуда он уходит в историю и в Referer. Пришёл ?token= — сразу
+// убираем его из строки. Дальше человек вводит токен в блоке «Сервер» и жмёт «Перейти».
+const _q=new URLSearchParams(location.search).get('token');
+if(_q){
+  localStorage.setItem('vv_token',_q);
+  const u=new URL(location.href);u.searchParams.delete('token');history.replaceState(null,'',u.pathname+u.search);
+}
+$('#token').value=localStorage.getItem('vv_token')||'';
+function serverMsg(t,warn){const el2=el('serverMsg');el2.textContent=t;el2.className=warn?'text warn':'muted'}
+// Вход без нажатия: токен уже сохранён в браузере — «Перейти» не требуется.
+// Токена нет — сервер может быть открыт, и тогда тоже работаем: закрытый ответит 401,
+// и тогда человек впишет токен в блоке «Сервер».
+function needToken(text){
+  if(/Нужен токен|Токен/i.test(text||'')) return 'Сервер просит токен: впишите его в блоке «Сервер» и нажмите «Перейти».';
+  return text;
+}
+// «Перейти» — не переход на страницу, а вход: проверяем адрес и токен и открываем настройки.
+async function goServer(){
+  const t=token();
+  if(t)localStorage.setItem('vv_token',t);else localStorage.removeItem('vv_token');
+  $('#server').value=server();
+  serverMsg('Проверяю…',false);
+  try{
+    const r=await fetch(server()+'/api/v1/connections',{headers:headers()});
+    if(r.status===401){
+      serverMsg('Токен не подошёл: сервер не пускает. Впишите токен из настроек сервера и нажмите «Перейти» снова.',true);
+      return;
+    }
+    if(!r.ok){serverMsg('Сервер ответил кодом '+r.status+'. Проверьте адрес.',true);return}
+    serverMsg('Связь есть. Настройки ниже загружены.',false);
+    await loadConns();loadSettings();
+  }catch(e){serverMsg('Сервер не ответил: '+e.message+'. Проверьте адрес и сеть.',true)}
+}
+el('goServer').onclick=goServer;
+el('forgetToken').onclick=()=>{localStorage.removeItem('vv_token');$('#token').value='';serverMsg('Токен забыт в этом браузере.',false)};
+el('addConn').onclick=()=>openForm(null);
+el('cfX').onclick=()=>{el('connForm').hidden=true;editing=null};
+el('cfDo').onclick=saveConn;
+el('cfKind').onchange=()=>{fillProtocols();el('cfU').value='';el('cfM').value=''};
 // По http с сетевого адреса микрофон обычно не дают, и тогда всё молчит без причины.
 // Сразу предлагаем адрес, который точно пускает: на Windows — dimas.local, на телефоне — https.
 function micBanner(){
@@ -381,28 +420,18 @@ function micBanner(){
   $('#live').parentNode.appendChild(box);
 }
 micBanner();
-const _q=new URLSearchParams(location.search).get('token');
-if(_q){
-  $('#token').value=_q;
-  // Токен не должен оставаться в адресной строке: оттуда он уходит в историю и в Referer.
-  const u=new URL(location.href);u.searchParams.delete('token');history.replaceState(null,'',u.pathname+u.search);
-}
-async function loadModels(){
-  // Подсказку моделей показываем рядом с полем «Модель» в форме добавления: список живой
-  // только у Ollama, у остальных — известный каталог. Ошибку тоже говорим, а не молчим.
-  const hint=el('llmModelHint');
-  if(!hint)return;
-  hint.textContent='Смотрю, какие модели есть…';
-  try{
-    const r=await fetch(server()+'/api/v1/models',{headers:headers()});
-    const d=await r.json();
-    if(!r.ok)throw new Error(d.message||('код '+r.status));
-    hint.textContent=(d.models&&d.models.length)?('Известные модели: '+d.models.slice(0,6).join(', ')+'.')
-      :(d.message||'Список пуст — впишите имя модели вручную.');
-  }catch(e){hint.textContent='Список моделей не получен: '+e.message;}
-}
 el('checkLive').onclick=()=>checkLive('');
+// Без токена работаем тоже: сервер может быть открыт в локальной сети, и тогда вход не нужен.
+// Если токен есть в этом браузере — сразу подтягиваем настройки, не заставляя жать «Перейти».
 loadConns();
 loadSettings();
+// Токена нет, а сервер его спрашивает — подсказываем один раз и ставим курсор в поле токена.
+setTimeout(()=>{
+  const s=el('settings').textContent||'';
+  if(/Нужен токен|просит токен/.test(s)){
+    serverMsg('Сервер просит токен. Впишите его здесь и нажмите «Перейти» — настройки откроются.',true);
+    el('token').focus();
+  }
+},600);
 </script>
 </body></html>

@@ -123,26 +123,33 @@ def _apply_chosen(live: Any, connections: Any) -> None:
     Мутирует уже собранный словарь: copy.deepcopy здесь не нужен, а лишний слой скрыл бы,
     что /health и фабрики провайдеров смотрят на один и тот же выбор.
     """
-    if connections is None or not isinstance(live, dict):
+    if not isinstance(live, dict):
         return
-    view = connections.view()
-    chosen = view.get('in_work') or {}
-    by_id = {item.get('id'): item for item in view.get('items') or []}
+    if connections is not None:
+        view = connections.view()
+        chosen = view.get('in_work') or {}
+        by_id = {item.get('id'): item for item in view.get('items') or []}
+        for kind in ('llm', 'asr'):
+            conn = by_id.get(chosen.get(kind))
+            block = live.get(kind)
+            if conn is None or not isinstance(block, dict):
+                continue
+            protocol = str(conn.get('protocol') or '')
+            block['provider'] = _CHOSEN_PROTOCOL.get(protocol, protocol)
+            block['model'] = conn.get('model') or ''
+            if kind == 'llm':
+                block['base_url'] = conn.get('base_url') or ''
+            block['from_env'] = False
+            # Сам ключ не показываем никогда: только «есть/нет», как и у настроек из окружения.
+            block['key_set'] = bool(conn.get('key_set'))
+            block['ready'] = bool(conn.get('key_set')) or block['provider'] in ('fake', 'whisper')
+            block['connection'] = conn.get('title') or ''
+    # Рабочего подключения нет — модель тоже не настроена. Показывать провайдера из окружения
+    # значит обещать работу, которой не будет: связку выбирает человек кнопкой «Работать этой».
     for kind in ('llm', 'asr'):
-        conn = by_id.get(chosen.get(kind))
         block = live.get(kind)
-        if conn is None or not isinstance(block, dict):
-            continue
-        protocol = str(conn.get('protocol') or '')
-        block['provider'] = _CHOSEN_PROTOCOL.get(protocol, protocol)
-        block['model'] = conn.get('model') or ''
-        if kind == 'llm':
-            block['base_url'] = conn.get('base_url') or ''
-        block['from_env'] = False
-        # Сам ключ не показываем никогда: только «есть/нет», как и у настроек из окружения.
-        block['key_set'] = bool(conn.get('key_set'))
-        block['ready'] = bool(conn.get('key_set')) or block['provider'] in ('fake', 'whisper')
-        block['connection'] = conn.get('title') or ''
+        if isinstance(block, dict) and not block.get('connection'):
+            block['ready'] = False
 
 
 def _with_cost(body: Any, price_per_hour: float, budget: float = 0.0) -> Any:
@@ -293,7 +300,8 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
         code, body = connections.update_key(
             param, str(payload.get("key") or ""),
             None if "model" not in payload else str(payload.get("model") or ""),
-            None if "base_url" not in payload else str(payload.get("base_url") or ""))
+            None if "base_url" not in payload else str(payload.get("base_url") or ""),
+            None if "title" not in payload else str(payload.get("title") or ""))
         return Response(code, body)
 
     if template == "/api/v1/connections/{conn_id}/activate":
