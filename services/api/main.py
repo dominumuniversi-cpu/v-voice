@@ -40,18 +40,27 @@ def build_dependencies(settings: Settings, data_dir: Path) -> dict[str, Any]:
 
     def asr_factory(path: str) -> Any:
         """Собирает распознавание на момент вызова: ключ мог поменяться только что."""
-        provider, key = runtime.asr()
-        live = settings if not provider else _with(settings, asr_provider=provider, asr_key=key)
+        chosen = runtime.asr()
+        provider = chosen['provider']
+        live = (settings if not provider else
+                _with(settings, asr_provider=provider, asr_key=chosen['key'] or settings.asr_key,
+                      asr_model=chosen['model'] or settings.asr_model))
         return make_asr_factory(live)(path)
 
     def llm_factory() -> Any:
-        """То же для понимания: провайдер и ключ берутся в момент разбора."""
-        provider, key = runtime.llm()
-        live = settings if not provider else _with(settings, llm_provider=provider, llm_key=key)
+        """Понимание собирается в момент разбора: человек мог сменить модель минуту назад."""
+        chosen = runtime.llm()
+        provider = chosen['provider']
+        live = (settings if not provider else
+                _with(settings, llm_provider=provider, llm_key=chosen['key'] or settings.llm_key,
+                      llm_model=chosen['model'] or settings.llm_model,
+                      llm_base_url=chosen['base_url'] or settings.llm_base_url))
         return _make_understanding(live)
 
     return {
         'settings': runtime,
+        'asr_env': (settings.asr_provider or '').strip().lower(),
+        'llm_env': (settings.llm_provider or '').strip().lower(),
         'store': AudioStore(data_dir / 'audio'),
         'digests': DigestStore(data_dir / 'digests'),
         'live_sessions': LiveSessions(),
@@ -89,7 +98,10 @@ def _make_understanding(settings: Any) -> Any:
         from vvoice.providers.fake_llm import make_fake_llm
         return make_fake_llm()
     if provider in IMPLEMENTED_LLM and settings.llm_key:
-        return make_call_llm(provider, '', settings.llm_key)
+        # Модель и адрес — из настроек: пустая строка значит «как у провайдера по умолчанию»,
+        # а выбор модели на странице должен долетать до самого запроса, иначе это надпись.
+        return make_call_llm(provider, getattr(settings, 'llm_model', '') or '',
+                             settings.llm_key, getattr(settings, 'llm_base_url', '') or '')
     return None
 
 

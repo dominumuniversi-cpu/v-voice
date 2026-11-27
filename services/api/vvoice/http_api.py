@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .evidence import validate_item
+from .models_check import check_models
 from .sessions import create_session, is_session_id
 from .digest_store import DigestStore
 from .export_route import export_session
@@ -46,6 +47,7 @@ import re
 ROUTES: dict[str, tuple[str, ...]] = {
     "/api/v1/health": ("GET",),
     "/api/v1/presets": ("GET",),
+    "/api/v1/models/check": ("POST",),
     # Настройка моделей из браузера: меняет работающий сервер, ключ живёт в памяти.
     "/api/v1/settings": ("GET", "POST"),
     # Настройка моделей из браузера. Отдельная ручка, потому что меняет работающий сервер.
@@ -134,7 +136,9 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
            asr_price_per_hour: float = 0.0,
            budget_per_meeting: float = 0.0,
            device_tokens: Any = None,
-           settings: Any = None) -> Response:
+           settings: Any = None,
+           asr_env: str = '',
+           llm_env: str = '') -> Response:
     """Единственная точка входа: метод, путь, тело. Никаких глобальных состояний."""
     template, param = _route(path)
     allowed = ROUTES.get(template) if template else None
@@ -174,14 +178,27 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             return Response(200, {"status": "ok", "service": "v-voice", "version": "1",
                                   "settings": _load_settings().public_health()})
         if path == "/api/v1/presets":
-            return Response(200, {"presets": presets()})
+            # Старые пресеты (шаблоны задач) и новые (связки моделей) в одном ответе: два разных
+            # пути к одному понятию — это две правды, и одна из них обязательно отстанет.
+            from .runtime_settings import presets as model_presets
+            data = {"presets": presets()}
+            data.update(model_presets())
+            return Response(200, data)
+
+    if path == "/api/v1/models/check":
+        # Настоящий пробный вызов: «ключ вписан» и «ключ работает» — разные вещи, и человеку
+        # нужен ответ на второй вопрос, а не зелёная галочка за сохранение строки.
+        if settings is None:
+            return Response(503, {"error": "settings_unavailable", "message": "Нечего проверять."})
+        return Response(200, check_models(settings))
+
 
     if path == "/api/v1/settings":
         if settings is None:
             return Response(503, {"error": "settings_unavailable",
                                   "message": "Сервер не хранит настроек в памяти."})
         if method.upper() == "GET":
-            return Response(200, settings.view())
+            return Response(200, settings.view(asr_env=asr_env, llm_env=llm_env))
         payload: dict[str, Any] = {}
         if raw_body.strip():
             try:

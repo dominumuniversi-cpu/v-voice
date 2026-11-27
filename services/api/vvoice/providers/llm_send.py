@@ -74,7 +74,7 @@ def answer_text(raw: str) -> str:
     return str(answer).strip() if answer else ""
 
 
-def make_call_llm(provider: str, model: str, api_key: str):
+def make_call_llm(provider: str, model: str, api_key: str, base_url: str = ''):
     """Функция, которую ждёт разбор: (системная инструкция, вопрос) -> разобранный JSON.
 
     Разбор получает словарь, а не сырой текст: модель обязана ответить JSON, и разбирать его
@@ -82,7 +82,7 @@ def make_call_llm(provider: str, model: str, api_key: str):
     """
 
     def call(system: str, user: str) -> dict:
-        request = build_request(provider, model, system, user, api_key)
+        request = build_request(provider, model, system, user, api_key, base_url)
         ok, raw = send_llm(request)
         if not ok:
             raise RuntimeError(raw)

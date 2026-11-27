@@ -5,7 +5,7 @@
 
 ## Обязательно прочитать до любой работы
 
-1. `E:\!Develop\Vernadsky\General rules\00-MANIFEST.md` + манифесты по теме (DEV-RULES, SDD, SESSIONS, SWARM, TOKENS, HOSTING).
+1. Глобальные правила DSH читаются автоматически (`$DSH_HOME\AGENTS.md`: служба, модели, обмен JSON-конвертами, стенды, секреты, безопасный код). Манифесты группы проектов `E:\!Develop\Vernadsky\General rules\` — только по триггеру, когда речь именно о них: `DEV-RULES.md` (общие правила разработки), `SDD.md` (Spec → Plan → Tasks → Code), `SESSIONS.md`, `SWARM.md`, `TOKENS.md`, `HOSTING.md`.
 2. Локальные правила проекта: `docs/SPECS/LOCAL-RULES.md`.
 3. Текущее состояние: `docs/ROADMAP/ROADMAP.md`, `docs/SPECS/STATUS.md`.
 4. Шаблон задачи: `docs/SPECS/ISSUE-SPEC.md`. Задачник — GitHub Issues репозитория `dominumuniversi-cpu/v-voice`. Все задачи/баги — только там.

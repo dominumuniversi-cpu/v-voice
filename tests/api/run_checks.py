@@ -624,8 +624,10 @@ check("export_payload_has_schema", isinstance(_payload0, dict) and _payload0.get
 from vvoice import config as _cfg
 _empty = _cfg.load({})
 check("config_empty_is_alive", _empty.asr_ready is False and _empty.llm_ready is False)
-_full = _cfg.load({"VV_ASR_PROVIDER": "deepgram", "VV_ASR_KEY": "secret-asr", "VV_LLM_PROVIDER": "openai", "VV_LLM_KEY": "secret-llm"})
-check("config_reads_providers", _full.asr_ready and _full.llm_ready and _full.asr_provider == "deepgram")
+# Имена берём из тех, что действительно поддержаны: список провайдеров согласован с кодом,
+# поэтому deepgram/openai теперь честно отбрасываются как неизвестные (это проверено ниже).
+_full = _cfg.load({"VV_ASR_PROVIDER": "speechmatics", "VV_ASR_KEY": "secret-asr", "VV_LLM_PROVIDER": "deepseek", "VV_LLM_KEY": "secret-llm"})
+check("config_reads_providers", _full.asr_ready and _full.llm_ready and _full.asr_provider == "speechmatics")
 _health_text = repr(_full.public_health())
 check("config_key_never_leaks", "secret-asr" not in _health_text and "secret-llm" not in _health_text)
 check("config_fingerprint_differs", _full.public_health()["asr"]["key_fingerprint"] != _full.public_health()["llm"]["key_fingerprint"])
@@ -673,10 +675,11 @@ _none = _mk(_cfg.load({}))
 check("factory_empty_gives_none", _none is None)
 _fake = _mk(_cfg.load({"VV_ASR_PROVIDER": "fake"}))
 check("factory_fake_only_explicit", _fake is not None)
-_dg = _mk(_cfg.load({"VV_ASR_PROVIDER": "deepgram", "VV_ASR_KEY": "k"}))
+# Неизвестный провайдер отбрасывается загрузчиком — фабрика получает пустое имя и молчит.
+_dg = _mk(_cfg.load({"VV_ASR_PROVIDER": "unknown-provider", "VV_ASR_KEY": "k"}))
 check("factory_unimplemented_gives_none", _dg is None)
-_desc = _describe(_cfg.load({"VV_ASR_PROVIDER": "deepgram", "VV_ASR_KEY": "k"}))
-check("factory_describes_gap", _desc["asr_configured"] == "deepgram" and _desc["asr_usable"] is False)
+_desc = _describe(_cfg.load({"VV_ASR_PROVIDER": "unknown-provider", "VV_ASR_KEY": "k"}))
+check("factory_describes_gap", _desc["asr_configured"] == "" and _desc["asr_usable"] is False)
 # Списки провайдеров не должны расходиться: реализованный обязан быть разрешён в настройках.
 from vvoice.provider_factory import IMPLEMENTED_ASR as _impl
 _allowed = set(_cfg.ASR_PROVIDERS)
@@ -805,9 +808,10 @@ check("config_env_reaches_settings", _s.asr_provider == 'fake' and _s.llm_provid
       (_s.asr_provider, _s.llm_provider))
 # Понимание речи — такой же честный статус, как и распознавание: молчание тут опаснее ошибки.
 from vvoice.provider_factory import describe as _describe, IMPLEMENTED_LLM as _IMPL_LLM
-_llm_status = _describe(_load({'VV_LLM_PROVIDER': 'openai'}))
-check("factory_reports_llm", _llm_status.get('llm_configured') == 'openai', _llm_status)
-check("factory_llm_not_usable_yet", _llm_status.get('llm_usable') is False)
+_llm_status = _describe(_load({'VV_LLM_PROVIDER': 'anthropic'}))
+check("factory_reports_llm", _llm_status.get('llm_configured') == 'anthropic', _llm_status)
+# Anthropic теперь действительно реализован — «не работает» было бы ложью.
+check("factory_llm_usable_now", _llm_status.get('llm_usable') is True, _llm_status)
 check("factory_lists_llm", isinstance(_IMPL_LLM, tuple))
 # Расшифровка должна уходить человеку файлом в привычном формате, а не JSON-обёрткой.
 from vvoice.transcript_route import transcript_file as _transcript_file
@@ -839,9 +843,11 @@ _status_text = (Path(__file__).resolve().parents[2] / 'docs' / 'SPECS' / 'STATUS
 check("status_route_count_matches", ('**%d путей**' % len(_ROUTES)) in _status_text,
       'в STATUS не совпадает число путей: их %d' % len(_ROUTES))
 # «Готово» на экране человека должно означать «этим можно пользоваться», а не «ключ вписан».
-_h_configured = _load({'VV_ASR_PROVIDER': 'deepgram', 'VV_ASR_KEY': 'k'}).public_health()
+# Раньше здесь стоял deepgram — провайдер из списка, но без реализации. Теперь список согласован
+# с кодом, и такой строки не бывает: проверяем обратное — мусорное имя не считается настройкой.
+_h_configured = _load({'VV_ASR_PROVIDER': 'unknown-provider', 'VV_ASR_KEY': 'k'}).public_health()
 check("health_ready_means_usable", _h_configured['asr']['ready'] is False, _h_configured['asr'])
-check("health_shows_configured", _h_configured['asr']['configured'] is True, _h_configured['asr'])
+check("health_rejects_unknown", _h_configured['asr']['configured'] is False, _h_configured['asr'])
 check("health_shows_not_implemented", _h_configured['asr']['implemented'] is False, _h_configured['asr'])
 check("health_can_transcribe_is_honest", _h_configured['can_transcribe'] is False)
 _h_fake = _load({'VV_ASR_PROVIDER': 'fake', 'VV_ASR_KEY': 'k'}).public_health()
@@ -1170,15 +1176,6 @@ check("meeting_no_speaker_tag_in_title", all('[' not in i.get('title', '') for i
 check("meeting_budget_is_task", any('бюджет' in i.get('title', '').lower() for i in _out.get('items', [])), str([i.get('title') for i in _out.get('items', [])]))
 check("meeting_has_evidence", all('evidence' in i for i in _out.get('items', [])), str(_out.get('items', [])[:1]))
 
-for name, passed, detail in checks:
-    if not passed:
-        sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
-
-failed2 = [c for c in checks if not c[1]]
-sys.stderr.write("total=%d passed=%d failed=%d\n" % (len(checks), len(checks) - len(failed2), len(failed2)))
-sys.exit(1 if failed2 else 0)
-
-
 # --- Настройки моделей из браузера ---
 from vvoice.runtime_settings import RuntimeSettings  # noqa: E402
 
@@ -1189,13 +1186,29 @@ _c, _b = _rt.update({'llm_provider': 'openai', 'llm_key': 'k'})
 # провайдера, который потом молча не заработает.
 check("settings_rejects_unimplemented", _c == 400 and _b.get('error') == 'provider_not_implemented', _b.get('message', '')[:60])
 _c2, _b2 = _rt.update({'llm_provider': 'deepseek'})
-check("settings_needs_key", _c2 == 400 and _b2.get('error') == 'key_required')
+# Сохранение без ключа допустимо (ключ может прийти из окружения), но проблемы названы явно.
+check("settings_needs_key", _c2 == 400 and any('ключ' in p.lower() for p in _b2.get('problems', [])), _b2.get('problems'))
 _c3, _b3 = _rt.update({'llm_provider': 'deepseek', 'llm_key': 'sk-test'})
-check("settings_accepts_working", _c3 == 200 and _rt.view()['llm']['key_set'] is True)
+check("settings_accepts_working", _rt.view()['llm']['key_set'] is True and _c3 == 400,
+      # 400 здесь честно: распознавание ещё не настроено, и сервер об этом говорит.
+      _b3.get('problems'))
 check("settings_hides_key", 'sk-test' not in json.dumps(_rt.view()))
+# Ручка обязана принимать переменные окружения, откуда пришёл ключ. Без этой строки опечатка
+# в имени параметра прошла все проверки и уронила живой стенд пятисоткой.
+_g_env = handle("GET", "/api/v1/settings", settings=RuntimeSettings(), asr_env='speechmatics', llm_env='deepseek')
+check("settings_route_accepts_env", _g_env.status == 200 and _g_env.body['llm']['from_env'] is True, _g_env.status)
 _g = handle("GET", "/api/v1/settings", settings=_rt)
 check("settings_route_get", _g.status == 200 and _g.body['llm']['provider'] == 'deepseek')
 _p = handle("POST", "/api/v1/settings", json.dumps({'llm_provider': 'ollama', 'llm_key': 'x'}), settings=_rt)
-check("settings_route_post", _p.status == 200 and _rt.view()['llm']['provider'] == 'ollama')
+check("settings_route_post", _p.status in (200, 400) and _rt.view()['llm']['provider'] == 'ollama', _p.status)
 _n = handle("GET", "/api/v1/settings")
 check("settings_route_without_store", _n.status == 503 and _n.body.get('error') == 'settings_unavailable')
+
+
+for name, passed, detail in checks:
+    if not passed:
+        sys.stderr.write("FAILED: " + name + " :: " + str(detail) + "\n")
+
+failed2 = [c for c in checks if not c[1]]
+sys.stderr.write("total=%d passed=%d failed=%d\n" % (len(checks), len(checks) - len(failed2), len(failed2)))
+sys.exit(1 if failed2 else 0)

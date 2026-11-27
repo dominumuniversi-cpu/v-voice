@@ -34,6 +34,13 @@ ul.sum li{margin-bottom:8px}
 .kind{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--accent)}
 .quote{border-left:3px solid var(--line);padding-left:10px;color:var(--muted);font-size:14px;margin-top:6px}
 .muted{color:var(--muted);font-size:14px}
+.presets{display:grid;gap:8px;margin-bottom:6px}
+.preset{display:block;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;background:#fff}
+.preset.on{border-color:#1a7f37;box-shadow:0 0 0 2px rgba(26,127,55,.15)}
+.preset b{display:block;font-size:14px}
+.preset span{display:block;font-size:12px;color:#555;margin-top:2px}
+.preset i{font-style:normal;font-size:11px;color:#1a7f37}
+.preset i.paid{color:#8a6d00}
 </style></head><body>
 <header><h1>Умный диктофон</h1>
 <p class="lead">Запись, расшифровка и разбор разговора. Отвечать голосом не будет — только слушает и понимает.</p></header>
@@ -44,16 +51,29 @@ ul.sum li{margin-bottom:8px}
 <div class="card"><h2>Подключённые модели</h2>
 <div id="settings" class="muted">Проверяю…</div>
 <div class="row"><button id="recheck" class="ghost">Проверить снова</button></div>
-<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
-  <label for="llm_provider">Понимание речи (модель)</label>
-  <select id="llm_provider"><option value="">не менять</option><option value="deepseek">DeepSeek</option><option value="anthropic">Anthropic</option><option value="ollama">Ollama (свой сервер)</option><option value="fake">демо-заглушка</option></select>
-  <label for="llm_key" style="margin-top:10px">Ключ</label>
-  <input id="llm_key" type="password" placeholder="ключа не будет видно после сохранения">
-  <label for="asr_provider" style="margin-top:10px">Распознавание речи</label>
-  <select id="asr_provider"><option value="">не менять</option><option value="speechmatics">Speechmatics</option><option value="fake">демо-заглушка</option></select>
-  <label for="asr_key" style="margin-top:10px">Ключ распознавания</label>
-  <input id="asr_key" type="password" placeholder="нужен для Speechmatics">
-  <div class="row"><button id="save">Сохранить и проверить</button></div>
+<div class="setup">
+  <h3 style="margin:0 0 6px">Подключить модели</h3>
+  <p class="muted" style="margin:0 0 14px">Выберите готовую связку — адрес и модель подставятся сами. Ключ нужен только платным.</p>
+  <div class="muted" style="margin-bottom:6px">Понимание разговора</div>
+  <div class="presets" id="llmPresets"></div>
+  <div id="llmFields" hidden>
+    <label for="llm_key">Ключ</label>
+    <input id="llm_key" type="password" autocomplete="off" placeholder="вставьте ключ — после сохранения его не будет видно">
+    <label for="llm_model">Модель</label>
+    <input id="llm_model" type="text" autocomplete="off" placeholder="по умолчанию">
+    <label for="llm_base_url">Адрес сервера</label>
+    <input id="llm_base_url" type="text" autocomplete="off" placeholder="нужен для своего Ollama">
+  </div>
+  <div class="muted" style="margin:14px 0 6px">Распознавание речи</div>
+  <div class="presets" id="asrPresets"></div>
+  <div id="asrFields" hidden>
+    <label for="asr_key">Ключ распознавания</label>
+    <input id="asr_key" type="password" autocomplete="off" placeholder="ключ Speechmatics">
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button id="save">Сохранить</button>
+    <button id="checkLive" class="ghost">Проверить связь</button>
+  </div>
   <p class="muted" id="saveMsg" style="margin-top:8px"></p>
 </div>
 <p class="muted" id="hint" style="margin-top:10px"></p></div>
@@ -169,24 +189,60 @@ async function loadSettings(){
   }catch(e){box.textContent='Сервер не ответил: '+e.message}
 }
 document.getElementById('recheck').onclick=loadSettings;
-document.getElementById('save').onclick=async()=>{
-  const msg=document.getElementById('saveMsg');
+let PRESETS={llm:[],asr:[]},PICK={llm:'',asr:''};
+const el=id=>document.getElementById(id);
+function draw(kind){
+  const box=el(kind+'Presets');box.innerHTML='';
+  (PRESETS[kind]||[]).forEach(p=>{
+    const d=document.createElement('div');d.className='preset'+(PICK[kind]===p.id?' on':'');
+    d.innerHTML='<b></b><span></span><i></i>';
+    d.querySelector('b').textContent=p.title;
+    d.querySelector('span').textContent=p.note;
+    const c=d.querySelector('i');c.textContent=p.cost;if(!p.cost.includes('бесплатно'))c.className='paid';
+    d.onclick=()=>{PICK[kind]=p.id;draw(kind);fill(kind,p)};
+    box.appendChild(d);
+  });
+}
+function fill(kind,p){
+  const f=el(kind+'Fields');f.hidden=!p;
+  if(!p)return;
+  if(kind==='llm'){el('llm_model').value=p.model||'';el('llm_base_url').value=p.url||'';
+    el('llm_model').parentElement.hidden=false;
+    el('llm_base_url').parentElement.hidden=p.id!=='ollama-local';
+    el('llm_key').parentElement.hidden=p.provider==='fake'||p.provider==='ollama';}
+  else{el('asr_key').parentElement.hidden=p.provider==='fake';}
+}
+async function loadPresets(){
+  try{const r=await fetch(server()+'/api/v1/presets');const d=await r.json();
+    PRESETS={llm:d.llm||[],asr:d.asr||[]};draw('llm');draw('asr');}catch(e){}
+}
+async function saveSettings(){
+  const msg=el('saveMsg');const lp=(PRESETS.llm||[]).find(x=>x.id===PICK.llm)||{};const ap=(PRESETS.asr||[]).find(x=>x.id===PICK.asr)||{};
   const body={
-    llm_provider:document.getElementById('llm_provider').value,
-    llm_key:document.getElementById('llm_key').value,
-    asr_provider:document.getElementById('asr_provider').value,
-    asr_key:document.getElementById('asr_key').value,
-  };
-  msg.textContent='Сохраняю…';
+    llm_provider:lp.provider||'',llm_key:el('llm_key').value,llm_model:el('llm_model').value,llm_base_url:el('llm_base_url').value,
+    asr_provider:ap.provider||'',asr_key:el('asr_key').value};
+  msg.textContent='Сохраняю…';msg.className='muted';
   try{
     const r=await fetch(server()+'/api/v1/settings',{method:'POST',headers:headers(),body:JSON.stringify(body)});
     const d=await r.json();
     if(!r.ok){msg.textContent='Не сохранилось: '+(d.message||d.error||r.status);msg.className='text warn';return}
-    document.getElementById('llm_key').value='';document.getElementById('asr_key').value='';
-    msg.textContent='Сохранено. Ключ живёт до перезапуска сервера.';msg.className='text';
+    el('llm_key').value='';el('asr_key').value='';
+    msg.textContent=(d.problems&&d.problems.length)?('Сохранено, но пока не всё: '+d.problems.join(' ')):'Сохранено. Ключ живёт до перезапуска сервера.';
+    msg.className=((d.problems&&d.problems.length)?'text warn':'muted');
     loadSettings();
   }catch(e){msg.textContent='Связь прервалась: '+e.message;msg.className='text warn'}
-};
+}
+async function checkLive(){
+  const msg=el('saveMsg');msg.textContent='Стучусь в модель…';msg.className='muted';
+  try{const r=await fetch(server()+'/api/v1/models/check',{method:'POST',headers:headers(),body:'{}'});
+    const d=await r.json();
+    msg.textContent=d.ok?('Связь есть. '+d.message):('Связи нет: '+d.message);
+    msg.className=d.ok?'muted':'text warn';
+  }catch(e){msg.textContent='Связь прервалась: '+e.message;msg.className='text warn'}
+}
+el('save').onclick=saveSettings;
+el('checkLive').onclick=checkLive;
+loadPresets();
 loadSettings();
   
 $('#server').value=location.origin.replace(/\/voice\/?$/,'');

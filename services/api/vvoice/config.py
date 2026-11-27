@@ -22,8 +22,10 @@ from typing import Mapping
 
 # fake — заглушка для сквозных проверок. Допустима только по явному имени и никогда по умолчанию:
 # так выдуманный текст не может случайно оказаться на месте настоящего.
-ASR_PROVIDERS = ('gigaam', 'speechmatics', 'deepgram', 'assemblyai', 'whisper', 'fake')
-LLM_PROVIDERS = ('deepseek', 'openai', 'anthropic', 'gigachat', 'local', 'fake')
+# Только то, что действительно собрано в provider_factory. Остальные (gigaam, deepgram, assemblyai,
+# whisper) — кандидаты на будущее; держать их здесь значит обещать подключение, которого нет.
+ASR_PROVIDERS = ('speechmatics', 'fake')
+LLM_PROVIDERS = ('deepseek', 'anthropic', 'ollama', 'fake')
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,10 @@ class Settings:
     asr_price_per_hour: float = 0.0
     # Предел расходов на одну встречу, рубли. 0 — предел не задан, предупреждать не о чем.
     budget_per_meeting: float = 0.0
+    # Какую модель зовём и куда. Пусто — модель провайдера по умолчанию и его же адрес.
+    llm_model: str = ''
+    llm_base_url: str = ''
+    asr_model: str = ''
 
     def token_for(self, target: str) -> str:
         """Токен именно для этой цели, иначе общий."""
@@ -176,6 +182,9 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
         llm_provider=picked('VV_LLM_PROVIDER', LLM_PROVIDERS),
         asr_key=(source.get('VV_ASR_KEY') or '').strip(),
         llm_key=(source.get('VV_LLM_KEY') or '').strip(),
+        llm_model=(source.get('VV_LLM_MODEL') or '').strip(),
+        llm_base_url=(source.get('VV_LLM_BASE_URL') or '').strip(),
+        asr_model=(source.get('VV_ASR_MODEL') or '').strip(),
         # Тариф — настройка, а не константа: цены меняются, и вписанная в код цифра однажды станет ложью.
         asr_price_per_hour=_price(source.get('VV_ASR_PRICE_PER_HOUR')),
         budget_per_meeting=_price(source.get('VV_BUDGET_PER_MEETING')),

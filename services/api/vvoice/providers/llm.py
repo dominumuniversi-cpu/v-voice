@@ -45,12 +45,14 @@ class LlmRequest:
         return {"url": self.url, "headers": self.headers, "body": self.body}
 
 
-def build_request(provider: str, model: str, system: str, user: str, api_key: str) -> LlmRequest:
+def build_request(provider: str, model: str, system: str, user: str, api_key: str, base_url: str = '') -> LlmRequest:
     """Собирает запрос под конкретного провайдера. Ошибка в имени — понятная, а не KeyError."""
     if provider not in SUPPORTED:
         raise ValueError("Неизвестный LLM-провайдер: " + provider + "; допустимо: " + ", ".join(SUPPORTED))
     model = model or DEFAULT_MODELS[provider]
-    url = ENDPOINTS[provider]
+    # Адрес можно переопределить: «своего сервера» одной модели недостаточно — у локальной сборки
+    # свой порт, у прокси своя точка входа. Пустое значение значит «как у провайдера по умолчанию».
+    url = (base_url or '').strip() or ENDPOINTS[provider]
 
     if provider in ("deepseek", "gigachat"):
         body = {
@@ -139,8 +141,8 @@ def make_caller(provider: str, model: str, api_key: str, send):
     `send(request) -> response dict` передаётся снаружи: тесты не ходят в сеть и не платят.
     """
 
-    def call(system: str, user: str) -> dict:
-        request = build_request(provider, model, system, user, api_key)
+    def call(system: str, user: str, base_url: str = '') -> dict:
+        request = build_request(provider, model, system, user, api_key, base_url)
         response = send(request.as_dict())
         return parse_json_answer(extract_text(provider, response))
 
