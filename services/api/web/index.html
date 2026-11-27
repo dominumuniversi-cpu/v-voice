@@ -44,16 +44,23 @@ ul.sum li{margin-bottom:8px}
 .preset i.paid{color:#8a6d00}
 .field{margin-top:10px;padding:0 4px}
 .field[hidden]{display:none}
-/* Список подключений: строка на провайдера, активная помечена точкой и рамкой. */
+/* Список подключений: строка на провайдера, активная помечена точкой и рамкой.
+   На узком экране кнопки уходят на свою строку: иначе они выдавливают название. */
 .conns{display:grid;gap:8px}
-.conn{display:flex;align-items:flex-start;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+.conn{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
 .conn.on{border-color:#1a7f37;box-shadow:0 0 0 2px rgba(26,127,55,.15)}
-.conn .body{flex:1;min-width:0}
+.conn .body{flex:1 1 180px;min-width:0}
 .conn b{display:block;font-size:14px}
 .conn span{display:block;font-size:12px;color:#555;margin-top:2px;overflow-wrap:anywhere}
+/* Состояние — отдельной строкой: рядом с «ключ не задан» зелёное «работает» читалось как часть списка. */
+.conn .state i{display:block;font-size:12px;margin-top:4px}
 .conn i{font-style:normal;font-size:12px;color:#1a7f37}
 .conn i.paid{color:#8a6d00}
-.conn .tools{display:flex;gap:6px;flex-shrink:0}
+.conn .tools{display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0}
+@media(max-width:520px){
+  .conn .tools{flex-basis:100%}
+  .conn .tools button{flex:1 1 auto}
+}
 button.small{padding:6px 10px;font-size:12px;border-radius:8px}
 button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 .connform{display:grid;gap:8px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
@@ -99,7 +106,8 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 <p class="muted" id="hint" style="margin-top:10px"></p></div>
 <div class="card"><h2>Сервер</h2>
 <label for="server">Адрес</label><input id="server" placeholder="https://192.168.8.49/voice">
-<label for="token" style="margin-top:10px">Токен устройства</label><input id="token" type="password" autocomplete="off" placeholder="если сервер его требует — впишите и нажмите «Перейти»">
+<label for="token" style="margin-top:10px">Токен устройства</label><input id="token" type="password" autocomplete="off" placeholder="из настроек сервера">
+<p class="muted" style="margin:4px 0 0;font-size:12px">Нужен, только если сервер закрыт токеном. Браузер его запомнит — в адресной строке токена не будет.</p>
 <div class="row"><button id="goServer">Перейти</button><button id="forgetToken" class="ghost">Забыть токен</button></div>
 <p class="muted" id="serverMsg" style="margin-top:8px"></p></div>
 <div class="card" id="digest" style="display:none"><h2>Выжимка</h2><ul class="sum" id="summary"></ul>
@@ -258,7 +266,8 @@ function draw(){
     where.push(c.key_set?'ключ задан '+c.key_hint:'ключ не задан');
     const s=document.createElement('span');s.textContent=where.join(' · ');body.appendChild(s);
     const state=document.createElement('i');state.textContent=works?'работает сейчас':'не выбрана';
-    if(!works)state.className='paid';body.appendChild(state);
+    if(!works)state.className='paid';
+    const holder=document.createElement('div');holder.className='state';holder.appendChild(state);body.appendChild(holder);
     row.appendChild(body);
     const tools=document.createElement('div');tools.className='tools';
     if(!works&&kind){
@@ -396,6 +405,8 @@ async function goServer(){
 }
 el('goServer').onclick=goServer;
 el('forgetToken').onclick=()=>{localStorage.removeItem('vv_token');$('#token').value='';serverMsg('Токен забыт в этом браузере.',false)};
+// Стартовая подсказка в блоке «Сервер»: молчащее поле токена человек читает как «оно обязательное».
+serverMsg(localStorage.getItem('vv_token')?'Токен сохранён в этом браузере.':'Токен не задан: если сервер открыт, нажимать «Перейти» не нужно.',false);
 el('addConn').onclick=()=>openForm(null);
 el('cfX').onclick=()=>{el('connForm').hidden=true;editing=null};
 el('cfDo').onclick=saveConn;
