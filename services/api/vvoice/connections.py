@@ -158,15 +158,22 @@ def _hint(key: str) -> str:
     return '…' + key[-4:] if len(key) > 4 else 'задан'
 
 
-def _check_url(url: str) -> str:
-    """Адрес шлюза: пустой допустим только у встроенных без сети, иначе обязан быть http(s)."""
+def _check_url(url: str, protocol: str = '') -> str:
+    """Адрес провайдера. Схему дописываем, если человек её не написал: «api.deepgram.com» — это
+    обычный адрес, и ругаться на него незачем. Отказ — только когда адрес не адрес вовсе."""
     url = (url or '').strip()
     if not url:
         return ''
     if '://' not in url:
-        url = 'https://' + url
-    if not (url.startswith('http://') or url.startswith('https://')):
-        raise ValueError('адрес должен начинаться с http:// или https://')
+        url = 'wss://' + url if protocol == 'speechmatics' else 'https://' + url
+    if not (url.startswith('http://') or url.startswith('https://')
+            or (protocol == 'speechmatics' and url.startswith('wss://'))):
+        raise ValueError('адрес должен начинаться с http://, https://'
+                         + (' или wss://' if protocol == 'speechmatics' else '')
+                         + ' — остальное мы не сможем открыть')
+    rest = url.split('://', 1)[1].strip('/')
+    if not rest or ' ' in rest or '/' in rest.split(':')[0] and '.' not in rest.split('/')[0]:
+        raise ValueError('это не похоже на адрес сервера: нужен вид «имя.домен», например api.deepgram.com')
     return url
 
 
@@ -309,7 +316,7 @@ class ConnectionList:
                          'message': 'Имя для ссылки («' + conn_id + '») может содержать только латинские буквы, '
                                     'цифры, дефис и подчёркивание.'}
         try:
-            base_url = _check_url(base_url)
+            base_url = _check_url(base_url, protocol)
         except ValueError as exc:
             return 400, {'error': 'bad_url', 'message': 'Адрес не принят: ' + str(exc) + '.'}
         if protocol in ('openai', 'anthropic') and not base_url:
@@ -353,7 +360,7 @@ class ConnectionList:
                 conn.title = title.strip() or conn.title
             if base_url is not None:
                 try:
-                    conn.base_url = _check_url(base_url)
+                    conn.base_url = _check_url(base_url, protocol)
                 except ValueError as exc:
                     return 400, {'error': 'bad_url', 'message': 'Адрес не принят: ' + str(exc) + '.'}
             return 200, {'connection': conn.public(), 'message': 'Сохранено.'}

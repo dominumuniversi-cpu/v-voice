@@ -1080,6 +1080,20 @@ _own = _cl.add({'kind': 'llm', 'preset': 'mistral', 'key': 'sk-test'})
 check("preset_fills_model_and_address", _own[0] == 201
       and _own[1]['connection']['model'] == 'mistral-small-latest', _own[1].get('connection'))
 _cl.add({'kind': 'asr', 'preset': 'speechmatics', 'key': 'sm-test'})
+# Адрес провайдера человек пишет как помнит: без схемы. «Адрес не принят» на «api.deepgram.com»
+# — это отказ там, где всё в порядке, поэтому сервер дописывает https:// сам.
+_bare = _cl.add({'kind': 'asr', 'protocol': 'deepgram', 'title': 'deepgram без схемы',
+                 'base_url': 'api.deepgram.com', 'key': 'dg-test'})
+check('address_without_scheme_accepted', _bare[0] == 201
+      and _bare[1]['connection']['base_url'] == 'https://api.deepgram.com', _bare[1].get('connection'))
+# Схему чужого протокола по-прежнему не принимаем, но говорим, что именно написать.
+_scheme = _cl.add({'kind': 'asr', 'protocol': 'deepgram', 'title': 'ftp', 'base_url': 'ftp://api.deepgram.com',
+                   'key': 'dg-test'})
+check('wrong_scheme_refused', _scheme[0] == 400 and 'https://' in (_scheme[1].get('message') or ''), _scheme[1])
+# И совсем не адрес — тоже отказ, а не «https://не адрес».
+_garbage = _cl.add({'kind': 'asr', 'protocol': 'deepgram', 'title': 'мусор', 'base_url': 'не адрес',
+                    'key': 'dg-test'})
+check('garbage_address_refused', _garbage[0] == 400, _garbage[1])
 # Каждый пресет распознавания обязан нести адрес: без него облако некуда звать, а человек
 # получает «не настроено» вместо «вставьте ключ».
 _asr_presets = [p for p in _BUILTIN if p['kind'] == 'asr']
