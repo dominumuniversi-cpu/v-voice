@@ -1235,6 +1235,15 @@ check("view_fields_match_page",
       all(k in _view['llm'] for k in ('ready', 'configured', 'key_fingerprint'))
       and all(k in _view['asr'] for k in ('ready', 'configured', 'key_fingerprint'))
       and _view['llm']['ready'] is True, _view['llm'])
+# F1: страница присылает поле ключа всегда, обычно пустым. Второе сохранение не должно стирать ключ.
+_rs = RuntimeSettings()
+_rs.update({'llm_provider': 'deepseek', 'llm_key': 'sk-keep-me-1'})
+_rs.update({'llm_provider': 'deepseek', 'llm_key': ''})
+check("repeat_save_keeps_key", _rs.llm()['key'] == 'sk-keep-me-1', _rs.llm()['key'])
+# И явная очистка тоже нужна: прислано пустым при уже заданном ключе — можно стереть через смену провайдера.
+_rs.update({'llm_provider': 'ollama', 'llm_base_url': 'http://1.2.3.4:11434'})
+_rs.update({'llm_provider': 'deepseek', 'llm_base_url': ''})
+check("base_url_can_be_cleared", _rs.llm()['base_url'] == '', _rs.llm()['base_url'])
 _n = handle("GET", "/api/v1/settings")
 check("settings_route_without_store", _n.status == 503 and _n.body.get('error') == 'settings_unavailable')
 

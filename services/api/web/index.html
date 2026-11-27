@@ -242,9 +242,16 @@ async function saveSettings(){
   const msg=el('saveMsg');const lp=(PRESETS.llm||[]).find(x=>x.id===PICK.llm)||{};const ap=(PRESETS.asr||[]).find(x=>x.id===PICK.asr)||{};
   // Невыбранное не отправляем: пустой провайдер затирал прошлую настройку разбора.
   const body={};
-  if(lp.provider)Object.assign(body,{llm_provider:lp.provider,llm_key:el('llm_key').value,
-    llm_model:el('llm_model').value,llm_base_url:el('llm_base_url').value});
-  if(ap.provider)Object.assign(body,{asr_provider:ap.provider,asr_key:el('asr_key').value});
+  // Пустое поле ключа НЕ отправляем: иначе сервер поймёт это как «стереть ключ», и второе
+  // сохранение любой настройки выключало бы разбор. Пустое поле — «оставить как было».
+  const field=(obj,id,on)=>{const v=el(id).value.trim();if(on&&v)obj[id]=v};
+  if(lp.provider){
+    body.llm_provider=lp.provider;
+    field(body,'llm_key',true);field(body,'llm_model',true);
+    // Адрес отправляем всегда для Ollama (пустой — значит стереть), иначе только непустой.
+    body.llm_base_url=el('llm_base_url').value.trim();
+  }
+  if(ap.provider){body.asr_provider=ap.provider;field(body,'asr_key',true);}
   if(!Object.keys(body).length){msg.textContent='Выберите хотя бы одну связку.';msg.className='text warn';return}
   msg.textContent='Сохраняю…';msg.className='muted';
   try{

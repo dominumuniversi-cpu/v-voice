@@ -118,20 +118,35 @@ class RuntimeSettings:
         model_asr = str(raw.get('asr_model') or '').strip()
         base_url = str(raw.get('llm_base_url') or '').strip()
 
+        # Правило: поле ПРИСЛАНО — ставим ровно то, что пришло (в том числе пусто); поля НЕТ в запросе —
+        # не трогаем. Раньше пустая строка молча игнорировалась: адрес Ollama нельзя было стереть, и
+        # он переезжал на другую связку. А ключ, наоборот, стирался при каждом повторном сохранении,
+        # потому что страница шлёт поле ключа всегда, обычно пустым. Это и ломало разбор на втором клике.
+        def given(name: str) -> bool:
+            return name in raw
+
         with self._lock:
+            _prev_llm = self.llm_provider
             if provider_asr:
-                self.asr_provider, self.asr_key = provider_asr, key_asr
+                self.asr_provider = provider_asr
+                if given('asr_key'):
+                    self.asr_key = key_asr
             elif key_asr:
                 self.asr_key = key_asr
-            if model_asr:
+            if given('asr_model'):
                 self.asr_model = model_asr
             if provider_llm:
-                self.llm_provider, self.llm_key = provider_llm, key_llm
-            elif key_llm:
+                self.llm_provider = provider_llm
+            # Пустой присланный ключ — это «оставить прежний», а не «стереть»: страница очищает поле
+            # после сохранения и присылает его пустым при каждом следующем сохранении. Стереть ключ
+            # можно, только придя с пустым полем при СМЕНЕ провайдера (тогда действует новая связка).
+            if key_llm:
                 self.llm_key = key_llm
-            if model_llm:
+            elif provider_llm and provider_llm != _prev_llm:
+                self.llm_key = ''
+            if given('llm_model'):
                 self.llm_model = model_llm
-            if base_url:
+            if given('llm_base_url'):
                 self.llm_base_url = base_url
 
         # Настройки уже применены выше. Поэтому «не введён ключ» — это предупреждение, а не отказ:

@@ -38,9 +38,9 @@
 │ Конвейер                       ┌──────────┐  ┌───────────────┐  ┌────────────────────┐  │
 │  audio → VAD(сервер дубль) →   │ ASR порт │→ │ Диаризация     │→ │ LLM-разбор         │  │
 │                                └──────────┘  └───────────────┘  └────────────────────┘  │
-│   адаптеры ASR: gigaam(self-host) | speechmatics | deepgram | assemblyai | salutespeech  │
+│   адаптеры ASR (в коде): speechmatics | fake   (gigaam, deepgram — замысел, не подключены) │
 │   адаптеры диаризации: pyannote(сервер) | встроенная у вендора | 3d-speaker(нарезка)    │
-│   адаптеры LLM: deepseek | gigachat | claude | openai-compatible (локальный)            │
+│   адаптеры LLM (в коде): deepseek | anthropic | ollama | fake  (gigachat — не подключён)  │
 │ Хранилище: PostgreSQL 17 (сессии, сегменты, задачи, юзеры)                                │
 │            S3/MinIO (аудио, экспорт)                                                      │
 │ Очередь: Redis + ARQ/Celery (фоновая докачка, итоговая диаризация, разбор)                │
