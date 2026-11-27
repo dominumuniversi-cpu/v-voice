@@ -1187,10 +1187,11 @@ _c, _b = _rt.update({'llm_provider': 'openai', 'llm_key': 'k'})
 check("settings_rejects_unimplemented", _c == 400 and _b.get('error') == 'provider_not_implemented', _b.get('message', '')[:60])
 _c2, _b2 = _rt.update({'llm_provider': 'deepseek'})
 # Сохранение без ключа допустимо (ключ может прийти из окружения), но проблемы названы явно.
-check("settings_needs_key", _c2 == 400 and any('ключ' in p.lower() for p in _b2.get('problems', [])), _b2.get('problems'))
+# Сохранение без ключа применяется, ключ не задан — это предупреждение, а не отказ.
+check("settings_needs_key", _c2 == 200 and any('ключ' in p.lower() for p in _b2.get('problems', [])), _b2.get('problems'))
 _c3, _b3 = _rt.update({'llm_provider': 'deepseek', 'llm_key': 'sk-test'})
-check("settings_accepts_working", _rt.view()['llm']['key_set'] is True and _c3 == 400,
-      # 400 здесь честно: распознавание ещё не настроено, и сервер об этом говорит.
+check("settings_accepts_working", _rt.view()['llm']['key_set'] is True and _c3 == 200,
+      # 200: настройки применены; распознавание ещё не настроено, и это сказано в problems.
       _b3.get('problems'))
 check("settings_hides_key", 'sk-test' not in json.dumps(_rt.view()))
 # Ручка обязана принимать переменные окружения, откуда пришёл ключ. Без этой строки опечатка
@@ -1200,7 +1201,7 @@ check("settings_route_accepts_env", _g_env.status == 200 and _g_env.body['llm'][
 _g = handle("GET", "/api/v1/settings", settings=_rt)
 check("settings_route_get", _g.status == 200 and _g.body['llm']['provider'] == 'deepseek')
 _p = handle("POST", "/api/v1/settings", json.dumps({'llm_provider': 'ollama', 'llm_key': 'x'}), settings=_rt)
-check("settings_route_post", _p.status in (200, 400) and _rt.view()['llm']['provider'] == 'ollama', _p.status)
+check("settings_route_post", _p.status == 200 and _rt.view()['llm']['provider'] == 'ollama', _p.status)
 _n = handle("GET", "/api/v1/settings")
 check("settings_route_without_store", _n.status == 503 and _n.body.get('error') == 'settings_unavailable')
 

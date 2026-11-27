@@ -5,6 +5,7 @@
 <style>
 :root{--ink:#12161a;--muted:#6b7681;--bg:#f4f1ea;--surface:#fff;--accent:#2f6f5e;--warn:#b4553a;--line:#e3ded3}
 *{box-sizing:border-box}
+html{scrollbar-gutter:stable}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
 header{max-width:720px;margin:0 auto;padding:20px 16px 8px}
 h1{font-size:20px;margin:0 0 4px}
@@ -39,9 +40,9 @@ ul.sum li{margin-bottom:8px}
 .preset.on{border-color:#1a7f37;box-shadow:0 0 0 2px rgba(26,127,55,.15)}
 .preset b{display:block;font-size:14px}
 .preset span{display:block;font-size:12px;color:#555;margin-top:2px}
-.preset i{font-style:normal;font-size:11px;color:#1a7f37}
+.preset i{font-style:normal;font-size:12px;color:#1a7f37}
 .preset i.paid{color:#8a6d00}
-.field{margin-top:10px}
+.field{margin-top:10px;padding:0 4px}
 .field[hidden]{display:none}
 </style></head><body>
 <header><h1>Умный диктофон</h1>
@@ -74,7 +75,7 @@ ul.sum li{margin-bottom:8px}
   </div>
   <div class="row" style="margin-top:12px">
     <button id="save">Сохранить</button>
-    <button id="checkLive" class="ghost">Проверить связь</button>
+    <button id="checkLive" class="ghost" title="Проверяет уже сохранённую связку по-настоящему">Проверить сохранённую связку</button>
   </div>
   <p class="muted" id="saveMsg" style="margin-top:8px"></p>
 </div>
@@ -247,7 +248,7 @@ async function saveSettings(){
   try{
     const r=await fetch(server()+'/api/v1/settings',{method:'POST',headers:headers(),body:JSON.stringify(body)});
     const d=await r.json();
-    if(!r.ok){msg.textContent='Не сохранилось: '+(d.message||d.error||r.status);msg.className='text warn';return}
+    if(!r.ok){msg.textContent='Не принято: '+(d.message||d.error||r.status);msg.className='text warn';return}
     el('llm_key').value='';el('asr_key').value='';
     msg.textContent=(d.problems&&d.problems.length)?('Сохранено, но пока не всё: '+d.problems.join(' ')):'Сохранено. Ключ живёт до перезапуска сервера.';
     msg.className=((d.problems&&d.problems.length)?'text warn':'muted');
@@ -265,7 +266,12 @@ async function checkLive(){
 // Порядок: сначала адрес и токен, потом запросы. Иначе первый же запрос уходит по пустому адресу.
 // Адрес — полный путь страницы вместе с префиксом стенда (/voice), его срезать нельзя.
 $('#server').value=location.origin+location.pathname.replace(/\/+$/,'');
-const _q=new URLSearchParams(location.search).get('token');if(_q)$('#token').value=_q;
+const _q=new URLSearchParams(location.search).get('token');
+if(_q){
+  $('#token').value=_q;
+  // Токен не должен оставаться в адресной строке: оттуда он уходит в историю и в Referer.
+  const u=new URL(location.href);u.searchParams.delete('token');history.replaceState(null,'',u.pathname+u.search);
+}
 el('save').disabled=true;
 el('save').onclick=saveSettings;
 el('checkLive').onclick=checkLive;
