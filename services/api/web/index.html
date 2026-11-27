@@ -76,8 +76,8 @@ ul.sum li{margin-bottom:8px}
       <input id="asr_key" type="password" autocomplete="off" placeholder="ключ Speechmatics"></div>
   </div>
   <div class="row" style="margin-top:12px">
-    <button id="save">Сохранить</button>
-    <button id="checkLive" class="ghost" title="Проверяет уже сохранённую связку по-настоящему">Проверить сохранённую связку</button>
+    <button id="save">Сохранить и проверить</button>
+    <button id="checkLive" class="ghost" title="Проверяет уже сохранённую связку заново, ничего не меняя">Проверить связку ещё раз</button>
   </div>
   <p class="muted" id="saveMsg" style="margin-top:8px"></p>
 </div>
@@ -262,13 +262,18 @@ async function saveSettings(){
     msg.textContent=(d.problems&&d.problems.length)?('Сохранено, но пока не всё: '+d.problems.join(' ')):'Сохранено. Ключ живёт до перезапуска сервера.';
     msg.className=((d.problems&&d.problems.length)?'text warn':'muted');
     loadSettings();
+    // Кнопка обещает «Сохранить и проверить» — проверяем сразу, своим ответом, а не следующей кнопкой.
+    const ready=d.settings&&d.settings.llm&&d.settings.llm.ready;
+    if(ready){await checkLive('Проверяю связку… ');}
   }catch(e){msg.textContent='Связь прервалась: '+e.message;msg.className='text warn'}
 }
-async function checkLive(){
-  const msg=el('saveMsg');msg.textContent='Стучусь в модель…';msg.className='muted';
+async function checkLive(prefix){
+  const msg=el('saveMsg');const keep=typeof prefix==='string'?prefix:'';
+  msg.textContent=keep+'Стучусь в модель…';msg.className='muted';
   try{const r=await fetch(server()+'/api/v1/models/check',{method:'POST',headers:headers(),body:'{}'});
     const d=await r.json();
-    msg.textContent=d.ok?('Связь есть. '+d.message):('Связи нет: '+d.message);
+    // Приставку «сохранено, но…» не затираем: иначе предупреждение о пустой половине исчезнет.
+    msg.textContent=keep+(d.ok?('Связь есть. '+d.message):('Связи нет: '+d.message));
     msg.className=d.ok?'muted':'text warn';
   }catch(e){msg.textContent='Связь прервалась: '+e.message;msg.className='text warn'}
 }
@@ -298,7 +303,7 @@ async function loadModels(){
 }
 el('save').disabled=true;
 el('save').onclick=saveSettings;
-el('checkLive').onclick=checkLive;
+el('checkLive').onclick=()=>checkLive('');
 loadPresets();
 loadSettings();
 </script>
