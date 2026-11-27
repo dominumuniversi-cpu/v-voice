@@ -245,7 +245,7 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
             query = parse_qs(path.split("?", 1)[1]) if "?" in path else {}
             fmt = (query.get("format") or ["txt"])[0].strip().lower()
             found = digests.load(param) if digests is not None else None
-            code, body, headers = transcript_file(found, fmt)
+            code, body, headers = transcript_file(found, fmt, param)
             return Response(code, body, headers)
         if template == "/api/v1/sessions/{session_id}/digest":
             # Путь есть. Данных может не быть — тогда говорим именно это, а не «нет такого пути».

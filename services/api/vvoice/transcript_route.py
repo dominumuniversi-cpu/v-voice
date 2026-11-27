@@ -1,4 +1,4 @@
-"""Скачивание расшифровки: один разговор — четыре привычных формата.
+﻿"""Скачивание расшифровки: один разговор — четыре привычных формата.
 
 Зачем отдельным модулем: генераторы уже есть в formats.py, и второй такой же рядом — это
 две разные правды об одном формате. Здесь только достаём реплики и превращаем их в строки.
@@ -41,7 +41,7 @@ def to_lines(digest: dict[str, Any]) -> list[Line]:
     return lines
 
 
-def transcript_file(digest: dict[str, Any] | None, fmt: str) -> tuple[int, Any, dict[str, str]]:
+def transcript_file(digest: dict[str, Any] | None, fmt: str, session_id: str = "") -> tuple[int, Any, dict[str, str]]:
     """Ответ маршрута: статус, тело и заголовки. Тело — текст файла или описание ошибки."""
     if fmt not in CONTENT_TYPES:
         return 400, {"error": "unknown_format", "format": fmt,
@@ -55,4 +55,8 @@ def transcript_file(digest: dict[str, Any] | None, fmt: str) -> tuple[int, Any, 
         return 409, {"error": "transcript_empty",
                      "message": "В разборе нет расшифровки: распознано не было ни одной реплики."}, {}
     body = render(fmt, lines, title="Расшифровка")
-    return 200, body, {"Content-Type": CONTENT_TYPES[fmt]}
+    # Имя файла в заголовке: без него браузер открывает расшифровку вкладкой, и человек ждёт
+    # скачивания, а получает текст на экране. Имя — из идентификатора сессии, а не из текста.
+    name = (session_id or "transcript") + "." + fmt
+    return 200, body, {"Content-Type": CONTENT_TYPES[fmt],
+                       "Content-Disposition": 'attachment; filename="' + name + '"'}

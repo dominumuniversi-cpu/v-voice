@@ -48,6 +48,8 @@ ul.sum li{margin-bottom:8px}
    На узком экране кнопки уходят на свою строку: иначе они выдавливают название. */
 .conns{display:grid;gap:8px}
 .conn{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+.conn.clickable{cursor:pointer}
+.conn.clickable:hover{border-color:#c9bfae;background:#fffdf8}
 .conn.on{border-color:#1a7f37;box-shadow:0 0 0 2px rgba(26,127,55,.15)}
 .conn .body{flex:1 1 180px;min-width:0}
 .conn b{display:block;font-size:14px}
@@ -60,6 +62,7 @@ ul.sum li{margin-bottom:8px}
 @media(max-width:520px){
   .conn .tools{flex-basis:100%}
   .conn .tools button{flex:0 1 auto;padding:8px 12px;min-height:32px}
+#digestTools{gap:8px;flex-wrap:wrap}#digestTools>*{flex:0 1 auto;white-space:nowrap;min-height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:400}
 }
 button.small{padding:6px 10px;font-size:12px;border-radius:8px}
 button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
@@ -112,13 +115,13 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 <p class="muted" id="serverMsg" style="margin-top:8px"></p></div>
 <div class="card"><h2>Разговоры</h2>
 <p class="muted" style="margin:0 0 10px">Каждый разговор остаётся здесь: разбор, расшифровка и сам звук. Открывается без повторного разбора.</p>
-<div class="row" style="margin-top:0"><button id="convsToggle" class="ghost small">Показать список</button><button id="convsReload" class="ghost small">Обновить</button></div>
+<div class="row" style="margin-top:0"><button id="convsToggle" class="ghost small">Свернуть список</button><button id="convsReload" class="ghost small">Обновить</button></div>
 <div class="conns" id="convs" style="margin-top:10px"></div>
 <p class="muted" id="convsMsg" style="margin:8px 0 0"></p></div>
 <div class="card" id="digest" style="display:none"><h2 id="digestTitle">Выжимка</h2>
 <div class="row" style="margin-top:0" id="digestTools">
   <button id="digestTranscript" class="ghost small">Показать расшифровку</button>
-  <a id="digestDownload" class="ghost small" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px">Скачать TXT</a>
+  <a id="digestDownload" class="ghost small" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;min-height:32px;display:inline-flex;align-items:center">Скачать TXT</a>
   <button id="digestClose" class="ghost small">Закрыть</button>
 </div>
 <p class="muted" id="digestWhen" style="margin:6px 0 10px"></p>
@@ -127,9 +130,9 @@ button.danger{background:transparent;color:#b3261e;border:1px solid #e6b8b4}
 <h2 style="margin-top:16px">Задачи и встречи</h2><div id="items"></div>
 <h2 style="margin-top:16px">Открытые вопросы</h2><ul class="sum" id="questions"></ul>
 <div id="transcriptBox" style="display:none"><h2 style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">Расшифровка
-<span class="row" style="margin:0;gap:6px"><a class="ghost small" id="trSrt" href="#" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px">SRT</a>
-<a class="ghost small" id="trJson" href="#" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px">JSON</a></span></h2>
-<div id="transcriptText" class="text" style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#faf8f3;padding:10px 12px;border-radius:10px"></div></div>
+<span class="row" style="margin:0;gap:6px"><a class="ghost small" id="trSrt" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;font-weight:400;min-height:32px;display:inline-flex;align-items:center">SRT</a>
+<a class="ghost small" id="trJson" href="#" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:var(--ink);font-size:12px;font-weight:400;min-height:32px;display:inline-flex;align-items:center">JSON</a></span></h2>
+<div id="transcriptText" class="text" style="white-space:pre-wrap;font-size:14px;line-height:1.6;background:#faf8f3;padding:10px 12px;border-radius:10px;display:none"></div></div>
 </div>
 </main>
 <script>
@@ -217,10 +220,12 @@ function render(d){
   const items=$('#items');items.innerHTML='';
   (d.items||[]).forEach(it=>{
     const div=document.createElement('div');div.className='item';
-    const k=document.createElement('div');k.className='kind';k.textContent=(it.kind||'задача')+(it.due?' · '+it.due:'');
+    // Вид пункта — по-русски: «task» и «meeting» на экране читаются как отладка, а не как ответ.
+    const kindName={task:'задача',meeting:'встреча',reminder:'напоминание',note:'заметка'}[it.kind]||'пункт';
+    const k=document.createElement('div');k.className='kind';k.textContent=kindName+(it.due?' · '+it.due:'')+(it.assignee?' · '+it.assignee:'');
     const t=document.createElement('div');t.textContent=it.title||'';
     div.appendChild(k);div.appendChild(t);
-    if(it.evidence&&it.evidence.quote){const q=document.createElement('div');q.className='quote';q.textContent='«'+it.evidence.quote+'»';div.appendChild(q)}
+    if(it.evidence&&it.evidence.quote){const q=document.createElement('div');q.className='quote';q.textContent='«'+it.evidence.quote.trim()+'»'+(it.evidence.speaker?' — '+it.evidence.speaker:'');div.appendChild(q)}
     items.appendChild(div);
   });
   if(!(d.items||[]).length){items.innerHTML='<p class="muted">'+(d.rejected&&d.rejected.length?'Найдено '+d.rejected.length+', но ни один пункт не подтвердился цитатой.':'Разбор не нашёл задач с цитатой.')+'</p>'}
@@ -232,6 +237,10 @@ $('#start').onclick=start;$('#pause').onclick=togglePause;$('#stop').onclick=sto
 // Зачем: после «Готово» разбор уходил в никуда — его нельзя было ни открыть, ни переслушать.
 // Теперь каждый разговор живёт в списке, а карточка собирает всё, что по нему есть.
 let CONVS=[],shown=null;
+// Показ и скрытие через important: у этих элементов есть собственные правила CSS, и обычная
+// строка в style проигрывала им — блок «показывался», оставаясь невидимым.
+function show(node){if(node)node.style.setProperty('display','block','important')}
+function hide(node){if(node)node.style.setProperty('display','none','important')}
 function fmtWhen(ts){
   if(!ts)return '';
   const d=new Date(ts*1000);
@@ -244,7 +253,7 @@ async function loadConvs(){
   try{
     const r=await fetch(server()+'/api/v1/conversations',{headers:headers()});
     const d=await r.json();
-    if(!r.ok){convsMsg(needToken(d.message||('код '+r.status)),true);box.innerHTML='';return}
+    if(!r.ok){convsMsg(needToken(d.message||('Сервер ответил кодом '+r.status)),true);box.innerHTML='';return}
     CONVS=d.items||[];
     drawConvs(d);
   }catch(e){box.innerHTML='';convsMsg('Журнал не получен: '+e.message,true)}
@@ -262,15 +271,19 @@ function drawConvs(d){
     body.appendChild(b);
     const meta=[fmtWhen(c.started)];
     if(c.duration_s)meta.push(fmtDur(c.duration_s));
+    if(!c.has_audio)meta.push('звука нет');
     meta.push(c.ready?'разбор готов':(c.has_audio?'разбора ещё нет':'записи нет'));
     const s=document.createElement('span');s.textContent=meta.join(' · ');body.appendChild(s);
     const state=document.createElement('div');state.className='state';
-    const i=document.createElement('i');i.textContent=c.ready?(c.items||0)+' пункт(ов) в разборе':'';
+    const i=document.createElement('i');i.textContent=c.ready?(c.items?c.items+' в разборе':'разбор без задач'):'';
     if(!c.ready)i.className='paid';state.appendChild(i);body.appendChild(state);
     row.appendChild(body);
     const tools=document.createElement('div');tools.className='tools';
-    if(c.ready){const open=document.createElement('button');open.className='small';open.textContent='Открыть';open.onclick=()=>openConv(c.session_id);tools.appendChild(open)}
-    if(c.has_audio){const an=document.createElement('button');an.className='ghost small';an.textContent=c.ready?'Разобрать заново':'Разобрать';an.onclick=()=>analyzeConv(c.session_id);tools.appendChild(an)}
+    if(c.ready){const open=document.createElement('button');open.className='small';open.textContent='Открыть';open.dataset.sid=c.session_id;open.onclick=()=>openConv(open.dataset.sid);tools.appendChild(open)}
+    if(c.has_audio){const an=document.createElement('button');an.className='ghost small';an.textContent=c.ready?'Разобрать заново':'Разобрать';an.dataset.sid=c.session_id;an.onclick=()=>analyzeConv(an.dataset.sid);tools.appendChild(an)}
+    // Вся строка кликабельна, кроме кнопок: на телефоне попасть в «Открыть» сложнее, чем в строку.
+    if(c.ready)row.classList.add('clickable');
+    row.addEventListener('click',e=>{if(e.target.closest('.tools'))return;if(c.ready)openConv(c.session_id)});
     row.appendChild(tools);box.appendChild(row);
   });
   convsMsg('Всего разговоров: '+CONVS.length+(d&&d.ready!=null?', с разбором: '+d.ready:''),false);
@@ -278,13 +291,24 @@ function drawConvs(d){
 // Открытие разговора: сперва готовый разбор, расшифровка и звук — без повторного распознавания.
 async function openConv(id){
   if(!id)return;
+  if(!CONVS.length)await loadConvs();
+  const c=CONVS.find(x=>x.session_id===id)||{};
   shown=id;
   el('digest').style.display='block';
   el('digestTitle').textContent='Разговор';
   el('digestWhen').textContent='Открываю…';
-  el('transcriptBox').style.display='none';
+  hide(el('transcriptBox'));
   ['summary','items','questions'].forEach(k=>el(k).innerHTML='');
-  const audio=el('digestAudio');audio.style.display='block';audio.src=server()+'/api/v1/sessions/'+id+'/audio?token='+encodeURIComponent(token());
+  // Нет звука — нет плеера: чёрная полоса вместо записи читается как «сломалось».
+  // Убирать ссылку с экрана — честнее, чем оставлять её и молча получать 404.
+  const audio=el('digestAudio');
+  if(c.has_audio){show(audio);audio.src=server()+'/api/v1/sessions/'+id+'/audio?token='+encodeURIComponent(token())}
+  else{audio.pause();audio.removeAttribute('src');hide(audio)}
+  // Нет текста — нет кнопки скачивания: ссылка, которая отдаёт ошибку, хуже её отсутствия.
+  const hasText=c.ready===true;
+  ['trSrt','trJson','digestTranscript'].forEach(k=>{hasText?show(el(k)):hide(el(k))});
+  // Скачать расшифровку можно только когда она есть: ссылка без текста отдаёт отказ.
+  c.ready?show(el('digestDownload')):hide(el('digestDownload'));
   el('digestDownload').href=server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token());
   el('trSrt').href=server()+'/api/v1/sessions/'+id+'/transcript?format=srt&token='+encodeURIComponent(token());
   el('trJson').href=server()+'/api/v1/sessions/'+id+'/transcript?format=json&token='+encodeURIComponent(token());
@@ -296,7 +320,6 @@ async function openConv(id){
       return;
     }
     render(d);
-    const c=CONVS.find(x=>x.session_id===id)||{};
     el('digestTitle').textContent=d.title||'Разбор разговора';
     el('digestWhen').textContent=[fmtWhen(c.started),c.duration_s?fmtDur(c.duration_s):'','запись: '+id.slice(0,8)].filter(Boolean).join(' · ');
     el('digest').scrollIntoView({behavior:'smooth',block:'start'});
@@ -314,18 +337,25 @@ async function analyzeConv(id){
 }
 async function showTranscript(id){
   const box=el('transcriptBox'),text=el('transcriptText');
-  if(box.style.display==='block'){box.style.display='none';return}
-  box.style.display='block';text.textContent='Загружаю расшифровку…';
+  if(getComputedStyle(box).display!=='none'){hide(box);return}
+  show(box);text.textContent='Загружаю расшифровку…';
   try{
     const r=await fetch(server()+'/api/v1/sessions/'+id+'/transcript?format=txt&token='+encodeURIComponent(token()));
-    if(!r.ok){text.textContent='Расшифровка не открылась: код '+r.status;return}
+    if(!r.ok){
+      // Сырой JSON и «код 409» человеку ничего не говорят: переводим на слова.
+      const d=await r.json().catch(()=>null);
+      text.textContent=d&&d.message?d.message:('Расшифровка не открылась, код '+r.status+'.');
+      return;
+    }
     text.textContent=await r.text();
   }catch(e){text.textContent='Связь прервалась: '+e.message}
 }
 // Обработчики журнала вешаем ПОСЛЕ объявления el: раньше здесь стоял вызов el() до её объявления,
 // и весь скрипт падал с ReferenceError — страница оставалась мёртвой ($('...') ниже по коду).
 function wireJournal(){
-el('convsToggle').onclick=()=>{const b=el('convs');b.style.display=b.style.display==='none'?'grid':'none'};
+// Список раскрыт по умолчанию: разговоры — главное, что человек пришёл смотреть. Кнопка только
+// сворачивает его, и подпись честно говорит, что сделает нажатие.
+el('convsToggle').onclick=()=>{const b=el('convs'),open=b.style.display!=='none';b.style.display=open?'none':'grid';el('convsToggle').textContent=open?'Показать список':'Свернуть список'};
 el('convsReload').onclick=loadConvs;
 el('digestClose').onclick=()=>{el('digest').style.display='none';el('digestAudio').pause()};
 el('digestTranscript').onclick=()=>showTranscript(shown);
