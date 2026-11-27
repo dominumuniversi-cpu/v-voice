@@ -60,7 +60,9 @@ def list_models(runtime: Any) -> dict[str, Any]:
         base = chosen['base_url'].rstrip('/').removesuffix('/api/chat')
         if not base:
             return {'provider': 'ollama', 'models': [], 'source': 'none',
-                    'message': 'Укажите адрес Ollama — список моделей берётся с вашего сервера.'}
+                    'message': 'Укажите адрес Ollama — список моделей берётся с вашего сервера. '
+                               'Скачивания моделей здесь нет: это делается на вашем сервере командой '
+                               'ollama pull <модель>, после чего модель появится в списке.'}
         try:
             import json as _json
             import urllib.request
@@ -68,7 +70,8 @@ def list_models(runtime: Any) -> dict[str, Any]:
                 data = _json.loads(resp.read().decode('utf-8'))
             names = [m.get('name', '') for m in data.get('models', []) if m.get('name')]
             return {'provider': 'ollama', 'models': names, 'source': 'live',
-                    'message': '' if names else 'Сервер ответил, но моделей в нём нет: скачайте модель на сервере.'}
+                    'message': '' if names else ('Сервер ответил, но моделей в нём нет: скачайте модель на сервере '
+                                                 'командой ollama pull <модель> — здесь её не скачать.')}
         except Exception as exc:
             return {'provider': 'ollama', 'models': [], 'source': 'error',
                     'message': 'Не удалось спросить Ollama: ' + str(exc)[:200]}
