@@ -152,8 +152,15 @@ def handle(method: str, path: str, raw_body: str = "", *, sender: Any = None,
     # Пускаем только своих. Пустой список токенов — сервер открыт (как было), и это осознанный
     # режим разработки: он не должен тихо превращаться в «открыто» на боевом сервере.
     if device_tokens and not _authorized(auth_token, device_tokens):
-        return Response(401, {"error": "unauthorized",
-                              "message": "Нужен токен устройства. Он выдаётся при настройке приложения."},
+        # Человек чаще всего путает две вещи: токен устройства (пускает в сервис) и ключ модели
+        # (платит провайдеру). Пишем это прямо, иначе он ищет ошибку не там, где она есть.
+        hint = "Нужен токен устройства. Он выдаётся при настройке приложения."
+        given = (auth_token or "").strip()
+        if given.startswith(("sk-", "ghp_", "ghs_")):
+            hint += " Похоже, вставлен ключ модели: он нужен ниже, в поле «Ключ» у выбранной связки, а не в токене."
+        elif given:
+            hint += " Токен не совпал с тем, что знает сервер."
+        return Response(401, {"error": "unauthorized", "message": hint},
                         {"WWW-Authenticate": "Bearer"})
 
     if method.upper() == "GET":
